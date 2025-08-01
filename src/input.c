@@ -115,7 +115,7 @@ void axiom_new_keyboard(struct axiom_server *server, struct wlr_input_device *de
     xkb_keymap_unref(keymap);
     xkb_context_unref(context);
     
-    wlr_keyboard_set_repeat_info(wlr_keyboard, server->config.repeat_rate, server->config.repeat_delay);
+    wlr_keyboard_set_repeat_info(wlr_keyboard, server->config->repeat_rate, server->config->repeat_delay);
     
     keyboard->keyboard.modifiers.notify = keyboard_handle_modifiers;
     wl_signal_add(&wlr_keyboard->events.modifiers, &keyboard->keyboard.modifiers);

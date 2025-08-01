@@ -23,6 +23,26 @@
 struct axiom_server;
 struct axiom_output;
 struct axiom_input_device;
+struct axiom_config;
+
+/* Configuration structure */
+struct axiom_config {
+    // Input settings
+    char *cursor_theme;
+    int cursor_size;
+    uint32_t repeat_rate;
+    uint32_t repeat_delay;
+    
+    // Tiling settings
+    bool tiling_enabled;
+    int border_width;
+    int gap_size;
+    
+    // Appearance settings
+    char *background_color;
+    char *border_active;
+    char *border_inactive;
+};
 
 /* Forward declarations */
 struct axiom_window {
@@ -141,12 +161,7 @@ struct axiom_server {
     int max_workspaces;
     
     // Configuration
-    struct {
-        char *cursor_theme;
-        int cursor_size;
-        uint32_t repeat_rate;
-        uint32_t repeat_delay;
-    } config;
+    struct axiom_config *config;
 };
 
 /* Function declarations */
@@ -185,6 +200,11 @@ void axiom_calculate_window_layout(struct axiom_server *server, int index,
 
 // Output management
 void axiom_new_output(struct wl_listener *listener, void *data);
+
+// Configuration
+struct axiom_config *axiom_config_create(void);
+void axiom_config_destroy(struct axiom_config *config);
+bool axiom_config_load(struct axiom_config *config, const char *path);
 
 // Logging
 void axiom_log(const char *level, const char *format, ...);

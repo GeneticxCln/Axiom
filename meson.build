@@ -52,7 +52,8 @@ axiom_sources = files(
   'src/main.c',
   'src/logging.c',
   'src/input.c',
-  'src/cursor.c'
+  'src/cursor.c',
+  'src/config.c'
 )
 
 # Executable
@@ -80,5 +81,16 @@ test_executable = executable('test_axiom',
   install: false,
 )
 
+test_config_sources = files(
+  'tests/test_config.c'
+)
+
+test_config_executable = executable('test_config',
+  sources: test_config_sources,
+  include_directories: inc,
+  install: false,
+)
+
 test('basic_tests', test_executable)
+test('config_tests', test_config_executable)
 

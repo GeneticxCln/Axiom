@@ -245,15 +245,35 @@ int main(int argc, char *argv[]) {
     server.new_output.notify = server_new_output;
     wl_signal_add(&server.backend->events.new_output, &server.new_output);
     
+    // Initialize configuration
+    server.config = axiom_config_create();
+    if (!server.config) {
+        fprintf(stderr, "Failed to create configuration\n");
+        return EXIT_FAILURE;
+    }
+    
+    // Try to load config file from standard locations
+    const char *config_paths[] = {
+        "./axiom.conf",
+        "./examples/axiom.conf", 
+        "/etc/axiom/axiom.conf",
+        NULL
+    };
+    
+    for (int i = 0; config_paths[i]; i++) {
+        if (axiom_config_load(server.config, config_paths[i])) {
+            break;
+        }
+    }
+    
+    // Apply configuration to server state
+    server.tiling_enabled = server.config->tiling_enabled;
+    
     // Set up input management
     wl_list_init(&server.input_devices);
-    server.config.repeat_rate = 25;
-    server.config.repeat_delay = 600;
-    server.config.cursor_theme = "default";
-    server.config.cursor_size = 24;
     
     server.cursor = wlr_cursor_create();
-    server.cursor_mgr = wlr_xcursor_manager_create(server.config.cursor_theme, server.config.cursor_size);
+    server.cursor_mgr = wlr_xcursor_manager_create(server.config->cursor_theme, server.config->cursor_size);
     wlr_cursor_attach_output_layout(server.cursor, server.output_layout);
     
     server.cursor_mode = AXIOM_CURSOR_PASSTHROUGH;
@@ -295,6 +315,8 @@ int main(int argc, char *argv[]) {
         }
     }
     
+    // Cleanup
+    axiom_config_destroy(server.config);
     wl_display_destroy(server.wl_display);
     return EXIT_SUCCESS;
 }
