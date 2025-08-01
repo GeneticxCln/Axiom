@@ -16,11 +16,16 @@ static void shadow_opacity_animation_callback(struct axiom_animation *anim, void
 static void blur_strength_animation_callback(struct axiom_animation *anim, void *user_data);
 
 // Performance constants
-#define EFFECT_UPDATE_THRESHOLD_MS 16  // ~60fps
+#define EFFECT_UPDATE_THRESHOLD_MS 16  // ~60fps default
+#define EFFECT_UPDATE_THRESHOLD_LOW_MS 33  // ~30fps for low-end hardware
+#define EFFECT_UPDATE_THRESHOLD_HIGH_MS 8   // ~120fps for high-end hardware
 #define SHADOW_OFFSET_X 5
 #define SHADOW_OFFSET_Y 5
 #define SHADOW_BLUR_RADIUS 10
 #define MAX_BLUR_RADIUS 15
+#define PERFORMANCE_SAMPLE_SIZE 60  // Sample 60 frames for performance analysis
+#define TARGET_FRAME_TIME_MS 16     // Target 16ms frame time (60fps)
+#define PERFORMANCE_ADJUSTMENT_THRESHOLD 5  // Adjust after 5 consecutive slow frames
 
 // Real-time effects initialization
 bool axiom_realtime_effects_init(struct axiom_effects_manager *manager) {
@@ -507,16 +512,36 @@ bool axiom_effects_should_update(struct axiom_window *window, uint32_t current_t
     if (!window || !window->effects) return false;
     
     uint32_t elapsed = current_time - window->effects->last_frame_time;
-    return elapsed >= EFFECT_UPDATE_THRESHOLD_MS;
+return elapsed >= *effect_update_threshold_ms;
 }
 
-void axiom_effects_throttle_updates(struct axiom_effects_manager *manager) {
-    if (!manager) return;
-    
-    // Implement frame rate limiting for effects updates
+void axiom_effects_throttle_updates(struct axiom_effects_manager *manager, uint32_t *effect_update_threshold_ms) {
+    if (!manager || !effect_update_threshold_ms) return;
+
+    // Implement adaptive frame rate management
     manager->frame_count++;
-    
+
+    // Update current time in milliseconds
     uint32_t current_time = time(NULL) * 1000;
+
+    // Adaptive frame rate logic
+    if (manager->frame_count == PERFORMANCE_SAMPLE_SIZE) {
+        uint32_t average_frame_time = (current_time - manager->last_frame_time) / manager->frame_count;
+        manager->frame_count = 0;
+        manager->last_frame_time = current_time;
+
+        // Adjust effect update threshold based on performance
+        if (average_frame_time > TARGET_FRAME_TIME_MS + PERFORMANCE_ADJUSTMENT_THRESHOLD) {
+            EFFECT_UPDATE_THRESHOLD_MS = EFFECT_UPDATE_THRESHOLD_LOW_MS;
+            printf("Lowering effect frame rate due to high render time: %ums/frame\n", average_frame_time);
+        } else if (average_frame_time < TARGET_FRAME_TIME_MS) {
+            EFFECT_UPDATE_THRESHOLD_MS = EFFECT_UPDATE_THRESHOLD_HIGH_MS;
+            printf("Increasing effect frame rate due to low render time: %ums/frame\n", average_frame_time);
+        } else {
+            EFFECT_UPDATE_THRESHOLD_MS = TARGET_FRAME_TIME_MS;
+        }
+    }
+
     if (current_time - manager->last_frame_time >= 1000) {
         printf("Effects FPS: %u\n", manager->frame_count);
         manager->frame_count = 0;

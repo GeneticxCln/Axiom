@@ -132,6 +132,10 @@ static bool handle_keybinding(struct axiom_server *server, xkb_keysym_t sym, uin
             axiom_adjust_master_ratio(0.05f);
             axiom_arrange_windows(server);
             return true;
+        case XKB_KEY_r:
+            // Reload configuration (Super+R)
+            axiom_reload_configuration(server);
+            return true;
         // Phase 2: Workspace number key switching (Super + 1-9)
         case XKB_KEY_1:
         case XKB_KEY_2:

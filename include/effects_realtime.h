@@ -78,7 +78,7 @@ void axiom_effects_set_window_opacity(struct axiom_window *window, float opacity
 // Performance optimization
 void axiom_effects_mark_dirty(struct axiom_window *window);
 bool axiom_effects_should_update(struct axiom_window *window, uint32_t current_time);
-void axiom_effects_throttle_updates(struct axiom_effects_manager *manager);
+void axiom_effects_throttle_updates(struct axiom_effects_manager *manager, uint32_t *effect_update_threshold_ms);
 
 // Configuration helpers
 void axiom_effects_update_shadow_config(struct axiom_window *window,

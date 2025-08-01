@@ -295,6 +295,7 @@ void axiom_kill_waybar(void);
 bool axiom_process_exists(const char *name);
 
 // Configuration functions in config.h
+void axiom_reload_configuration(struct axiom_server *server);
 
 // Logging
 void axiom_log(const char *level, const char *format, ...);

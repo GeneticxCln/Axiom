@@ -15,6 +15,69 @@
 #include "window_snapping.h"
 void axiom_calculate_window_layout(struct axiom_server *server, int index, int *x, int *y, int *width, int *height);
 
+// Configuration reload function
+void axiom_reload_configuration(struct axiom_server *server) {
+    if (!server) return;
+    
+    printf("Reloading configuration...\n");
+    
+    // Reload window rules
+    if (server->window_rules_manager) {
+        axiom_window_rules_reload_config(server->window_rules_manager);
+        printf("Window rules reloaded\n");
+    }
+    
+    // Reload main configuration
+    if (server->config) {
+        struct axiom_config *new_config = axiom_config_create();
+        if (new_config) {
+            // Try to load from various paths
+            const char *config_paths[] = {
+                "./axiom.conf",
+                "./examples/axiom.conf",
+                "~/.config/axiom/axiom.conf",
+                "/etc/axiom/axiom.conf",
+                NULL
+            };
+            
+            bool loaded = false;
+            for (int i = 0; config_paths[i] && !loaded; i++) {
+                loaded = axiom_config_load(new_config, config_paths[i]);
+            }
+            
+            if (loaded) {
+                // Replace old config with new one
+                axiom_config_destroy(server->config);
+                server->config = new_config;
+                printf("Main configuration reloaded\n");
+                
+                // Update effects manager with new config
+                if (server->effects_manager && server->config->effects.shadows_enabled) {
+                    axiom_effects_manager_destroy(server->effects_manager);
+                    server->effects_manager = calloc(1, sizeof(struct axiom_effects_manager));
+                    if (server->effects_manager) {
+                        axiom_effects_manager_init(server->effects_manager, &server->config->effects);
+                        printf("Effects configuration reloaded\n");
+                    }
+                }
+            } else {
+                axiom_config_destroy(new_config);
+                printf("Failed to reload main configuration, keeping existing\n");
+            }
+        }
+    }
+    
+    // Re-apply configuration to existing windows
+    struct axiom_window *window;
+    wl_list_for_each(window, &server->windows, link) {
+        if (server->window_rules_manager) {
+            axiom_window_rules_apply_to_window(server->window_rules_manager, window);
+        }
+    }
+    
+    printf("Configuration reload complete\n");
+}
+
 void axiom_arrange_windows(struct axiom_server *server) {
     if (!server->tiling_enabled || server->window_count == 0) {
         return;
@@ -520,6 +583,24 @@ int main(int argc, char *argv[]) {
     server.window_snapping_manager = axiom_window_snapping_manager_create(&server);
     if (!server.window_snapping_manager) {
         fprintf(stderr, "Failed to initialize window snapping manager\n");
+    } else {
+        // Convert configuration structure and initialize snapping
+        struct axiom_snapping_config snapping_config = {
+            .snap_threshold = server.config->window_snapping.snap_threshold,
+            .edge_resistance = server.config->window_snapping.edge_resistance,
+            .magnetism_strength = server.config->window_snapping.magnetism_strength,
+            .animation_duration = 200, // Default animation duration
+            .smart_corners = server.config->window_snapping.smart_corners,
+            .multi_monitor_snapping = server.config->window_snapping.multi_monitor_snapping,
+            .window_to_window_snapping = server.config->window_snapping.window_to_window_snapping,
+            .edge_snapping = server.config->window_snapping.edge_snapping
+        };
+        
+        if (!axiom_window_snapping_manager_init(server.window_snapping_manager, &snapping_config)) {
+            fprintf(stderr, "Failed to initialize window snapping configuration\n");
+        } else {
+            printf("Window snapping system initialized successfully\n");
+        }
     }
 
     // Initialize process management
@@ -655,7 +736,7 @@ int main(int argc, char *argv[]) {
                 }
                 
                 // Throttle effects updates for performance
-                axiom_effects_throttle_updates(server.effects_manager);
+                axiom_effects_throttle_updates(server.effects_manager, 16);
             }
         }
         

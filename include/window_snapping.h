@@ -106,6 +106,11 @@ void axiom_window_snapping_on_resize(struct axiom_window *window);
 void axiom_window_snapping_on_focus(struct axiom_window *window);
 void axiom_window_snapping_on_fullscreen_toggle(struct axiom_window *window);
 
+// Real-time movement handling
+void axiom_window_snapping_handle_move(struct axiom_server *server, struct axiom_window *window, int x, int y);
+void axiom_window_snapping_handle_resize(struct axiom_server *server, struct axiom_window *window, int width, int height);
+void axiom_window_snapping_clear_state(struct axiom_server *server, struct axiom_window *window);
+
 // Configuration
 bool axiom_window_snapping_load_config(struct axiom_window_snapping_manager *manager, const char *config_path);
 bool axiom_window_snapping_save_config(struct axiom_window_snapping_manager *manager, const char *config_path);

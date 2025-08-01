@@ -305,9 +305,29 @@ bool axiom_window_rule_apply_workspace(struct axiom_window_rule *rule,
                                       struct axiom_window *window) {
     if (!rule || !window || !window->server) return false;
     
-    // TODO: Implement workspace switching
-    // For now, just print what we would do
-    printf("Would move window to workspace %d\n", rule->workspace);
+    struct axiom_server *server = window->server;
+    
+    // Validate workspace index
+    if (rule->workspace < 0 || rule->workspace >= server->max_workspaces) {
+        printf("Invalid workspace %d in rule (max: %d)\n", rule->workspace, server->max_workspaces - 1);
+        return false;
+    }
+    
+    // Move window to the specified workspace
+    printf("Moving window to workspace %d\n", rule->workspace);
+    axiom_move_window_to_workspace(server, window, rule->workspace);
+    
+    // If the window was moved to the current workspace, update window count
+    if (rule->workspace == server->current_workspace && window->is_tiled) {
+        server->window_count++;
+        
+        // Re-arrange windows to accommodate the new window
+        if (server->tiling_enabled) {
+            axiom_arrange_windows(server);
+        }
+    }
+    
+    printf("Applied workspace rule: moved window to workspace %d\n", rule->workspace);
     return true;
 }
 
@@ -346,11 +366,25 @@ bool axiom_window_rule_apply_position(struct axiom_window_rule *rule,
             break;
             
         case AXIOM_RULE_POS_MAXIMIZED:
-            // TODO: Implement proper maximization
+            // Implement proper maximization
             new_x = 0;
             new_y = 0;
             window->width = server->workspace_width;
             window->height = server->workspace_height;
+            
+            // Save current state for potential restoration
+            window->saved_x = window->x;
+            window->saved_y = window->y;
+            window->saved_width = window->width;
+            window->saved_height = window->height;
+            
+            // Set maximized state
+            window->is_maximized = true;
+            
+            // Request client to maximize
+            if (window->xdg_toplevel) {
+                wlr_xdg_toplevel_set_maximized(window->xdg_toplevel, true);
+            }
             break;
             
         case AXIOM_RULE_POS_CUSTOM:
@@ -478,21 +512,71 @@ bool axiom_window_rule_apply_effects(struct axiom_window_rule *rule,
                                     struct axiom_window *window) {
     if (!rule || !window) return false;
     
-    // TODO: Implement effects overrides
-    if (rule->disable_shadows) {
-        printf("Would disable shadows for this window\n");
+    struct axiom_server *server = window->server;
+    bool effects_changed = false;
+    
+    // Initialize window effects if not already done
+    if (!window->effects && server && server->effects_manager) {
+        axiom_window_effects_init(window);
     }
     
-    if (rule->disable_blur) {
-        printf("Would disable blur for this window\n");
+    // Apply shadow disable/enable
+    if (rule->disable_shadows && window->effects) {
+        // Create a local shadow config with shadows disabled
+        struct axiom_shadow_config shadow_config = server->effects_manager->shadow;
+        shadow_config.enabled = false;
+        axiom_effects_update_shadow_config(window, &shadow_config);
+        printf("Disabled shadows for window per rule\n");
+        effects_changed = true;
     }
     
-    if (rule->disable_animations) {
-        printf("Would disable animations for this window\n");
+    // Apply blur disable/enable
+    if (rule->disable_blur && window->effects) {
+        // Create a local blur config with blur disabled
+        struct axiom_blur_config blur_config = server->effects_manager->blur;
+        blur_config.enabled = false;
+        axiom_effects_update_blur_config(window, &blur_config);
+        printf("Disabled blur for window per rule\n");
+        effects_changed = true;
     }
     
+    // Apply transparency override
+    if (rule->custom_opacity != 1.0f && window->effects) {
+        axiom_effects_set_window_opacity(window, rule->custom_opacity);
+        printf("Set custom opacity %.2f for window per rule\n", rule->custom_opacity);
+        effects_changed = true;
+    }
+    
+    // Picture-in-picture mode implementation
     if (rule->enable_pip) {
-        printf("Would enable picture-in-picture for this window\n");
+        // PiP typically involves keeping window on top and making it smaller
+        window->is_tiled = false; // Force floating for PiP
+        
+        // Set a smaller size if not already set by size rule
+        if (rule->size == AXIOM_RULE_SIZE_NONE) {
+            window->width = 320;
+            window->height = 240;
+            if (window->xdg_toplevel) {
+                wlr_xdg_toplevel_set_size(window->xdg_toplevel, window->width, window->height);
+            }
+        }
+        
+        // Position in corner if not already set by position rule
+        if (rule->position == AXIOM_RULE_POS_NONE && server) {
+            window->x = server->workspace_width - window->width - 20;
+            window->y = server->workspace_height - window->height - 20;
+            if (window->scene_tree) {
+                wlr_scene_node_set_position(&window->scene_tree->node, window->x, window->y);
+            }
+        }
+        
+        printf("Enabled picture-in-picture mode for window\n");
+        effects_changed = true;
+    }
+    
+    // Mark effects for update if changes were made
+    if (effects_changed && window->effects) {
+        axiom_effects_mark_dirty(window);
     }
     
     return true;

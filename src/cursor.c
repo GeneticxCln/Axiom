@@ -1,4 +1,5 @@
 #include "axiom.h"
+#include "window_snapping.h"
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_pointer.h>
 #include <wlr/util/log.h>
@@ -124,11 +125,12 @@ void axiom_process_cursor_move(struct axiom_server *server, uint32_t time) {
     int new_x = server->cursor->x - server->grab_x;
     int new_y = server->cursor->y - server->grab_y;
     
-    window->x = new_x;
-    window->y = new_y;
+    // Apply window snapping during move
+    axiom_window_snapping_handle_move(server, window, new_x, new_y);
     
-    wlr_scene_node_set_position(&window->scene_tree->node, new_x, new_y);
-    AXIOM_LOG_DEBUG("Moving window to %d, %d", new_x, new_y);
+    // The snapping handler updates window->x and window->y with snapped positions
+    wlr_scene_node_set_position(&window->scene_tree->node, window->x, window->y);
+    AXIOM_LOG_DEBUG("Moving window to %d, %d (with snapping)", window->x, window->y);
 }
 
 void axiom_process_cursor_resize(struct axiom_server *server, uint32_t time) {
@@ -180,9 +182,12 @@ void axiom_process_cursor_resize(struct axiom_server *server, uint32_t time) {
     window->width = new_right - new_left;
     window->height = new_bottom - new_top;
     
+    // Apply window snapping constraints during resize
+    axiom_window_snapping_handle_resize(server, window, window->width, window->height);
+    
     wlr_scene_node_set_position(&window->scene_tree->node, window->x, window->y);
     wlr_xdg_toplevel_set_size(window->xdg_toplevel, window->width, window->height);
     
-    AXIOM_LOG_DEBUG("Resizing window to %dx%d at %d,%d", 
+    AXIOM_LOG_DEBUG("Resizing window to %dx%d at %d,%d (with snapping constraints)", 
                     window->width, window->height, window->x, window->y);
 }
