@@ -1,0 +1,156 @@
+.TH AXIOM 1 "2024" "Axiom 1.0" "User Commands"
+.SH NAME
+axiom \- A modern, feature-rich Wayland compositor
+.SH SYNOPSIS
+.B axiom
+[\fIOPTION\fR]...
+.SH DESCRIPTION
+Axiom is a lightweight yet powerful Wayland compositor designed for productivity and customization. Built on top of wlroots, it provides advanced window management features including intelligent window snapping, multi-monitor support, and seamless integration with existing Wayland applications.
+
+.SH OPTIONS
+.TP
+.B \-h, \-\-help
+Show help message and exit
+.TP
+.B \-v, \-\-version
+Show version information and exit
+.TP
+.B \-c, \-\-config \fIFILE\fR
+Use specific configuration file (default: ~/.config/axiom/axiom.conf)
+.TP
+.B \-\-nested
+Run in nested mode for testing inside another Wayland compositor
+.TP
+.B \-\-debug
+Enable debug logging
+.TP
+.B \-\-no\-effects
+Disable all visual effects for debugging
+
+.SH KEYBOARD SHORTCUTS
+.SS Core Navigation
+.TP
+.B Super+Q
+Quit compositor
+.TP
+.B Super+Return
+Launch terminal
+.TP
+.B Super+D
+Launch application launcher (rofi)
+.TP
+.B Super+B
+Toggle status bar (waybar)
+.TP
+.B Super+W, Alt+F4
+Close focused window
+.TP
+.B Super+F
+Toggle fullscreen
+.TP
+.B Alt+Tab
+Cycle through windows
+
+.SS Window Management
+.TP
+.B Super+T
+Toggle tiling mode
+.TP
+.B Super+L
+Cycle tiling layouts
+.TP
+.B Super+Space
+Toggle window floating/tiled
+.TP
+.B Super+H/J
+Adjust master window ratio
+
+.SS Workspace Management
+.TP
+.B Super+1-9
+Switch to workspace 1-9
+.TP
+.B Super+Shift+1-9
+Move focused window to workspace 1-9
+
+.SH CONFIGURATION
+Axiom uses an INI-style configuration file located at:
+.I ~/.config/axiom/axiom.conf
+
+The configuration supports the following sections:
+.TP
+.B [input]
+Input device configuration (keyboard repeat, cursor theme)
+.TP
+.B [tiling]
+Window tiling behavior (gaps, borders)
+.TP
+.B [appearance]
+Visual appearance (colors, themes)
+.TP
+.B [animations]
+Animation settings and durations
+.TP
+.B [effects]
+Visual effects configuration (shadows, blur, transparency)
+.TP
+.B [smart_gaps]
+Dynamic gap management
+.TP
+.B [window_snapping]
+Window snapping behavior
+.TP
+.B [workspaces]
+Workspace management settings
+
+.SH FILES
+.TP
+.I ~/.config/axiom/axiom.conf
+Main configuration file
+.TP
+.I ~/.config/axiom/rules.conf
+Window rules configuration
+.TP
+.I /etc/axiom/axiom.conf
+System-wide configuration file
+
+.SH ENVIRONMENT
+.TP
+.B WAYLAND_DISPLAY
+Wayland display to connect to (when running nested)
+.TP
+.B WLR_NO_HARDWARE_CURSORS
+Set to 1 to disable hardware cursor support
+.TP
+.B WLR_RENDERER
+Renderer backend to use (auto, gles2, pixman)
+
+.SH EXAMPLES
+.TP
+Run Axiom as the main compositor:
+.B axiom
+.TP
+Run Axiom in nested mode for testing:
+.B axiom --nested
+.TP
+Run with custom configuration:
+.B axiom -c /path/to/config.conf
+.TP
+Run with debug logging:
+.B axiom --debug
+
+.SH SEE ALSO
+.BR axiom.conf (5),
+.BR wlroots (7),
+.BR wayland (7)
+
+.SH BUGS
+Report bugs at: https://github.com/GeneticxCln/Axiom/issues
+
+.SH AUTHORS
+Axiom Wayland Compositor Project
+
+.SH COPYRIGHT
+Copyright (C) 2024 Axiom Project. License GPLv3+: GNU GPL version 3 or later.
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.

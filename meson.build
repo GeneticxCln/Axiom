@@ -82,6 +82,27 @@ executable('axiom',
   install: true,
 )
 
+# Install desktop integration files
+install_data('axiom.desktop',
+  install_dir: get_option('datadir') / 'wayland-sessions'
+)
+
+install_data('axiom.session',
+  install_dir: get_option('datadir') / 'wayland-sessions'
+)
+
+# Install configuration examples
+install_data('examples/axiom.conf',
+  install_dir: get_option('sysconfdir') / 'axiom'
+)
+
+install_data('examples/rules.conf',
+  install_dir: get_option('sysconfdir') / 'axiom'
+)
+
+# Install manual pages
+install_man('man/axiom.1')
+
 # Tests
 test_sources = files(
   'tests/test_basic.c'

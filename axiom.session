@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Axiom
+Comment=Axiom Wayland Compositor Session
+Exec=axiom
+Type=Application
+DesktopNames=Axiom

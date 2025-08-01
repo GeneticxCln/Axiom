@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=Axiom
+Comment=A modern, feature-rich Wayland compositor
+Exec=axiom
+TryExec=axiom
+Type=Application
+Categories=System;
+OnlyShowIn=GNOME;KDE;XFCE;
+NoDisplay=true
+X-GDM-SessionRegisters=true
+X-LightDM-DesktopName=Axiom
+DesktopNames=Axiom
