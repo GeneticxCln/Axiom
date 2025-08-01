@@ -2,12 +2,18 @@
 #include "effects.h"
 #include "renderer.h"
 #include "axiom.h"
+#include "animation.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <math.h>
 #include <GLES2/gl2.h>
 #include <wlr/render/wlr_renderer.h>
+
+// Animation callback functions
+static void shadow_opacity_animation_callback(struct axiom_animation *anim, void *user_data);
+static void blur_strength_animation_callback(struct axiom_animation *anim, void *user_data);
 
 // Performance constants
 #define EFFECT_UPDATE_THRESHOLD_MS 16  // ~60fps
@@ -539,9 +545,19 @@ void axiom_effects_update_transparency_config(struct axiom_window *window,
                                                struct axiom_transparency_config *config) {
     if (!window || !window->effects || !config) return;
     
-    // Use focused_opacity as default opacity for window
-    // TODO: Implement focused/unfocused state tracking
-    axiom_effects_set_window_opacity(window, config->focused_opacity);
+    // Use appropriate opacity based on window focus state
+    float target_opacity;
+    if (window->is_focused) {
+        target_opacity = config->focused_opacity;
+    } else if (window->server && window->server->focused_window != NULL) {
+        // Window is not focused and there's another focused window
+        target_opacity = config->unfocused_opacity;
+    } else {
+        // No window is focused, use inactive opacity
+        target_opacity = config->inactive_opacity;
+    }
+    
+    axiom_effects_set_window_opacity(window, target_opacity);
 }
 
 // Debug and profiling
@@ -559,21 +575,65 @@ void axiom_effects_profile_frame(struct axiom_effects_manager *manager, uint32_t
     // Additional profiling logic could be added here
 }
 
-// Animation integration (placeholder implementations)
+// Animation integration 
 void axiom_effects_animate_shadow_opacity(struct axiom_window *window,
                                            float target_opacity, uint32_t duration) {
-    if (!window || !window->effects) return;
+    if (!window || !window->effects || !window->server || !window->server->animation_manager) return;
     
-    // Placeholder for shadow opacity animation
-    printf("Animating shadow opacity to %.2f over %u ms\n", target_opacity, duration);
+    // Create fade animation for shadow opacity
+    struct axiom_animation *anim = axiom_animation_create(AXIOM_ANIM_FADE, duration);
+    if (!anim) {
+        printf("Failed to create shadow opacity animation\n");
+        return;
+    }
+    
+    // Set animation parameters
+    anim->window = window;
+    anim->easing = AXIOM_EASE_OUT_CUBIC;
+    // Get shadow opacity from effects manager if available
+    struct axiom_effects_manager *effects_manager = window->server->effects_manager;
+    anim->start_values.opacity = effects_manager ? effects_manager->shadow.opacity : 0.5f;
+    anim->end_values.opacity = target_opacity;
+    anim->auto_cleanup = true;
+    
+    // Set update callback to modify shadow opacity
+    anim->on_update = shadow_opacity_animation_callback;
+    anim->user_data = window;
+    
+    // Start the animation
+    axiom_animation_start(window->server->animation_manager, anim);
+    printf("Started shadow opacity animation: %.2f -> %.2f over %u ms\n", 
+           anim->start_values.opacity, target_opacity, duration);
 }
 
 void axiom_effects_animate_blur_strength(struct axiom_window *window,
                                           float target_strength, uint32_t duration) {
-    if (!window || !window->effects) return;
+    if (!window || !window->effects || !window->server || !window->server->animation_manager) return;
     
-    // Placeholder for blur strength animation
-    printf("Animating blur strength to %.2f over %u ms\n", target_strength, duration);
+    // Create custom animation for blur strength
+    struct axiom_animation *anim = axiom_animation_create(AXIOM_ANIM_FADE, duration);
+    if (!anim) {
+        printf("Failed to create blur strength animation\n");
+        return;
+    }
+    
+    // Set animation parameters
+    anim->window = window;
+    anim->easing = AXIOM_EASE_OUT_CUBIC;
+    // Get blur intensity from effects manager if available
+    struct axiom_effects_manager *effects_manager = window->server->effects_manager;
+    anim->start_values.opacity = effects_manager ? effects_manager->blur.intensity : 0.7f;
+    anim->end_values.opacity = target_strength;
+    anim->auto_cleanup = true;
+    
+    // Set update callback to modify blur strength
+    anim->on_update = blur_strength_animation_callback;
+    anim->user_data = window;
+    
+    // Start the animation
+    axiom_animation_start(window->server->animation_manager, anim);
+    printf("Started blur strength animation: %.2f -> %.2f over %u ms\n", 
+           anim->start_values.opacity, target_strength, duration);
 }
 
 // Helper functions for window content capture
@@ -687,4 +747,47 @@ bool axiom_copy_texture_via_fbo(GLuint source_texture, GLuint target_texture, in
     glDeleteFramebuffers(1, &target_fbo);
     
     return glGetError() == GL_NO_ERROR;
+}
+
+// Animation callback implementations
+static void shadow_opacity_animation_callback(struct axiom_animation *anim, void *user_data) {
+    struct axiom_window *window = (struct axiom_window *)user_data;
+    if (!window || !window->effects || !anim || !window->server) return;
+    
+    // Calculate current opacity using easing function
+    float progress = axiom_easing_apply(anim->easing, anim->progress);
+    float current_opacity = anim->start_values.opacity + 
+        (anim->end_values.opacity - anim->start_values.opacity) * progress;
+    
+    // Update shadow opacity in effects manager if available
+    struct axiom_effects_manager *effects_manager = window->server->effects_manager;
+    if (effects_manager) {
+        effects_manager->shadow.opacity = current_opacity;
+    }
+    
+    // Mark shadow for re-rendering
+    window->effects->shadow.needs_update = true;
+    
+    // Update shadow rectangle opacity in scene graph if available
+    if (window->effects->shadow_rect) {
+        // Note: wlroots scene rect doesn't have direct opacity setting, 
+        // so we'd need to recreate or use different approach for opacity changes
+        // For now, we just mark it as needing potential recreation
+    }
+}
+
+static void blur_strength_animation_callback(struct axiom_animation *anim, void *user_data) {
+    struct axiom_window *window = (struct axiom_window *)user_data;
+    if (!window || !window->effects || !anim) return;
+    
+    // Calculate current blur strength using easing function
+    float progress = axiom_easing_apply(anim->easing, anim->progress);
+    // Note: blur strength calculation removed as it's not currently used
+    
+    // TODO: Store blur intensity in effects manager or extended window effects struct
+    // For now, we can only mark the blur for re-rendering
+    // The actual blur intensity would need to be stored elsewhere or passed via rendering parameters
+    
+    // Mark blur for re-rendering
+    window->effects->blur.needs_update = true;
 }
