@@ -43,6 +43,26 @@ static void cycle_windows(struct axiom_server *server) {
 }
 
 static bool handle_keybinding(struct axiom_server *server, xkb_keysym_t sym, uint32_t modifiers) {
+    // Handle Super + Shift key bindings (window tagging)
+    if ((modifiers & WLR_MODIFIER_LOGO) && (modifiers & WLR_MODIFIER_SHIFT)) {
+        switch (sym) {
+        case XKB_KEY_1:
+        case XKB_KEY_2:
+        case XKB_KEY_3:
+        case XKB_KEY_4:
+        case XKB_KEY_5:
+        case XKB_KEY_6:
+        case XKB_KEY_7:
+        case XKB_KEY_8:
+        case XKB_KEY_9:
+            {
+                int workspace_num = sym - XKB_KEY_1 + 1;
+                axiom_move_focused_window_to_workspace(server, workspace_num);
+                return true;
+            }
+        }
+    }
+    
     // Handle Super key bindings
     if (modifiers & WLR_MODIFIER_LOGO) {
         switch (sym) {
@@ -110,6 +130,21 @@ static bool handle_keybinding(struct axiom_server *server, xkb_keysym_t sym, uin
             axiom_adjust_master_ratio(0.05f);
             axiom_arrange_windows(server);
             return true;
+        // Phase 2: Workspace number key switching (Super + 1-9)
+        case XKB_KEY_1:
+        case XKB_KEY_2:
+        case XKB_KEY_3:
+        case XKB_KEY_4:
+        case XKB_KEY_5:
+        case XKB_KEY_6:
+        case XKB_KEY_7:
+        case XKB_KEY_8:
+        case XKB_KEY_9:
+            {
+                int workspace_num = sym - XKB_KEY_1 + 1;
+                axiom_switch_to_workspace_by_number(server, workspace_num);
+                return true;
+            }
         }
     }
     

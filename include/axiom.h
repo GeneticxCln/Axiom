@@ -91,6 +91,16 @@ struct axiom_window {
     struct wlr_scene_rect *corner_br2;  // Bottom-right corner piece 2
 };
 
+struct axiom_workspace {
+    struct wl_list windows;
+    int width, height;
+    char *name;                    // Custom workspace name
+    int window_count;              // Cached window count
+    bool persistent_layout;        // Remember layout between switches
+    int saved_layout_type;         // Saved layout for this workspace
+    float saved_master_ratio;      // Saved master ratio
+};
+
 struct axiom_output {
     struct wl_list link;
     struct axiom_server *server;
@@ -128,6 +138,14 @@ enum axiom_cursor_mode {
     AXIOM_CURSOR_PASSTHROUGH,
     AXIOM_CURSOR_MOVE,
     AXIOM_CURSOR_RESIZE,
+};
+
+// Phase 2: Tiling layout types
+enum axiom_layout_type {
+    AXIOM_LAYOUT_GRID,
+    AXIOM_LAYOUT_MASTER_STACK,
+    AXIOM_LAYOUT_SPIRAL,
+    AXIOM_LAYOUT_FLOATING
 };
 
 struct axiom_server {
@@ -180,6 +198,7 @@ struct axiom_server {
     int workspace_width;
     int workspace_height;
     int window_count;
+    struct axiom_workspace *workspaces;
     int current_workspace;
     int max_workspaces;
     
@@ -188,6 +207,23 @@ struct axiom_server {
 };
 
 /* Function declarations */
+// Workspace management
+void axiom_switch_workspace(struct axiom_server *server, int workspace);
+void axiom_init_workspaces(struct axiom_server *server);
+void axiom_move_window_to_workspace(struct axiom_server *server, struct axiom_window *window, int workspace);
+int axiom_get_workspace_window_count(struct axiom_server *server, int workspace);
+void axiom_cleanup_workspaces(struct axiom_server *server);
+
+// Phase 2: Advanced workspace management
+void axiom_switch_to_workspace_by_number(struct axiom_server *server, int number);
+void axiom_move_focused_window_to_workspace(struct axiom_server *server, int workspace);
+void axiom_set_workspace_name(struct axiom_server *server, int workspace, const char *name);
+const char* axiom_get_workspace_name(struct axiom_server *server, int workspace);
+void axiom_save_workspace_layout(struct axiom_server *server, int workspace);
+void axiom_restore_workspace_layout(struct axiom_server *server, int workspace);
+int axiom_get_current_workspace(struct axiom_server *server);
+void axiom_update_workspace_indicators(struct axiom_server *server);
+
 // Core functions
 bool axiom_server_init(struct axiom_server *server);
 void axiom_server_run(struct axiom_server *server);
@@ -227,6 +263,10 @@ void axiom_toggle_window_floating(struct axiom_server *server, struct axiom_wind
 void axiom_adjust_master_ratio(float delta);
 const char* axiom_get_layout_name(void);
 void axiom_update_window_decorations(struct axiom_window *window);
+
+// Phase 2: Layout management
+void axiom_set_layout(enum axiom_layout_type layout);
+enum axiom_layout_type axiom_get_layout(void);
 
 // Output management
 void axiom_new_output(struct wl_listener *listener, void *data);

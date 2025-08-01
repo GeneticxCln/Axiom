@@ -22,16 +22,26 @@ meson compile -C build
 ```
 
 ## Keyboard Shortcuts
+
+### Core Window Management
 - `Super + Q`: Quit compositor
 - `Super + T`: Toggle tiling mode
-- `Super + F1`: Focus next window (legacy)
-- `Alt + Tab`: Cycle through windows
 - `Super + Return`: Launch terminal
 - `Super + D`: Launch rofi application launcher
 - `Super + B`: Toggle waybar status bar
 - `Super + W` / `Alt + F4`: Close focused window
 - `Super + F`: Toggle fullscreen
+- `Super + L`: Cycle tiling layouts (Grid → Master-Stack → Spiral → Floating)
+- `Super + Space`: Toggle focused window floating/tiled
+- `Super + H/J`: Adjust master window ratio
+- `Alt + Tab`: Cycle through windows
 - `Escape`: Cancel interactive operations
+
+### Phase 2.1: Advanced Workspace Management
+- **`Super + 1-9`**: Switch directly to workspace 1-9
+- **`Super + Shift + 1-9`**: Move focused window to workspace 1-9
+- **Named Workspaces**: Main, Web, Code, Term, Media, Files, Chat, Game, Misc, Temp
+- **Layout Persistence**: Each workspace remembers its layout and master ratio
 
 ## Window Decorations
 - **Title Bars**: Dark gray title bars with window titles

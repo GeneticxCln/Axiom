@@ -3,16 +3,8 @@
 #include <math.h>
 #include "axiom.h"
 
-// Tiling layout types
-enum axiom_layout_type {
-    AXIOM_LAYOUT_GRID,
-    AXIOM_LAYOUT_MASTER_STACK,
-    AXIOM_LAYOUT_SPIRAL,
-    AXIOM_LAYOUT_FLOATING
-};
-
 static enum axiom_layout_type current_layout = AXIOM_LAYOUT_MASTER_STACK;
-static float master_ratio = 0.6f; // 60% for master window
+float master_ratio = 0.6f; // 60% for master window - made global for workspace access
 
 void axiom_set_layout(enum axiom_layout_type layout) {
     current_layout = layout;

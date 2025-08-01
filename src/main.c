@@ -370,6 +370,9 @@ int main(int argc, char *argv[]) {
     server.window_count = 0;
     server.workspace_width = 1920;  // Default fallback
     server.workspace_height = 1080;
+    
+    // Initialize workspace management
+    axiom_init_workspaces(&server);
     server.xdg_shell = wlr_xdg_shell_create(server.wl_display, 3);
     if (!server.xdg_shell) {
         fprintf(stderr, "Failed to create XDG shell\n");
