@@ -10,22 +10,75 @@ add_project_arguments('-DAXIOM_VERSION="@0@"'.format(meson.project_version()), '
 cc = meson.get_compiler('c')
 
 # Dependencies
-dependency('wayland-server', version: '>=1.20.0')
-dependency('wayland-protocols', version: '>=1.25')
-dependency('wlroots-0.19')
+wayland_server = dependency('wayland-server', version: '>=1.20.0')
+wayland_protos = dependency('wayland-protocols', version: '>=1.25')
+wlroots = dependency('wlroots-0.19')
+xkbcommon = dependency('xkbcommon')
+math_lib = cc.find_library('m', required: true)
+
+# Protocol generation
+wayland_scanner = find_program('wayland-scanner')
+wl_protocol_dir = wayland_protos.get_variable('pkgdatadir')
+
+wayland_scanner_server = generator(
+  wayland_scanner,
+  output: '@BASENAME@-protocol.h',
+  arguments: ['server-header', '@INPUT@', '@OUTPUT@'],
+)
+
+wayland_scanner_code = generator(
+  wayland_scanner,
+  output: '@BASENAME@-protocol.c',
+  arguments: ['private-code', '@INPUT@', '@OUTPUT@'],
+)
+
+server_protocols = [
+  wl_protocol_dir / 'stable/xdg-shell/xdg-shell.xml',
+]
+
+server_protos_src = []
+server_protos_headers = []
+
+foreach xml : server_protocols
+  server_protos_src += wayland_scanner_code.process(xml)
+  server_protos_headers += wayland_scanner_server.process(xml)
+endforeach
 
 # Include directories
 inc = include_directories('include')
 
 # Source Code
-axiom_sources = files('src/main.c', 'src/logging.c')
+axiom_sources = files(
+  'src/main.c',
+  'src/logging.c',
+  'src/input.c',
+  'src/cursor.c'
+)
 
 # Executable
-global_deps = [dependency('wayland-server'), dependency('wlroots-0.19')]
+proto_inc = declare_dependency(
+  sources: server_protos_headers,
+)
+
+global_deps = [wayland_server, wlroots, xkbcommon, proto_inc, math_lib]
 executable('axiom',
-  sources: axiom_sources,
+  sources: axiom_sources + server_protos_src,
   dependencies: global_deps,
   include_directories: inc,
   install: true,
 )
+
+# Tests
+test_sources = files(
+  'tests/test_basic.c'
+)
+
+test_executable = executable('test_axiom',
+  sources: test_sources,
+  dependencies: [math_lib],  # Only need math lib for tests
+  include_directories: inc,
+  install: false,
+)
+
+test('basic_tests', test_executable)
 

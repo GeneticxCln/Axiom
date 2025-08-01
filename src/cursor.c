@@ -1,0 +1,183 @@
+#include "axiom.h"
+#include <wlr/types/wlr_seat.h>
+#include <wlr/types/wlr_pointer.h>
+#include <wlr/util/log.h>
+#include <linux/input-event-codes.h>
+
+static void process_motion(struct axiom_server *server, uint32_t time) {
+    if (server->cursor_mode != AXIOM_CURSOR_PASSTHROUGH) {
+        axiom_process_cursor_motion(server, time);
+        return;
+    }
+    
+    struct wlr_surface *surface = NULL;
+    double sx, sy;
+    struct axiom_window *window = axiom_window_at(server,
+        server->cursor->x, server->cursor->y,
+        &surface, &sx, &sy);
+    
+    if (!window) {
+        // Only set cursor if we have cursor manager and it's loaded
+        if (server->cursor_mgr) {
+            wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
+        }
+    }
+    
+    if (surface) {
+        wlr_seat_pointer_notify_enter(server->seat, surface, sx, sy);
+        wlr_seat_pointer_notify_motion(server->seat, time, sx, sy);
+    } else {
+        wlr_seat_pointer_clear_focus(server->seat);
+    }
+}
+
+void axiom_cursor_motion(struct wl_listener *listener, void *data) {
+    struct axiom_server *server = wl_container_of(listener, server, cursor_motion);
+    struct wlr_pointer_motion_event *event = data;
+    wlr_cursor_move(server->cursor, &event->pointer->base,
+        event->delta_x, event->delta_y);
+    process_motion(server, event->time_msec);
+}
+
+void axiom_cursor_motion_absolute(struct wl_listener *listener, void *data) {
+    struct axiom_server *server = wl_container_of(listener, server, cursor_motion_absolute);
+    struct wlr_pointer_motion_absolute_event *event = data;
+    wlr_cursor_warp_absolute(server->cursor, &event->pointer->base,
+        event->x, event->y);
+    process_motion(server, event->time_msec);
+}
+
+void axiom_cursor_button(struct wl_listener *listener, void *data) {
+    struct axiom_server *server = wl_container_of(listener, server, cursor_button);
+    struct wlr_pointer_button_event *event = data;
+    wlr_seat_pointer_notify_button(server->seat, event->time_msec,
+        event->button, event->state);
+
+    if (event->state == WL_POINTER_BUTTON_STATE_RELEASED) {
+        server->cursor_mode = AXIOM_CURSOR_PASSTHROUGH;
+        server->grabbed_window = NULL;
+        return;
+    }
+    
+    // Handle left mouse button press
+    if (event->button == BTN_LEFT && event->state == WL_POINTER_BUTTON_STATE_PRESSED) {
+        struct wlr_surface *surface = NULL;
+        double sx, sy;
+        struct axiom_window *window = axiom_window_at(server,
+            server->cursor->x, server->cursor->y, &surface, &sx, &sy);
+        
+        if (window) {
+            axiom_focus_window(server, window, surface);
+            
+            // Check if modifiers are held down for move/resize
+            uint32_t modifiers = wlr_keyboard_get_modifiers(server->seat->keyboard_state.keyboard);
+            if (modifiers & WLR_MODIFIER_LOGO) {
+                // Logo + Left Click = Move window
+                axiom_begin_interactive(window, AXIOM_CURSOR_MOVE, 0);
+            }
+        } else {
+            // Click on empty space - unfocus current window
+            axiom_focus_window(server, NULL, NULL);
+        }
+    }
+}
+
+void axiom_cursor_axis(struct wl_listener *listener, void *data) {
+    struct axiom_server *server = wl_container_of(listener, server, cursor_axis);
+    struct wlr_pointer_axis_event *event = data;
+    wlr_seat_pointer_notify_axis(server->seat, event->time_msec,
+        event->orientation, event->delta,
+        event->delta_discrete, event->source, 0);
+}
+
+void axiom_cursor_frame(struct wl_listener *listener, void *data) {
+    (void)data; // Suppress unused parameter warning
+    struct axiom_server *server = wl_container_of(listener, server, cursor_frame);
+    wlr_seat_pointer_notify_frame(server->seat);
+}
+
+void axiom_process_cursor_motion(struct axiom_server *server, uint32_t time) {
+    if (server->cursor_mode == AXIOM_CURSOR_MOVE) {
+        axiom_process_cursor_move(server, time);
+    } else if (server->cursor_mode == AXIOM_CURSOR_RESIZE) {
+        axiom_process_cursor_resize(server, time);
+    }
+}
+
+void axiom_process_cursor_move(struct axiom_server *server, uint32_t time) {
+    (void)time; // Suppress unused parameter warning
+    if (!server->grabbed_window) {
+        return;
+    }
+    
+    struct axiom_window *window = server->grabbed_window;
+    if (window->is_tiled) {
+        // Don't allow moving tiled windows
+        return;
+    }
+    
+    int new_x = server->cursor->x - server->grab_x;
+    int new_y = server->cursor->y - server->grab_y;
+    
+    window->x = new_x;
+    window->y = new_y;
+    
+    wlr_scene_node_set_position(&window->scene_tree->node, new_x, new_y);
+    AXIOM_LOG_DEBUG("Moving window to %d, %d", new_x, new_y);
+}
+
+void axiom_process_cursor_resize(struct axiom_server *server, uint32_t time) {
+    (void)time; // Suppress unused parameter warning
+    if (!server->grabbed_window) {
+        return;
+    }
+    
+    struct axiom_window *window = server->grabbed_window;
+    if (window->is_tiled) {
+        // Don't allow resizing tiled windows
+        return;
+    }
+    
+    double border_x = server->cursor->x - server->grab_x;
+    double border_y = server->cursor->y - server->grab_y;
+    int new_left = server->grab_geobox.x;
+    int new_right = server->grab_geobox.x + server->grab_geobox.width;
+    int new_top = server->grab_geobox.y;
+    int new_bottom = server->grab_geobox.y + server->grab_geobox.height;
+    
+    if (server->resize_edges & WLR_EDGE_TOP) {
+        new_top = border_y;
+        if (new_top >= new_bottom) {
+            new_top = new_bottom - 1;
+        }
+    } else if (server->resize_edges & WLR_EDGE_BOTTOM) {
+        new_bottom = border_y;
+        if (new_bottom <= new_top) {
+            new_bottom = new_top + 1;
+        }
+    }
+    if (server->resize_edges & WLR_EDGE_LEFT) {
+        new_left = border_x;
+        if (new_left >= new_right) {
+            new_left = new_right - 1;
+        }
+    } else if (server->resize_edges & WLR_EDGE_RIGHT) {
+        new_right = border_x;
+        if (new_right <= new_left) {
+            new_right = new_left + 1;
+        }
+    }
+    
+    struct wlr_box geo_box;
+    wlr_surface_get_extents(window->xdg_toplevel->base->surface, &geo_box);
+    window->x = new_left - geo_box.x;
+    window->y = new_top - geo_box.y;
+    window->width = new_right - new_left;
+    window->height = new_bottom - new_top;
+    
+    wlr_scene_node_set_position(&window->scene_tree->node, window->x, window->y);
+    wlr_xdg_toplevel_set_size(window->xdg_toplevel, window->width, window->height);
+    
+    AXIOM_LOG_DEBUG("Resizing window to %dx%d at %d,%d", 
+                    window->width, window->height, window->x, window->y);
+}

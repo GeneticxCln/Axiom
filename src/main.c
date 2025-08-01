@@ -1,28 +1,146 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <wayland-server-core.h>
-#include <wlr/backend.h>
-#include <wlr/render/allocator.h>
-#include <wlr/render/wlr_renderer.h>
-#include <wlr/types/wlr_compositor.h>
-#include <wlr/types/wlr_output.h>
-#include <wlr/types/wlr_output_layout.h>
-#include <wlr/types/wlr_scene.h>
+#include <string.h>
+#include <unistd.h>
+#include <math.h>
+#include <wlr/types/wlr_xcursor_manager.h>
+#include "axiom.h"
 
-struct axiom_server {
-    struct wl_display *wl_display;
-    struct wl_event_loop *wl_event_loop;
-    struct wlr_backend *backend;
-    struct wlr_renderer *renderer;
-    struct wlr_allocator *allocator;
-    struct wlr_compositor *compositor;
-    struct wlr_scene *scene;
-    struct wlr_scene_output_layout *scene_layout;
-    struct wlr_output_layout *output_layout;
+void axiom_calculate_window_layout(struct axiom_server *server, int index, int *x, int *y, int *width, int *height);
+
+void axiom_arrange_windows(struct axiom_server *server) {
+    if (!server->tiling_enabled || server->window_count == 0) {
+        return;
+    }
+
+    struct axiom_window *window;
+    int index = 0;
     
-    struct wl_listener new_output;
-    bool running;
-};
+    wl_list_for_each(window, &server->windows, link) {
+        if (!window->is_tiled) {
+            continue;
+        }
+        
+        axiom_calculate_window_layout(server, index, &window->x, &window->y, &window->width, &window->height);
+        
+        // Position the window using scene tree
+        wlr_scene_node_set_position(&window->scene_tree->node, window->x, window->y);
+                
+        uint32_t configure_serial = wlr_xdg_toplevel_set_size(
+            window->xdg_toplevel, window->width, window->height);
+        
+        printf("Tiled window %d: x=%d, y=%d, w=%d, h=%d (serial=%u)\n", 
+               index, window->x, window->y, window->width, window->height, configure_serial);
+        
+        index++;
+    }
+}
+
+void axiom_calculate_window_layout(struct axiom_server *server, int index, int *x, int *y, int *width, int *height) {
+    if (server->workspace_width <= 0 || server->workspace_height <= 0) {
+        *x = *y = 0;
+        *width = 800;
+        *height = 600;
+        return;
+    }
+    
+    int window_count = server->window_count;
+    if (window_count == 1) {
+        *x = 0;
+        *y = 0;
+        *width = server->workspace_width;
+        *height = server->workspace_height;
+    } else if (window_count == 2) {
+        *width = server->workspace_width / 2;
+        *height = server->workspace_height;
+        *x = index * (*width);
+        *y = 0;
+    } else {
+        // Grid layout for more than 2 windows
+        int cols = (int)ceil(sqrt(window_count));
+        int rows = (int)ceil((double)window_count / cols);
+        
+        *width = server->workspace_width / cols;
+        *height = server->workspace_height / rows;
+        
+        int col = index % cols;
+        int row = index / cols;
+        
+        *x = col * (*width);
+        *y = row * (*height);
+    }
+}
+
+static void window_map(struct wl_listener *listener, void *data) {
+    (void)data; // Suppress unused parameter warning
+    struct axiom_window *window = wl_container_of(listener, window, map);
+    printf("Window mapped: %s\n", window->xdg_toplevel->title ?: "(no title)");
+    
+    // We need to store server reference in window for easy access
+    // For now, we'll arrange when windows are created
+}
+
+static void window_unmap(struct wl_listener *listener, void *data) {
+    (void)data; // Suppress unused parameter warning
+    struct axiom_window *window = wl_container_of(listener, window, unmap);
+    printf("Window unmapped\n");
+}
+
+static void window_destroy(struct wl_listener *listener, void *data) {
+    (void)data; // Suppress unused parameter warning
+    struct axiom_window *window = wl_container_of(listener, window, destroy);
+    printf("Window destroyed\n");
+    
+    // For now, we'll just update the count when destroying windows
+    // A better approach would be to store server reference in window
+    if (window->is_tiled) {
+        printf("Tiled window destroyed\n");
+    }
+    
+    wl_list_remove(&window->link);
+    free(window);
+}
+
+static void server_new_xdg_toplevel(struct wl_listener *listener, void *data) {
+    struct axiom_server *server = wl_container_of(listener, server, new_xdg_toplevel);
+    struct wlr_xdg_toplevel *xdg_toplevel = data;
+    
+    printf("New XDG toplevel: %s\n", xdg_toplevel->title ?: "(no title)");
+    
+    struct axiom_window *window = calloc(1, sizeof(struct axiom_window));
+    if (!window) {
+        return;
+    }
+    
+    window->xdg_toplevel = xdg_toplevel;
+    window->scene_tree = wlr_scene_xdg_surface_create(&server->scene->tree, xdg_toplevel->base);
+    if (!window->scene_tree) {
+        free(window);
+        return;
+    }
+    
+    window->scene_tree->node.data = window;
+    window->server = server;
+    
+    // Initialize tiling properties
+    window->is_tiled = server->tiling_enabled;
+    if (window->is_tiled) {
+        server->window_count++;
+    }
+    
+    window->map.notify = window_map;
+    wl_signal_add(&xdg_toplevel->base->surface->events.map, &window->map);
+    
+    window->unmap.notify = window_unmap;
+    wl_signal_add(&xdg_toplevel->base->surface->events.unmap, &window->unmap);
+    
+    window->destroy.notify = window_destroy;
+    wl_signal_add(&xdg_toplevel->base->events.destroy, &window->destroy);
+    
+    wl_list_insert(&server->windows, &window->link);
+    
+    printf("Window added, total tiled windows: %d\n", server->window_count);
+}
 
 static void server_new_output(struct wl_listener *listener, void *data) {
     struct axiom_server *server = wl_container_of(listener, server, new_output);
@@ -42,10 +160,39 @@ static void server_new_output(struct wl_listener *listener, void *data) {
     wlr_output_commit_state(wlr_output, &state);
     wlr_output_layout_add_auto(server->output_layout, wlr_output);
     wlr_scene_output_create(server->scene, wlr_output);
+    
+    // Load cursor theme for this output scale
+    wlr_xcursor_manager_load(server->cursor_mgr, wlr_output->scale);
+    
+    // Update workspace dimensions based on output size
+    if (wlr_output->current_mode) {
+        server->workspace_width = wlr_output->current_mode->width;
+        server->workspace_height = wlr_output->current_mode->height;
+        printf("Workspace dimensions set to: %dx%d\n", server->workspace_width, server->workspace_height);
+        
+        // Rearrange existing windows if tiling is enabled
+        if (server->tiling_enabled) {
+            axiom_arrange_windows(server);
+        }
+    }
 }
 
 int main(int argc, char *argv[]) {
     printf("Axiom Wayland Compositor v" AXIOM_VERSION "\n");
+    
+    // Parse command line arguments
+    bool nested = false;
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--nested") == 0) {
+            nested = true;
+        } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
+            printf("Usage: %s [OPTIONS]\n", argv[0]);
+            printf("Options:\n");
+            printf("  --nested    Run in nested mode (within another compositor)\n");
+            printf("  --help, -h  Show this help message\n");
+            return EXIT_SUCCESS;
+        }
+    }
     
     struct axiom_server server = {0};
     
@@ -76,8 +223,54 @@ int main(int argc, char *argv[]) {
     server.output_layout = wlr_output_layout_create(server.wl_display);
     server.scene_layout = wlr_scene_attach_output_layout(server.scene, server.output_layout);
     
+    // Initialize window management
+    wl_list_init(&server.windows);
+    server.tiling_enabled = true;  // Enable tiling by default
+    server.window_count = 0;
+    server.workspace_width = 1920;  // Default fallback
+    server.workspace_height = 1080;
+    server.xdg_shell = wlr_xdg_shell_create(server.wl_display, 3);
+    if (!server.xdg_shell) {
+        fprintf(stderr, "Failed to create XDG shell\n");
+        return EXIT_FAILURE;
+    }
+    
+    server.new_xdg_toplevel.notify = server_new_xdg_toplevel;
+    wl_signal_add(&server.xdg_shell->events.new_toplevel, &server.new_xdg_toplevel);
+    
+    // Create seat and data device manager
+    server.seat = wlr_seat_create(server.wl_display, "seat0");
+    server.data_device_manager = wlr_data_device_manager_create(server.wl_display);
+    
     server.new_output.notify = server_new_output;
     wl_signal_add(&server.backend->events.new_output, &server.new_output);
+    
+    // Set up input management
+    wl_list_init(&server.input_devices);
+    server.config.repeat_rate = 25;
+    server.config.repeat_delay = 600;
+    server.config.cursor_theme = "default";
+    server.config.cursor_size = 24;
+    
+    server.cursor = wlr_cursor_create();
+    server.cursor_mgr = wlr_xcursor_manager_create(server.config.cursor_theme, server.config.cursor_size);
+    wlr_cursor_attach_output_layout(server.cursor, server.output_layout);
+    
+    server.cursor_mode = AXIOM_CURSOR_PASSTHROUGH;
+    
+    server.cursor_motion.notify = axiom_cursor_motion;
+    wl_signal_add(&server.cursor->events.motion, &server.cursor_motion);
+    server.cursor_motion_absolute.notify = axiom_cursor_motion_absolute;
+    wl_signal_add(&server.cursor->events.motion_absolute, &server.cursor_motion_absolute);
+    server.cursor_button.notify = axiom_cursor_button;
+    wl_signal_add(&server.cursor->events.button, &server.cursor_button);
+    server.cursor_axis.notify = axiom_cursor_axis;
+    wl_signal_add(&server.cursor->events.axis, &server.cursor_axis);
+    server.cursor_frame.notify = axiom_cursor_frame;
+    wl_signal_add(&server.cursor->events.frame, &server.cursor_frame);
+    
+    server.new_input.notify = axiom_new_input;
+    wl_signal_add(&server.backend->events.new_input, &server.new_input);
     
     const char *socket = wl_display_add_socket_auto(server.wl_display);
     if (!socket) {
