@@ -25,6 +25,7 @@ struct axiom_output;
 struct axiom_input_device;
 struct axiom_config;
 struct axiom_animation_manager;
+struct axiom_effects_manager;
 
 /* Configuration structure - defined in config.h */
 
@@ -73,6 +74,10 @@ struct axiom_window {
     struct wlr_scene_rect *corner_bl2;  // Bottom-left corner piece 2
     struct wlr_scene_rect *corner_br1;  // Bottom-right corner piece 1
     struct wlr_scene_rect *corner_br2;  // Bottom-right corner piece 2
+    
+    // Visual effects
+    struct wlr_scene_tree *shadow_tree;  // Shadow rendering tree
+    bool effects_enabled;                // Window has effects enabled
 };
 
 struct axiom_workspace {
@@ -191,6 +196,9 @@ struct axiom_server {
     
     // Animation system
     struct axiom_animation_manager *animation_manager;
+    
+    // Visual effects system
+    struct axiom_effects_manager *effects_manager;
 };
 
 /* Function declarations */

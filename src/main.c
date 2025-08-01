@@ -7,6 +7,7 @@
 #include "config.h"
 #include "axiom.h"
 #include "animation.h"
+#include "effects.h"
 void axiom_calculate_window_layout(struct axiom_server *server, int index, int *x, int *y, int *width, int *height);
 
 void axiom_arrange_windows(struct axiom_server *server) {
@@ -456,6 +457,16 @@ int main(int argc, char *argv[]) {
     // Initialize animation system
     axiom_animation_manager_init(&server);
     
+    // Initialize visual effects system
+    server.effects_manager = calloc(1, sizeof(struct axiom_effects_manager));
+    if (server.effects_manager && !axiom_effects_manager_init(server.effects_manager)) {
+        fprintf(stderr, "Failed to initialize effects manager\n");
+        free(server.effects_manager);
+        server.effects_manager = NULL;
+    } else {
+        printf("Effects manager initialized successfully\n");
+    }
+    
     // Set up input management
     wl_list_init(&server.input_devices);
     
@@ -519,6 +530,13 @@ int main(int argc, char *argv[]) {
     
     // Cleanup
     axiom_process_cleanup();
+    
+    // Cleanup effects manager
+    if (server.effects_manager) {
+        axiom_effects_manager_destroy(server.effects_manager);
+        free(server.effects_manager);
+    }
+    
     axiom_config_destroy(server.config);
     wl_display_destroy(server.wl_display);
     return EXIT_SUCCESS;

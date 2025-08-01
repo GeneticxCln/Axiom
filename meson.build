@@ -57,7 +57,8 @@ axiom_sources = files(
   'src/process.c',
   'src/tiling.c',
   'src/workspace.c',
-  'src/animation.c'
+  'src/animation.c',
+  'src/effects.c'
 )
 
 # Executable
@@ -124,4 +125,18 @@ test_animation_config = executable('test_animation_config',
     install: false,
 )
 test('animation_config_tests', test_animation_config)
+
+# Effects test
+test_effects_sources = files(
+  'tests/test_effects.c',
+  'src/effects.c'
+)
+
+test_effects = executable('test_effects',
+    sources: test_effects_sources,
+    dependencies: [math_lib, wayland_server, wlroots, proto_inc],
+    include_directories: inc,
+    install: false,
+)
+test('effects_tests', test_effects)
 
