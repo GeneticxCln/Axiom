@@ -42,10 +42,14 @@ struct axiom_config {
     bool animation_debug_mode;
 };
 
+// Forward declarations
+struct axiom_server;
+
 // Configuration functions
 struct axiom_config *axiom_config_create(void);
 void axiom_config_destroy(struct axiom_config *config);
 bool axiom_config_load(struct axiom_config *config, const char *path);
+bool axiom_config_validate(struct axiom_config *config);
 
 // Logging function (needs to be provided)
 void axiom_log(const char *level, const char *format, ...);

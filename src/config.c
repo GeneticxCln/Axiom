@@ -4,6 +4,15 @@
 #include <ctype.h>
 #include "config.h"
 
+bool axiom_config_validate(struct axiom_config *config) {
+    if (config->animation_speed_multiplier < 0.1f || config->animation_speed_multiplier > 5.0f) {
+        AXIOM_LOG_ERROR("Animation speed multiplier out of range (0.1 - 5.0): %f", config->animation_speed_multiplier);
+        return false;
+    }
+    return true;
+}
+
+
 struct axiom_config *axiom_config_create(void) {
     struct axiom_config *config = calloc(1, sizeof(struct axiom_config));
     if (!config) {

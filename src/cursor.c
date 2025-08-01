@@ -19,7 +19,10 @@ static void process_motion(struct axiom_server *server, uint32_t time) {
     if (!window) {
         // Only set cursor if we have cursor manager and it's loaded
         if (server->cursor_mgr) {
-            wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
+            struct wlr_xcursor *cursor = wlr_xcursor_manager_get_xcursor(server->cursor_mgr, "default", 1.0);
+            if (cursor && cursor->image_count > 0) {
+                wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
+            }
         }
     }
     
@@ -70,10 +73,12 @@ void axiom_cursor_button(struct wl_listener *listener, void *data) {
             axiom_focus_window(server, window, surface);
             
             // Check if modifiers are held down for move/resize
-            uint32_t modifiers = wlr_keyboard_get_modifiers(server->seat->keyboard_state.keyboard);
-            if (modifiers & WLR_MODIFIER_LOGO) {
-                // Logo + Left Click = Move window
-                axiom_begin_interactive(window, AXIOM_CURSOR_MOVE, 0);
+            if (server->seat->keyboard_state.keyboard) {
+                uint32_t modifiers = wlr_keyboard_get_modifiers(server->seat->keyboard_state.keyboard);
+                if (modifiers & WLR_MODIFIER_LOGO) {
+                    // Logo + Left Click = Move window
+                    axiom_begin_interactive(window, AXIOM_CURSOR_MOVE, 0);
+                }
             }
         } else {
             // Click on empty space - unfocus current window

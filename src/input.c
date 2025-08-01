@@ -6,6 +6,7 @@
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
 #include "axiom.h"
+#include "config.h"
 #include "animation.h"
 
 static void keyboard_handle_modifiers(struct wl_listener *listener, void *data) {

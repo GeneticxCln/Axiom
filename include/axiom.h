@@ -26,43 +26,7 @@ struct axiom_input_device;
 struct axiom_config;
 struct axiom_animation_manager;
 
-/* Configuration structure */
-struct axiom_config {
-    // Input settings
-    char *cursor_theme;
-    int cursor_size;
-    uint32_t repeat_rate;
-    uint32_t repeat_delay;
-    
-    // Tiling settings
-    bool tiling_enabled;
-    int border_width;
-    int gap_size;
-    
-    // Appearance settings
-    char *background_color;
-    char *border_active;
-    char *border_inactive;
-    
-    // Animation settings
-    bool animations_enabled;
-    bool window_animations;
-    bool workspace_animations;
-    bool focus_animations;
-    bool layout_animations;
-    
-    uint32_t window_appear_duration;
-    uint32_t window_disappear_duration;
-    uint32_t window_move_duration;
-    uint32_t window_resize_duration;
-    uint32_t workspace_switch_duration;
-    uint32_t focus_ring_duration;
-    uint32_t layout_change_duration;
-    
-    float animation_speed_multiplier;
-    char *default_easing;
-    bool animation_debug_mode;
-};
+/* Configuration structure - defined in config.h */
 
 /* Forward declarations */
 struct axiom_window {
@@ -304,10 +268,7 @@ void axiom_spawn_waybar(struct axiom_server *server);
 void axiom_kill_waybar(void);
 bool axiom_process_exists(const char *name);
 
-// Configuration
-struct axiom_config *axiom_config_create(void);
-void axiom_config_destroy(struct axiom_config *config);
-bool axiom_config_load(struct axiom_config *config, const char *path);
+// Configuration functions in config.h
 
 // Logging
 void axiom_log(const char *level, const char *format, ...);

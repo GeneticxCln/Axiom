@@ -4,9 +4,9 @@
 #include <unistd.h>
 #include <math.h>
 #include <wlr/types/wlr_xcursor_manager.h>
+#include "config.h"
 #include "axiom.h"
 #include "animation.h"
-
 void axiom_calculate_window_layout(struct axiom_server *server, int index, int *x, int *y, int *width, int *height);
 
 void axiom_arrange_windows(struct axiom_server *server) {
@@ -306,12 +306,34 @@ static void server_new_output(struct wl_listener *listener, void *data) {
         wlr_output_state_set_mode(&state, mode);
     }
     
-    wlr_output_commit_state(wlr_output, &state);
+    if (!wlr_output_commit_state(wlr_output, &state)) {
+        fprintf(stderr, "Failed to commit output state for %s\n", wlr_output->name);
+    }
+    wlr_output_state_finish(&state);
     wlr_output_layout_add_auto(server->output_layout, wlr_output);
-    wlr_scene_output_create(server->scene, wlr_output);
+    struct axiom_output *output = calloc(1, sizeof(struct axiom_output));
+    if (!output) {
+        wlr_output_state_finish(&state);
+        return;
+    }
     
-    // Load cursor theme for this output scale
-    wlr_xcursor_manager_load(server->cursor_mgr, wlr_output->scale);
+    output->server = server;
+    output->wlr_output = wlr_output;
+    output->scene_output = wlr_scene_output_create(server->scene, wlr_output);
+    if (!output->scene_output) {
+        free(output);
+        wlr_output_state_finish(&state);
+        return;
+    }
+    
+    wl_list_insert(&server->outputs, &output->link);
+    
+    // Load cursor theme for this output scale - ensure renderer is ready
+    if (server->renderer && server->cursor_mgr) {
+        wlr_xcursor_manager_load(server->cursor_mgr, wlr_output->scale);
+        // Set a default cursor only after the output and renderer are ready
+        wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
+    }
     
     // Update workspace dimensions based on output size
     if (wlr_output->current_mode) {
@@ -352,6 +374,10 @@ int main(int argc, char *argv[]) {
     }
     
     server.wl_event_loop = wl_display_get_event_loop(server.wl_display);
+    // Create backend with session handling for better compatibility
+    if (nested) {
+        printf("Running in nested mode\n");
+    }
     server.backend = wlr_backend_autocreate(server.wl_event_loop, NULL);
     if (!server.backend) {
         fprintf(stderr, "Failed to create backend\n");
@@ -372,8 +398,11 @@ int main(int argc, char *argv[]) {
     server.output_layout = wlr_output_layout_create(server.wl_display);
     server.scene_layout = wlr_scene_attach_output_layout(server.scene, server.output_layout);
     
-    // Initialize window management
+    // Initialize lists
     wl_list_init(&server.windows);
+    wl_list_init(&server.outputs);
+    
+    // Initialize window management
     server.tiling_enabled = true;  // Enable tiling by default
     server.window_count = 0;
     server.workspace_width = 1920;  // Default fallback
@@ -432,6 +461,10 @@ int main(int argc, char *argv[]) {
     
     server.cursor = wlr_cursor_create();
     server.cursor_mgr = wlr_xcursor_manager_create(server.config->cursor_theme, server.config->cursor_size);
+    if (!server.cursor_mgr) {
+        fprintf(stderr, "Failed to create cursor manager\n");
+        return EXIT_FAILURE;
+    }
     wlr_cursor_attach_output_layout(server.cursor, server.output_layout);
     
     server.cursor_mode = AXIOM_CURSOR_PASSTHROUGH;

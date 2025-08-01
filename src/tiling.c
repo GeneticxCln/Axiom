@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include "axiom.h"
+#include "config.h"
 
 static enum axiom_layout_type current_layout = AXIOM_LAYOUT_MASTER_STACK;
 float master_ratio = 0.6f; // 60% for master window - made global for workspace access
