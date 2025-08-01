@@ -64,7 +64,8 @@ axiom_sources = files(
   'src/effects.c',
   'src/effects_realtime.c',
   'src/renderer.c',
-  'src/window_rules.c'
+  'src/window_rules.c',
+  'src/smart_gaps.c'
 )
 
 # Executable

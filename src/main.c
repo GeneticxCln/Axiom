@@ -11,6 +11,7 @@
 #include "effects_realtime.h"
 #include "renderer.h"
 #include "window_rules.h"
+#include "smart_gaps.h"
 void axiom_calculate_window_layout(struct axiom_server *server, int index, int *x, int *y, int *width, int *height);
 
 void axiom_arrange_windows(struct axiom_server *server) {
@@ -524,6 +525,20 @@ int main(int argc, char *argv[]) {
         }
     }
     
+    // Initialize smart gaps system (Phase 3.2)
+    if (!axiom_server_init_smart_gaps(&server)) {
+        fprintf(stderr, "Failed to initialize smart gaps system\n");
+    } else {
+        printf("Smart gaps system initialized successfully\n");
+        
+        // Load default gap profiles
+        if (server.smart_gaps_manager) {
+            if (!axiom_smart_gaps_load_defaults(server.smart_gaps_manager)) {
+                fprintf(stderr, "Failed to load default gap profiles\n");
+            }
+        }
+    }
+    
     // Set up input management
     wl_list_init(&server.input_devices);
     
@@ -610,6 +625,11 @@ int main(int argc, char *argv[]) {
     // Cleanup window rules system
     if (server.window_rules_manager) {
         axiom_server_destroy_window_rules(&server);
+    }
+    
+    // Cleanup smart gaps system
+    if (server.smart_gaps_manager) {
+        axiom_server_destroy_smart_gaps(&server);
     }
     
     axiom_config_destroy(server.config);

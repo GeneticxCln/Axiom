@@ -211,6 +211,9 @@ struct axiom_server {
     
     // Window rules system (Phase 3.1)
     struct axiom_window_rules_manager *window_rules_manager;
+    
+    // Smart gaps system (Phase 3.2)
+    struct axiom_smart_gaps_manager *smart_gaps_manager;
 };
 
 /* Function declarations */
