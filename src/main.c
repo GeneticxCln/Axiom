@@ -736,7 +736,8 @@ int main(int argc, char *argv[]) {
                 }
                 
                 // Throttle effects updates for performance
-                axiom_effects_throttle_updates(server.effects_manager, 16);
+                uint32_t threshold_ms = 16;
+                axiom_effects_throttle_updates(server.effects_manager, &threshold_ms);
             }
         }
         

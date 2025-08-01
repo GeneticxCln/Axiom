@@ -512,7 +512,7 @@ bool axiom_effects_should_update(struct axiom_window *window, uint32_t current_t
     if (!window || !window->effects) return false;
     
     uint32_t elapsed = current_time - window->effects->last_frame_time;
-return elapsed >= *effect_update_threshold_ms;
+    return elapsed >= EFFECT_UPDATE_THRESHOLD_MS;
 }
 
 void axiom_effects_throttle_updates(struct axiom_effects_manager *manager, uint32_t *effect_update_threshold_ms) {
@@ -532,13 +532,13 @@ void axiom_effects_throttle_updates(struct axiom_effects_manager *manager, uint3
 
         // Adjust effect update threshold based on performance
         if (average_frame_time > TARGET_FRAME_TIME_MS + PERFORMANCE_ADJUSTMENT_THRESHOLD) {
-            EFFECT_UPDATE_THRESHOLD_MS = EFFECT_UPDATE_THRESHOLD_LOW_MS;
+            *effect_update_threshold_ms = EFFECT_UPDATE_THRESHOLD_LOW_MS;
             printf("Lowering effect frame rate due to high render time: %ums/frame\n", average_frame_time);
         } else if (average_frame_time < TARGET_FRAME_TIME_MS) {
-            EFFECT_UPDATE_THRESHOLD_MS = EFFECT_UPDATE_THRESHOLD_HIGH_MS;
+            *effect_update_threshold_ms = EFFECT_UPDATE_THRESHOLD_HIGH_MS;
             printf("Increasing effect frame rate due to low render time: %ums/frame\n", average_frame_time);
         } else {
-            EFFECT_UPDATE_THRESHOLD_MS = TARGET_FRAME_TIME_MS;
+            *effect_update_threshold_ms = TARGET_FRAME_TIME_MS;
         }
     }
 
@@ -807,11 +807,14 @@ static void blur_strength_animation_callback(struct axiom_animation *anim, void 
     
     // Calculate current blur strength using easing function
     float progress = axiom_easing_apply(anim->easing, anim->progress);
-    // Note: blur strength calculation removed as it's not currently used
+    float current_strength = anim->start_values.opacity + 
+        (anim->end_values.opacity - anim->start_values.opacity) * progress;
     
-    // TODO: Store blur intensity in effects manager or extended window effects struct
-    // For now, we can only mark the blur for re-rendering
-    // The actual blur intensity would need to be stored elsewhere or passed via rendering parameters
+    // Update blur intensity in effects manager if available
+    struct axiom_effects_manager *effects_manager = window->server->effects_manager;
+    if (effects_manager) {
+        effects_manager->blur.intensity = current_strength;
+    }
     
     // Mark blur for re-rendering
     window->effects->blur.needs_update = true;
