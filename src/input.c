@@ -6,6 +6,7 @@
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
 #include "axiom.h"
+#include "animation.h"
 
 static void keyboard_handle_modifiers(struct wl_listener *listener, void *data) {
     (void)data; // Suppress unused parameter warning
@@ -382,6 +383,11 @@ void axiom_focus_window(struct axiom_server *server, struct axiom_window *window
         
         wl_list_remove(&window->link);
         wl_list_insert(&server->windows, &window->link);
+        
+        // Trigger focus ring animation
+        if (server->animation_manager) {
+            axiom_animate_focus_ring(server, window);
+        }
         
         wlr_seat_keyboard_notify_enter(server->seat, surface,
             server->seat->keyboard_state.keyboard->keycodes,

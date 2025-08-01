@@ -21,6 +21,25 @@ struct axiom_config *axiom_config_create(void) {
     config->background_color = strdup("#1e1e1e");
     config->border_active = strdup("#ffffff");
     config->border_inactive = strdup("#666666");
+    
+    // Animation defaults
+    config->animations_enabled = true;
+    config->window_animations = true;
+    config->workspace_animations = true;
+    config->focus_animations = true;
+    config->layout_animations = true;
+    
+    config->window_appear_duration = 300;
+    config->window_disappear_duration = 200;
+    config->window_move_duration = 250;
+    config->window_resize_duration = 200;
+    config->workspace_switch_duration = 400;
+    config->focus_ring_duration = 150;
+    config->layout_change_duration = 300;
+    
+    config->animation_speed_multiplier = 1.0f;
+    config->default_easing = strdup("ease_out_cubic");
+    config->animation_debug_mode = false;
 
     return config;
 }
@@ -34,6 +53,7 @@ void axiom_config_destroy(struct axiom_config *config) {
     free(config->background_color);
     free(config->border_active);
     free(config->border_inactive);
+    free(config->default_easing);
     free(config);
 }
 
@@ -130,6 +150,39 @@ bool axiom_config_load(struct axiom_config *config, const char *path) {
             } else if (strcmp(key, "border_inactive") == 0) {
                 free(config->border_inactive);
                 config->border_inactive = strdup(value);
+            }
+        } else if (strcmp(section, "animations") == 0) {
+            if (strcmp(key, "enabled") == 0) {
+                config->animations_enabled = strcmp(value, "true") == 0;
+            } else if (strcmp(key, "window_animations") == 0) {
+                config->window_animations = strcmp(value, "true") == 0;
+            } else if (strcmp(key, "workspace_animations") == 0) {
+                config->workspace_animations = strcmp(value, "true") == 0;
+            } else if (strcmp(key, "focus_animations") == 0) {
+                config->focus_animations = strcmp(value, "true") == 0;
+            } else if (strcmp(key, "layout_animations") == 0) {
+                config->layout_animations = strcmp(value, "true") == 0;
+            } else if (strcmp(key, "window_appear_duration") == 0) {
+                config->window_appear_duration = atoi(value);
+            } else if (strcmp(key, "window_disappear_duration") == 0) {
+                config->window_disappear_duration = atoi(value);
+            } else if (strcmp(key, "window_move_duration") == 0) {
+                config->window_move_duration = atoi(value);
+            } else if (strcmp(key, "window_resize_duration") == 0) {
+                config->window_resize_duration = atoi(value);
+            } else if (strcmp(key, "workspace_switch_duration") == 0) {
+                config->workspace_switch_duration = atoi(value);
+            } else if (strcmp(key, "focus_ring_duration") == 0) {
+                config->focus_ring_duration = atoi(value);
+            } else if (strcmp(key, "layout_change_duration") == 0) {
+                config->layout_change_duration = atoi(value);
+            } else if (strcmp(key, "speed_multiplier") == 0) {
+                config->animation_speed_multiplier = atof(value);
+            } else if (strcmp(key, "default_easing") == 0) {
+                free(config->default_easing);
+                config->default_easing = strdup(value);
+            } else if (strcmp(key, "debug_mode") == 0) {
+                config->animation_debug_mode = strcmp(value, "true") == 0;
             }
         }
     }

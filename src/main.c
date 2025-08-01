@@ -5,6 +5,7 @@
 #include <math.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include "axiom.h"
+#include "animation.h"
 
 void axiom_calculate_window_layout(struct axiom_server *server, int index, int *x, int *y, int *width, int *height);
 
@@ -79,8 +80,15 @@ static void window_map(struct wl_listener *listener, void *data) {
     struct axiom_window *window = wl_container_of(listener, window, map);
     printf("Window mapped: %s\n", window->xdg_toplevel->title ?: "(no title)");
     
-    // We need to store server reference in window for easy access
-    // For now, we'll arrange when windows are created
+    // Trigger window appear animation
+    if (window->server && window->server->animation_manager) {
+        axiom_animate_window_appear(window->server, window);
+    }
+    
+    // Arrange windows with tiled layout
+    if (window->server && window->server->tiling_enabled) {
+        axiom_arrange_windows(window->server);
+    }
 }
 
 static void window_unmap(struct wl_listener *listener, void *data) {
@@ -416,6 +424,9 @@ int main(int argc, char *argv[]) {
     // Initialize process management
     axiom_process_init(&server);
     
+    // Initialize animation system
+    axiom_animation_manager_init(&server);
+    
     // Set up input management
     wl_list_init(&server.input_devices);
     
@@ -457,6 +468,17 @@ int main(int argc, char *argv[]) {
     
     while (server.running) {
         wl_display_flush_clients(server.wl_display);
+        
+        // Update animations
+        if (server.animation_manager) {
+            uint32_t current_time = 0;
+            struct timespec ts;
+            if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
+                current_time = (uint32_t)(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+            }
+            axiom_animation_manager_update(server.animation_manager, current_time);
+        }
+        
         if (wl_event_loop_dispatch(server.wl_event_loop, -1) < 0) {
             break;
         }

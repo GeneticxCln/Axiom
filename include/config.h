@@ -21,6 +21,25 @@ struct axiom_config {
     char *background_color;
     char *border_active;
     char *border_inactive;
+    
+    // Animation settings
+    bool animations_enabled;
+    bool window_animations;
+    bool workspace_animations;
+    bool focus_animations;
+    bool layout_animations;
+    
+    uint32_t window_appear_duration;
+    uint32_t window_disappear_duration;
+    uint32_t window_move_duration;
+    uint32_t window_resize_duration;
+    uint32_t workspace_switch_duration;
+    uint32_t focus_ring_duration;
+    uint32_t layout_change_duration;
+    
+    float animation_speed_multiplier;
+    char *default_easing;
+    bool animation_debug_mode;
 };
 
 // Configuration functions
