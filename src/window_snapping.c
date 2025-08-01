@@ -457,21 +457,42 @@ bool axiom_window_snapping_load_config(struct axiom_window_snapping_manager *man
         return false;
     }
 
-    // Load configuration values (placeholder - actual implementation would read from config file)
-    struct axiom_snapping_config snapping_config = default_config;
+    // Create temporary config to use the existing config parser
+    struct axiom_config *temp_config = axiom_config_create();
+    if (!temp_config) {
+        wlr_log(WLR_ERROR, "Failed to create temporary config for snapping");
+        return false;
+    }
     
-    // Example configuration loading (would be replaced with actual config file parsing)
-    snapping_config.snap_threshold = 20;  // Could be loaded from config file
-    snapping_config.edge_resistance = 15;
-    snapping_config.magnetism_strength = 0.8f;
-    snapping_config.animation_duration = 200;
-    snapping_config.smart_corners = true;
-    snapping_config.multi_monitor_snapping = true;
-    snapping_config.window_to_window_snapping = true;
-    snapping_config.edge_snapping = true;
+    // Load the config file using the existing parser
+    bool config_loaded = false;
+    if (config_path && axiom_config_load(temp_config, config_path)) {
+        config_loaded = true;
+        wlr_log(WLR_INFO, "Loading snapping config from file: %s", config_path);
+    } else {
+        wlr_log(WLR_INFO, "Using default snapping configuration");
+    }
+    
+    // Extract snapping configuration from the loaded config
+    struct axiom_snapping_config snapping_config = {
+        .snap_threshold = temp_config->window_snapping.snap_threshold,
+        .edge_resistance = temp_config->window_snapping.edge_resistance,
+        .magnetism_strength = temp_config->window_snapping.magnetism_strength,
+        .animation_duration = 200,  // Default animation duration
+        .smart_corners = temp_config->window_snapping.smart_corners,
+        .multi_monitor_snapping = temp_config->window_snapping.multi_monitor_snapping,
+        .window_to_window_snapping = temp_config->window_snapping.window_to_window_snapping,
+        .edge_snapping = temp_config->window_snapping.edge_snapping
+    };
 
     manager->config = snapping_config;
-    wlr_log(WLR_INFO, "Window snapping configuration loaded from %s", config_path ?: "default");
+    manager->enabled = temp_config->window_snapping.enabled;
+    
+    // Cleanup temporary config
+    axiom_config_destroy(temp_config);
+    
+    wlr_log(WLR_INFO, "Window snapping configuration loaded: threshold=%d, resistance=%d, magnetism=%.2f", 
+            snapping_config.snap_threshold, snapping_config.edge_resistance, snapping_config.magnetism_strength);
     return true;
 }
 
@@ -483,8 +504,35 @@ bool axiom_window_snapping_save_config(struct axiom_window_snapping_manager *man
         return false;
     }
 
-    // Save configuration to config file (placeholder)
-    wlr_log(WLR_INFO, "Window snapping configuration saved to %s", config_path ?: "default");
+    if (!config_path) {
+        wlr_log(WLR_ERROR, "No config path provided for saving snapping config");
+        return false;
+    }
+
+    FILE *file = fopen(config_path, "w");
+    if (!file) {
+        wlr_log(WLR_ERROR, "Failed to open config file for writing: %s", config_path);
+        return false;
+    }
+
+    // Write window snapping configuration section
+    fprintf(file, "# Axiom Window Snapping Configuration\n");
+    fprintf(file, "# Auto-generated configuration file\n\n");
+    
+    fprintf(file, "[window_snapping]\n");
+    fprintf(file, "enabled = %s\n", manager->enabled ? "true" : "false");
+    fprintf(file, "snap_threshold = %d\n", manager->config.snap_threshold);
+    fprintf(file, "edge_resistance = %d\n", manager->config.edge_resistance);
+    fprintf(file, "magnetism_strength = %.2f\n", manager->config.magnetism_strength);
+    fprintf(file, "smart_corners = %s\n", manager->config.smart_corners ? "true" : "false");
+    fprintf(file, "multi_monitor_snapping = %s\n", manager->config.multi_monitor_snapping ? "true" : "false");
+    fprintf(file, "window_to_window_snapping = %s\n", manager->config.window_to_window_snapping ? "true" : "false");
+    fprintf(file, "edge_snapping = %s\n", manager->config.edge_snapping ? "true" : "false");
+    fprintf(file, "\n# Animation settings\n");
+    fprintf(file, "animation_duration = %d\n", manager->config.animation_duration);
+    
+    fclose(file);
+    wlr_log(WLR_INFO, "Window snapping configuration saved to %s", config_path);
     return true;
 }
 
