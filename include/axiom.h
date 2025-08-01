@@ -218,6 +218,9 @@ struct axiom_server {
     // Window snapping system (Phase 3.3)
     struct axiom_pip_manager *pip_manager;
     struct axiom_window_snapping_manager *window_snapping_manager;
+    
+    // Thumbnail system (Phase 3.4)
+    struct axiom_thumbnail_manager *thumbnail_manager;
 };
 
 /* Function declarations */

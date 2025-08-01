@@ -14,6 +14,7 @@
 #include "smart_gaps.h"
 #include "window_snapping.h"
 #include "pip_manager.h"
+#include "thumbnail_manager.h"
 void axiom_calculate_window_layout(struct axiom_server *server, int index, int *x, int *y, int *width, int *height);
 
 // Configuration reload function
@@ -660,6 +661,14 @@ int main(int argc, char *argv[]) {
         }
     }
     
+    // Initialize thumbnail manager
+    server.thumbnail_manager = axiom_thumbnail_manager_create(&server);
+    if (!server.thumbnail_manager) {
+        fprintf(stderr, "Failed to initialize thumbnail manager\n");
+    } else {
+        printf("Thumbnail manager initialized successfully\n");
+    }
+    
     // Initialize Picture-in-Picture system (Phase 3.1)
     if (!axiom_server_init_pip_manager(&server, &server.config->picture_in_picture)) {
         fprintf(stderr, "Failed to initialize PiP manager\n");
@@ -783,9 +792,14 @@ int main(int argc, char *argv[]) {
         axiom_server_destroy_smart_gaps(&server);
     }
     
-    // Cleanup PiP manager
+// Cleanup PiP manager
     if (server.pip_manager) {
-        axiom_server_destroy_pip_manager(&server);
+    axiom_server_destroy_pip_manager(&server);
+    }
+
+    // Cleanup thumbnail manager
+    if (server.thumbnail_manager) {
+        axiom_thumbnail_manager_destroy(server.thumbnail_manager);
     }
     
     axiom_config_destroy(server.config);

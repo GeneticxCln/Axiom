@@ -67,7 +67,8 @@ axiom_sources = files(
   'src/window_rules.c',
   'src/smart_gaps.c',
   'src/window_snapping.c',
-  'src/pip_manager.c'
+  'src/pip_manager.c',
+  'src/thumbnail_manager.c',
 )
 
 # Executable
@@ -87,6 +88,20 @@ executable('axiom',
 install_data('axiom.desktop',
   install_dir: get_option('datadir') / 'wayland-sessions'
 )
+
+# Thumbnail manager test
+test_thumbnail_manager_sources = files(
+  'tests/test_thumbnail_manager.c',
+  'src/thumbnail_manager.c'
+)
+
+test_thumbnail_manager = executable('test_thumbnail_manager',
+    sources: test_thumbnail_manager_sources,
+    dependencies: [wayland_server, wlroots, proto_inc, gles3, egl],
+    include_directories: inc,
+    install: false,
+)
+test('thumbnail_manager_tests', test_thumbnail_manager)
 
 install_data('axiom.session',
   install_dir: get_option('datadir') / 'wayland-sessions'
