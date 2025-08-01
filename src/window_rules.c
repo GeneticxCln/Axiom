@@ -48,61 +48,19 @@ bool axiom_window_rules_load_config(struct axiom_window_rules_manager *manager,
     free(manager->rules_file_path);
     manager->rules_file_path = strdup(config_path);
     
-    // For now, create some default rules programmatically
-    // TODO: Implement actual config file parsing
-    
-    // Rule for Firefox - workspace 1, maximized
-    struct axiom_window_rule *firefox_rule = axiom_window_rule_create();
-    if (firefox_rule) {
-        axiom_window_rule_set_app_id(firefox_rule, "firefox");
-        firefox_rule->workspace = 1;
-        firefox_rule->position = AXIOM_RULE_POS_MAXIMIZED;
-        firefox_rule->priority = 100;
-        firefox_rule->rule_name = strdup("firefox-rule");
-        wl_list_insert(&manager->rules, &firefox_rule->link);
-        manager->rules_count++;
-    }
-    
-    // Rule for VS Code - workspace 2, large size
-    struct axiom_window_rule *code_rule = axiom_window_rule_create();
-    if (code_rule) {
-        axiom_window_rule_set_app_id(code_rule, "code");
-        axiom_window_rule_set_class(code_rule, "Code");
-        code_rule->workspace = 2;
-        code_rule->size = AXIOM_RULE_SIZE_LARGE;
-        code_rule->position = AXIOM_RULE_POS_CENTER;
-        code_rule->priority = 100;
-        code_rule->rule_name = strdup("vscode-rule");
-        wl_list_insert(&manager->rules, &code_rule->link);
-        manager->rules_count++;
-    }
-    
-    // Rule for media players - floating, PiP enabled
-    struct axiom_window_rule *media_rule = axiom_window_rule_create();
-    if (media_rule) {
-        axiom_window_rule_set_app_id(media_rule, "mpv");
-        media_rule->floating = AXIOM_RULE_FLOATING_FORCE_FLOATING;
-        media_rule->size = AXIOM_RULE_SIZE_MEDIUM;
-        media_rule->position = AXIOM_RULE_POS_BOTTOM_RIGHT;
-        media_rule->enable_pip = true;
-        media_rule->priority = 90;
-        media_rule->rule_name = strdup("media-player-rule");
-        wl_list_insert(&manager->rules, &media_rule->link);
-        manager->rules_count++;
-    }
-    
-    // Rule for calculator - small floating window
-    struct axiom_window_rule *calc_rule = axiom_window_rule_create();
-    if (calc_rule) {
-        axiom_window_rule_set_class(calc_rule, "gnome-calculator");
-        axiom_window_rule_set_app_id(calc_rule, "org.gnome.Calculator");
-        calc_rule->floating = AXIOM_RULE_FLOATING_FORCE_FLOATING;
-        calc_rule->size = AXIOM_RULE_SIZE_SMALL;
-        calc_rule->position = AXIOM_RULE_POS_TOP_RIGHT;
-        calc_rule->priority = 95;
-        calc_rule->rule_name = strdup("calculator-rule");
-        wl_list_insert(&manager->rules, &calc_rule->link);
-        manager->rules_count++;
+    // Try to parse actual config file if it exists
+    FILE *file = fopen(config_path, "r");
+    if (file) {
+        if (axiom_window_rules_parse_ini_file(manager, file)) {
+            printf("Loaded %u window rules from config file: %s\n", manager->rules_count, config_path);
+        } else {
+            printf("Failed to parse config file, loading defaults\n");
+            axiom_window_rules_load_defaults(manager);
+        }
+        fclose(file);
+    } else {
+        printf("Config file not found, loading default window rules\n");
+        axiom_window_rules_load_defaults(manager);
     }
     
     printf("Loaded %u window rules from config\n", manager->rules_count);
@@ -637,4 +595,219 @@ void axiom_server_destroy_window_rules(struct axiom_server *server) {
     server->window_rules_manager = NULL;
     
     printf("Window rules system destroyed\n");
+}
+
+// INI file parsing implementation
+bool axiom_window_rules_parse_ini_file(struct axiom_window_rules_manager *manager, FILE *file) {
+    if (!manager || !file) return false;
+    
+    char line[512];
+    char current_section[128] = "";
+    struct axiom_window_rule *current_rule = NULL;
+    
+    while (fgets(line, sizeof(line), file)) {
+        // Remove newline and whitespace
+        axiom_window_rules_trim_string(line);
+        
+        // Skip empty lines and comments
+        if (line[0] == '\0' || line[0] == '#' || line[0] == ';') {
+            continue;
+        }
+        
+        // Check for section header
+        if (line[0] == '[' && line[strlen(line)-1] == ']') {
+            // Finish previous rule
+            if (current_rule) {
+                wl_list_insert(&manager->rules, &current_rule->link);
+                manager->rules_count++;
+            }
+            
+            // Start new section/rule
+            strncpy(current_section, line + 1, sizeof(current_section) - 1);
+            current_section[strlen(current_section) - 1] = '\0'; // Remove ]
+            
+            current_rule = axiom_window_rule_create();
+            if (current_rule) {
+                current_rule->rule_name = strdup(current_section);
+            }
+            continue;
+        }
+        
+        // Parse key=value pairs
+        if (current_rule) {
+            axiom_window_rules_parse_ini_line(current_rule, line);
+        }
+    }
+    
+    // Finish last rule
+    if (current_rule) {
+        wl_list_insert(&manager->rules, &current_rule->link);
+        manager->rules_count++;
+    }
+    
+    return manager->rules_count > 0;
+}
+
+void axiom_window_rules_parse_ini_line(struct axiom_window_rule *rule, const char *line) {
+    if (!rule || !line) return;
+    
+    char key[128], value[256];
+    if (sscanf(line, "%127[^=]=%255[^\n]", key, value) != 2) {
+        return;
+    }
+    
+    // Trim key and value
+    axiom_window_rules_trim_string(key);
+    axiom_window_rules_trim_string(value);
+    
+    // Remove quotes from value if present
+    if (value[0] == '"' && value[strlen(value)-1] == '"') {
+        value[strlen(value)-1] = '\0';
+        memmove(value, value + 1, strlen(value));
+    }
+    
+    // Parse different settings
+    if (strcmp(key, "app_id") == 0) {
+        axiom_window_rule_set_app_id(rule, value);
+    } else if (strcmp(key, "class") == 0) {
+        axiom_window_rule_set_class(rule, value);
+    } else if (strcmp(key, "title") == 0) {
+        axiom_window_rule_set_title(rule, value);
+    } else if (strcmp(key, "instance") == 0) {
+        axiom_window_rule_set_instance(rule, value);
+    } else if (strcmp(key, "workspace") == 0) {
+        rule->workspace = atoi(value);
+    } else if (strcmp(key, "priority") == 0) {
+        rule->priority = atoi(value);
+    } else if (strcmp(key, "enabled") == 0) {
+        rule->enabled = (strcmp(value, "true") == 0 || strcmp(value, "yes") == 0 || strcmp(value, "1") == 0);
+    } else if (strcmp(key, "floating") == 0) {
+        if (strcmp(value, "force_floating") == 0) {
+            rule->floating = AXIOM_RULE_FLOATING_FORCE_FLOATING;
+        } else if (strcmp(value, "force_tiled") == 0) {
+            rule->floating = AXIOM_RULE_FLOATING_FORCE_TILED;
+        }
+    } else if (strcmp(key, "position") == 0) {
+        if (strcmp(value, "center") == 0) {
+            rule->position = AXIOM_RULE_POS_CENTER;
+        } else if (strcmp(value, "maximized") == 0) {
+            rule->position = AXIOM_RULE_POS_MAXIMIZED;
+        } else if (strcmp(value, "top-left") == 0) {
+            rule->position = AXIOM_RULE_POS_TOP_LEFT;
+        } else if (strcmp(value, "top-right") == 0) {
+            rule->position = AXIOM_RULE_POS_TOP_RIGHT;
+        } else if (strcmp(value, "bottom-left") == 0) {
+            rule->position = AXIOM_RULE_POS_BOTTOM_LEFT;
+        } else if (strcmp(value, "bottom-right") == 0) {
+            rule->position = AXIOM_RULE_POS_BOTTOM_RIGHT;
+        }
+    } else if (strcmp(key, "size") == 0) {
+        if (strcmp(value, "small") == 0) {
+            rule->size = AXIOM_RULE_SIZE_SMALL;
+        } else if (strcmp(value, "medium") == 0) {
+            rule->size = AXIOM_RULE_SIZE_MEDIUM;
+        } else if (strcmp(value, "large") == 0) {
+            rule->size = AXIOM_RULE_SIZE_LARGE;
+        } else {
+            // Try to parse custom size (e.g., "800x600")
+            int w, h;
+            if (sscanf(value, "%dx%d", &w, &h) == 2) {
+                rule->size = AXIOM_RULE_SIZE_CUSTOM;
+                rule->custom_width = w;
+                rule->custom_height = h;
+            }
+        }
+    } else if (strcmp(key, "disable_shadows") == 0) {
+        rule->disable_shadows = (strcmp(value, "true") == 0 || strcmp(value, "yes") == 0);
+    } else if (strcmp(key, "disable_blur") == 0) {
+        rule->disable_blur = (strcmp(value, "true") == 0 || strcmp(value, "yes") == 0);
+    } else if (strcmp(key, "disable_animations") == 0) {
+        rule->disable_animations = (strcmp(value, "true") == 0 || strcmp(value, "yes") == 0);
+    } else if (strcmp(key, "picture_in_picture") == 0) {
+        rule->enable_pip = (strcmp(value, "true") == 0 || strcmp(value, "yes") == 0);
+    }
+}
+
+void axiom_window_rules_trim_string(char *str) {
+    if (!str) return;
+    
+    // Trim leading whitespace
+    char *start = str;
+    while (*start && (*start == ' ' || *start == '\t')) {
+        start++;
+    }
+    
+    // Trim trailing whitespace
+    char *end = start + strlen(start) - 1;
+    while (end > start && (*end == ' ' || *end == '\t' || *end == '\n' || *end == '\r')) {
+        *end = '\0';
+        end--;
+    }
+    
+    // Move trimmed string to beginning
+    if (start != str) {
+        memmove(str, start, strlen(start) + 1);
+    }
+}
+
+// Load default rules when no config file is found
+bool axiom_window_rules_load_defaults(struct axiom_window_rules_manager *manager) {
+    if (!manager) return false;
+    
+    // Rule for Firefox - workspace 1, maximized
+    struct axiom_window_rule *firefox_rule = axiom_window_rule_create();
+    if (firefox_rule) {
+        axiom_window_rule_set_app_id(firefox_rule, "firefox");
+        firefox_rule->workspace = 1;
+        firefox_rule->position = AXIOM_RULE_POS_MAXIMIZED;
+        firefox_rule->priority = 100;
+        firefox_rule->rule_name = strdup("firefox-rule");
+        wl_list_insert(&manager->rules, &firefox_rule->link);
+        manager->rules_count++;
+    }
+    
+    // Rule for VS Code - workspace 2, large size
+    struct axiom_window_rule *code_rule = axiom_window_rule_create();
+    if (code_rule) {
+        axiom_window_rule_set_app_id(code_rule, "code");
+        axiom_window_rule_set_class(code_rule, "Code");
+        code_rule->workspace = 2;
+        code_rule->size = AXIOM_RULE_SIZE_LARGE;
+        code_rule->position = AXIOM_RULE_POS_CENTER;
+        code_rule->priority = 100;
+        code_rule->rule_name = strdup("vscode-rule");
+        wl_list_insert(&manager->rules, &code_rule->link);
+        manager->rules_count++;
+    }
+    
+    // Rule for media players - floating, PiP enabled
+    struct axiom_window_rule *media_rule = axiom_window_rule_create();
+    if (media_rule) {
+        axiom_window_rule_set_app_id(media_rule, "mpv");
+        media_rule->floating = AXIOM_RULE_FLOATING_FORCE_FLOATING;
+        media_rule->size = AXIOM_RULE_SIZE_MEDIUM;
+        media_rule->position = AXIOM_RULE_POS_BOTTOM_RIGHT;
+        media_rule->enable_pip = true;
+        media_rule->priority = 90;
+        media_rule->rule_name = strdup("media-player-rule");
+        wl_list_insert(&manager->rules, &media_rule->link);
+        manager->rules_count++;
+    }
+    
+    // Rule for calculator - small floating window
+    struct axiom_window_rule *calc_rule = axiom_window_rule_create();
+    if (calc_rule) {
+        axiom_window_rule_set_class(calc_rule, "gnome-calculator");
+        axiom_window_rule_set_app_id(calc_rule, "org.gnome.Calculator");
+        calc_rule->floating = AXIOM_RULE_FLOATING_FORCE_FLOATING;
+        calc_rule->size = AXIOM_RULE_SIZE_SMALL;
+        calc_rule->position = AXIOM_RULE_POS_TOP_RIGHT;
+        calc_rule->priority = 95;
+        calc_rule->rule_name = strdup("calculator-rule");
+        wl_list_insert(&manager->rules, &calc_rule->link);
+        manager->rules_count++;
+    }
+    
+    printf("Loaded %u default window rules\n", manager->rules_count);
+    return true;
 }

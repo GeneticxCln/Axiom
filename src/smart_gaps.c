@@ -2,8 +2,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <time.h>
+#include <sys/time.h>
 #include "../include/smart_gaps.h"
 #include "../include/axiom.h"
+
+// Helper function to get current time in milliseconds
+static uint32_t axiom_get_time_ms(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint32_t)(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+}
 
 struct axiom_smart_gaps_manager *axiom_smart_gaps_manager_create(struct axiom_server *server) {
     struct axiom_smart_gaps_manager *manager = calloc(1, sizeof(struct axiom_smart_gaps_manager));
@@ -473,18 +482,40 @@ bool axiom_smart_gaps_update_output_state(struct axiom_smart_gaps_manager *manag
     struct axiom_gap_state *state = axiom_smart_gaps_get_output_state(manager, output);
     if (!state) return false;
     
-    // Build gap context
+    // Build gap context - get actual values from server
+    struct axiom_server *server = (struct axiom_server *)output->server;
+    
+    // Count windows by type
+    int window_count = 0, tiled_windows = 0, floating_windows = 0;
+    bool has_fullscreen = false;
+    struct axiom_window *window;
+    
+    wl_list_for_each(window, &server->windows, link) {
+        window_count++;
+        if (window->is_fullscreen) {
+            has_fullscreen = true;
+        } else if (window->is_tiled) {
+            tiled_windows++;
+        } else {
+            floating_windows++;
+        }
+    }
+    
+    // Get actual output dimensions
+    struct wlr_box output_box;
+    wlr_output_layout_get_box(server->output_layout, output->wlr_output, &output_box);
+    
     struct axiom_gap_context context = {
         .output = output,
         .gap_state = state,
-        .window_count = 0, // TODO: Get actual window count from output
-        .tiled_windows = 0, // TODO: Get actual tiled window count
-        .floating_windows = 0, // TODO: Get actual floating window count
-        .has_fullscreen = false, // TODO: Check for fullscreen windows
-        .focused_window = NULL, // TODO: Get focused window
-        .screen_width = 1920, // TODO: Get actual screen width
-        .screen_height = 1080, // TODO: Get actual screen height
-        .density = 96.0f // TODO: Calculate actual DPI
+        .window_count = window_count,
+        .tiled_windows = tiled_windows,
+        .floating_windows = floating_windows,
+        .has_fullscreen = has_fullscreen,
+        .focused_window = server->focused_window,
+        .screen_width = output_box.width > 0 ? output_box.width : 1920,
+        .screen_height = output_box.height > 0 ? output_box.height : 1080,
+        .density = 96.0f // Standard DPI - could be enhanced later
     };
     
     // Calculate new gaps
@@ -520,7 +551,7 @@ bool axiom_smart_gaps_update_output_state(struct axiom_smart_gaps_manager *manag
     }
     
     state->adaptations_count++;
-    state->last_adaptation_time = 0; // TODO: Get current time
+    state->last_adaptation_time = axiom_get_time_ms();
     
     return true;
 }
@@ -533,7 +564,7 @@ bool axiom_smart_gaps_start_animation(struct axiom_gap_state *state,
     
     // Set up animation state
     state->animation.active = true;
-    state->animation.start_time = 0; // TODO: Get current time in milliseconds
+    state->animation.start_time = axiom_get_time_ms();
     state->animation.duration = duration_ms;
     
     // Store starting values

@@ -182,3 +182,4 @@ test_window_rules = executable('test_window_rules',
 )
 test('window_rules_tests', test_window_rules)
 
+

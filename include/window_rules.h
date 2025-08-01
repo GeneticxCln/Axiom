@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <wayland-server-core.h>
 
 // Forward declarations
@@ -174,5 +175,11 @@ void axiom_window_rules_debug_window_properties(struct axiom_window *window);
 // Integration with server
 bool axiom_server_init_window_rules(struct axiom_server *server);
 void axiom_server_destroy_window_rules(struct axiom_server *server);
+
+// INI file parsing
+bool axiom_window_rules_parse_ini_file(struct axiom_window_rules_manager *manager, FILE *file);
+void axiom_window_rules_parse_ini_line(struct axiom_window_rule *rule, const char *line);
+void axiom_window_rules_trim_string(char *str);
+bool axiom_window_rules_load_defaults(struct axiom_window_rules_manager *manager);
 
 #endif // AXIOM_WINDOW_RULES_H
