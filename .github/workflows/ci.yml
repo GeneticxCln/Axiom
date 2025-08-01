@@ -1,0 +1,30 @@
+name: Axiom CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y \
+          meson ninja-build \
+          libwayland-dev libwlroots-dev \
+          libxkbcommon-dev libpixman-1-dev \
+          libjson-c-dev libdrm-dev \
+          libegl1-mesa-dev libgles2-mesa-dev \
+          libinput-dev libudev-dev
+    - name: Setup build directory
+      run: |
+        meson setup build
+    - name: Build
+      run: meson compile -C build
+    - name: Run tests
+      run: meson test -C build --verbose
