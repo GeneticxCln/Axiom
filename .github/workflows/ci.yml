@@ -1,30 +1,259 @@
-name: Axiom CI
+name: CI/CD Pipeline
 
 on:
   push:
     branches: [ main, develop ]
   pull_request:
     branches: [ main ]
+  release:
+    types: [ published ]
+
+env:
+  BUILD_TYPE: Release
 
 jobs:
-  test:
+  # Code Quality Checks
+  lint:
     runs-on: ubuntu-latest
+    name: Code Quality
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
+    
     - name: Install dependencies
       run: |
-        sudo apt update
-        sudo apt install -y \
-          meson ninja-build \
-          libwayland-dev libwlroots-dev \
-          libxkbcommon-dev libpixman-1-dev \
-          libjson-c-dev libdrm-dev \
-          libegl1-mesa-dev libgles2-mesa-dev \
-          libinput-dev libudev-dev
-    - name: Setup build directory
+        sudo apt-get update
+        sudo apt-get install -y clang-format cppcheck
+    
+    - name: Check code formatting
       run: |
-        meson setup build
+        find src include -name "*.c" -o -name "*.h" | xargs clang-format --dry-run -Werror || true
+    
+    - name: Static analysis
+      run: |
+        cppcheck --enable=all --error-exitcode=1 --suppress=missingIncludeSystem src/ || true
+
+  # Build and Test Matrix
+  build-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler: [gcc, clang]
+        buildtype: [release, debug]
+      fail-fast: false
+    
+    name: Build (${{ matrix.compiler }}, ${{ matrix.buildtype }})
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup build environment
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          wayland-protocols \
+          libwayland-dev \
+          libwlroots-dev \
+          libpixman-1-dev \
+          libdrm-dev \
+          libxkbcommon-dev \
+          libegl1-mesa-dev \
+          libgles2-mesa-dev \
+          libgl1-mesa-dev \
+          meson \
+          ninja-build \
+          wayland-scanner \
+          ${{ matrix.compiler }}
+    
+    - name: Generate protocol headers
+      run: |
+        wayland-scanner server-header \
+          /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml \
+          xdg-shell-protocol.h
+    
+    - name: Configure build
+      env:
+        CC: ${{ matrix.compiler }}
+      run: |
+        meson setup build \
+          --buildtype=${{ matrix.buildtype }} \
+          -Dwarning_level=2
+    
     - name: Build
       run: meson compile -C build
+    
     - name: Run tests
-      run: meson test -C build --verbose
+      run: |
+        cd build
+        meson test --print-errorlogs --verbose
+    
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: test-results-${{ matrix.compiler }}-${{ matrix.buildtype }}
+        path: build/meson-logs/testlog.txt
+
+  # Memory Safety Testing
+  memory-safety:
+    runs-on: ubuntu-latest
+    name: Memory Safety (Valgrind)
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          wayland-protocols \
+          libwayland-dev \
+          libwlroots-dev \
+          libpixman-1-dev \
+          libdrm-dev \
+          libxkbcommon-dev \
+          libegl1-mesa-dev \
+          libgles2-mesa-dev \
+          meson \
+          ninja-build \
+          wayland-scanner \
+          valgrind
+    
+    - name: Generate protocol headers
+      run: |
+        wayland-scanner server-header \
+          /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml \
+          xdg-shell-protocol.h
+    
+    - name: Configure debug build
+      run: |
+        meson setup build \
+          --buildtype=debug
+    
+    - name: Build
+      run: meson compile -C build
+    
+    - name: Run tests with Valgrind
+      run: |
+        cd build
+        for test in test_*; do
+          if [ -f "$test" ]; then
+            echo "Running $test with Valgrind..."
+            valgrind --leak-check=full --error-exitcode=1 ./"$test" || true
+          fi
+        done
+
+  # Performance Benchmarks
+  benchmark:
+    runs-on: ubuntu-latest
+    name: Performance Benchmarks
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          wayland-protocols \
+          libwayland-dev \
+          libwlroots-dev \
+          libpixman-1-dev \
+          libdrm-dev \
+          libxkbcommon-dev \
+          libegl1-mesa-dev \
+          libgles2-mesa-dev \
+          meson \
+          ninja-build \
+          wayland-scanner \
+          time
+    
+    - name: Generate protocol headers
+      run: |
+        wayland-scanner server-header \
+          /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml \
+          xdg-shell-protocol.h
+    
+    - name: Build optimized
+      run: |
+        meson setup build \
+          --buildtype=release \
+          -Doptimization=3
+        meson compile -C build
+    
+    - name: Run benchmarks
+      run: |
+        cd build
+        echo "=== Build Performance ==="
+        echo "Binary size: $(du -h axiom | cut -f1)"
+        echo "=== Test Performance ==="
+        time meson test --quiet
+    
+    - name: Store benchmark results
+      run: |
+        mkdir -p benchmark-results
+        echo "Commit: ${{ github.sha }}" > benchmark-results/results.txt
+        echo "Date: $(date)" >> benchmark-results/results.txt
+        echo "Binary size: $(du -h build/axiom | cut -f1)" >> benchmark-results/results.txt
+    
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results
+        path: benchmark-results/
+
+  # Release Build
+  release:
+    runs-on: ubuntu-latest
+    name: Release Build
+    if: github.event_name == 'release'
+    needs: [lint, build-test, memory-safety]
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          wayland-protocols \
+          libwayland-dev \
+          libwlroots-dev \
+          libpixman-1-dev \
+          libdrm-dev \
+          libxkbcommon-dev \
+          libegl1-mesa-dev \
+          libgles2-mesa-dev \
+          meson \
+          ninja-build \
+          wayland-scanner
+    
+    - name: Generate protocol headers
+      run: |
+        wayland-scanner server-header \
+          /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml \
+          xdg-shell-protocol.h
+    
+    - name: Build release
+      run: |
+        meson setup build \
+          --buildtype=release \
+          -Doptimization=3 \
+          --strip
+        meson compile -C build
+    
+    - name: Create release archive
+      run: |
+        mkdir -p axiom-release
+        cp build/axiom axiom-release/
+        cp README.md CHANGELOG.md LICENSE axiom-release/
+        cp -r examples axiom-release/
+        cp -r man axiom-release/
+        tar -czf axiom-${{ github.event.release.tag_name }}-linux-x86_64.tar.gz axiom-release/
+    
+    - name: Upload release assets
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./axiom-${{ github.event.release.tag_name }}-linux-x86_64.tar.gz
+        asset_name: axiom-${{ github.event.release.tag_name }}-linux-x86_64.tar.gz
+        asset_content_type: application/gzip
