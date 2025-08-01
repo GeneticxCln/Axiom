@@ -214,6 +214,9 @@ struct axiom_server {
     
     // Smart gaps system (Phase 3.2)
     struct axiom_smart_gaps_manager *smart_gaps_manager;
+    
+    // Window snapping system (Phase 3.3)
+    struct axiom_window_snapping_manager *window_snapping_manager;
 };
 
 /* Function declarations */

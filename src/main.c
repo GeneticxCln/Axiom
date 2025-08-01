@@ -12,6 +12,7 @@
 #include "renderer.h"
 #include "window_rules.h"
 #include "smart_gaps.h"
+#include "window_snapping.h"
 void axiom_calculate_window_layout(struct axiom_server *server, int index, int *x, int *y, int *width, int *height);
 
 void axiom_arrange_windows(struct axiom_server *server) {
@@ -329,6 +330,8 @@ static void server_new_output(struct wl_listener *listener, void *data) {
     struct wlr_output *wlr_output = data;
     
     printf("New output: %s\n", wlr_output->name);
+    printf("Debug: renderer=%p, cursor_mgr=%p, cursor=%p\n", 
+           (void*)server->renderer, (void*)server->cursor_mgr, (void*)server->cursor);
     
     // Set preferred mode
     struct wlr_output_state state;
@@ -352,20 +355,40 @@ static void server_new_output(struct wl_listener *listener, void *data) {
     
     output->server = server;
     output->wlr_output = wlr_output;
+    
+    printf("Debug: Creating scene output with scene=%p, wlr_output=%p\n", 
+           (void*)server->scene, (void*)wlr_output);
+    
     output->scene_output = wlr_scene_output_create(server->scene, wlr_output);
     if (!output->scene_output) {
+        printf("Error: Failed to create scene output\n");
         free(output);
         wlr_output_state_finish(&state);
         return;
     }
     
+    printf("Debug: Scene output created: %p\n", (void*)output->scene_output);
+    
+    // Lock software cursors to avoid hardware cursor renderer issues in nested mode
+    wlr_output_lock_software_cursors(wlr_output, true);
+    printf("Debug: Locked software cursors for output %s\n", wlr_output->name);
+    
     wl_list_insert(&server->outputs, &output->link);
     
-    // Load cursor theme for this output scale - ensure renderer is ready
-    if (server->renderer && server->cursor_mgr) {
-        wlr_xcursor_manager_load(server->cursor_mgr, wlr_output->scale);
-        // Set a default cursor only after the output and renderer are ready
-        wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
+    // Skip cursor setup entirely during output creation to avoid renderer assertion
+    // The cursor will be handled by the software cursor system
+    printf("Debug: Skipping cursor setup to avoid renderer assertion in nested mode\n");
+    
+    // Load cursor theme for this output scale but don't set it immediately 
+    if (server->cursor_mgr) {
+        printf("Debug: Loading cursor theme for output %s (scale=%.2f)\n", 
+               wlr_output->name, wlr_output->scale);
+        
+        if (wlr_xcursor_manager_load(server->cursor_mgr, wlr_output->scale)) {
+            printf("Debug: Cursor theme loaded successfully (not setting cursor yet)\n");
+        } else {
+            printf("Warning: Failed to load cursor theme for output %s\n", wlr_output->name);
+        }
     }
     
     // Update workspace dimensions based on output size
@@ -423,13 +446,23 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
     
-    wlr_renderer_init_wl_display(server.renderer, server.wl_display);
+    printf("Debug: Renderer created successfully: %p\n", (void*)server.renderer);
+    
+    if (!wlr_renderer_init_wl_display(server.renderer, server.wl_display)) {
+        fprintf(stderr, "Failed to initialize renderer with Wayland display\n");
+        return EXIT_FAILURE;
+    }
+    
+    printf("Debug: Renderer initialized with Wayland display\n");
     
     server.allocator = wlr_allocator_autocreate(server.backend, server.renderer);
     server.compositor = wlr_compositor_create(server.wl_display, 5, server.renderer);
     server.scene = wlr_scene_create();
     server.output_layout = wlr_output_layout_create(server.wl_display);
     server.scene_layout = wlr_scene_attach_output_layout(server.scene, server.output_layout);
+    
+    // Ensure the scene is properly initialized with the renderer
+    printf("Debug: Scene created: %p, scene_layout: %p\n", (void*)server.scene, (void*)server.scene_layout);
     
     // Initialize lists
     wl_list_init(&server.windows);
@@ -483,9 +516,15 @@ int main(int argc, char *argv[]) {
     // Apply configuration to server state
     server.tiling_enabled = server.config->tiling_enabled;
     
+    // Initialize window snapping system
+    server.window_snapping_manager = axiom_window_snapping_manager_create(&server);
+    if (!server.window_snapping_manager) {
+        fprintf(stderr, "Failed to initialize window snapping manager\n");
+    }
+
     // Initialize process management
     axiom_process_init(&server);
-    
+
     // Initialize animation system
     axiom_animation_manager_init(&server);
     
@@ -543,12 +582,24 @@ int main(int argc, char *argv[]) {
     wl_list_init(&server.input_devices);
     
     server.cursor = wlr_cursor_create();
+    if (!server.cursor) {
+        fprintf(stderr, "Failed to create cursor\n");
+        return EXIT_FAILURE;
+    }
+    
+    printf("Debug: Cursor created: %p\n", (void*)server.cursor);
+    
     server.cursor_mgr = wlr_xcursor_manager_create(server.config->cursor_theme, server.config->cursor_size);
     if (!server.cursor_mgr) {
         fprintf(stderr, "Failed to create cursor manager\n");
         return EXIT_FAILURE;
     }
+    
+    printf("Debug: Cursor manager created: %p (theme=%s, size=%d)\n", 
+           (void*)server.cursor_mgr, server.config->cursor_theme, server.config->cursor_size);
+    
     wlr_cursor_attach_output_layout(server.cursor, server.output_layout);
+    printf("Debug: Cursor attached to output layout\n");
     
     server.cursor_mode = AXIOM_CURSOR_PASSTHROUGH;
     
@@ -622,6 +673,11 @@ int main(int argc, char *argv[]) {
         free(server.effects_manager);
     }
     
+// Cleanup window snapping system
+    if (server.window_snapping_manager) {
+        axiom_window_snapping_manager_destroy(server.window_snapping_manager);
+    }
+
     // Cleanup window rules system
     if (server.window_rules_manager) {
         axiom_server_destroy_window_rules(&server);
