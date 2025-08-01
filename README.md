@@ -1,9 +1,15 @@
-# Axiom
-> A modern, feature-rich Wayland compositor built with wlroots
-
-![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)
-![Platform](https://img.shields.io/badge/platform-Linux-lightgrey.svg)
-![Wayland](https://img.shields.io/badge/Wayland-Compatible-green.svg)
+<div align="center">
+  <img src="logo.svg" alt="Axiom Logo" width="200" height="200"/>
+  
+  # Axiom
+  
+  **A modern, feature-rich Wayland compositor built with wlroots**
+  
+  ![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)
+  ![Platform](https://img.shields.io/badge/platform-Linux-lightgrey.svg)
+  ![Wayland](https://img.shields.io/badge/Wayland-Compatible-green.svg)
+  
+</div>
 
 Axiom is a lightweight yet powerful Wayland compositor designed for productivity and customization. Built on top of wlroots, it provides advanced window management features including intelligent window snapping, multi-monitor support, and seamless integration with existing Wayland applications.
 
@@ -47,8 +53,8 @@ sudo apt-get install wayland-protocols libwayland-dev libwlroots-dev libpixman-1
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/yourusername/axiom.git
-   cd axiom
+   git clone https://github.com/GeneticxCln/Axiom.git
+   cd Axiom
    ```
 
 2. **Generate protocol headers:**
@@ -228,9 +234,9 @@ Axiom is released under the GNU General Public License v3.0. See [LICENSE](LICEN
 
 ## 📞 Support
 
-- **Documentation**: [GitHub Wiki](https://github.com/yourusername/axiom/wiki)
-- **Issues**: [GitHub Issues](https://github.com/yourusername/axiom/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/axiom/discussions)
+- **Documentation**: [GitHub Wiki](https://github.com/GeneticxCln/Axiom/wiki)
+- **Issues**: [GitHub Issues](https://github.com/GeneticxCln/Axiom/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/GeneticxCln/Axiom/discussions)
 
 ---
 
