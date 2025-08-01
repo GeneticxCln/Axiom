@@ -65,9 +65,11 @@ bool axiom_window_effects_init(struct axiom_window *window) {
     effects->current_opacity = 1.0f;
     effects->last_frame_time = 0;
     
-    // Initialize shadow system
-    int shadow_width = (window->geometry.width > 0 ? window->geometry.width : window->width) + SHADOW_BLUR_RADIUS * 2;
-    int shadow_height = (window->geometry.height > 0 ? window->geometry.height : window->height) + SHADOW_BLUR_RADIUS * 2;
+    // Initialize shadow system using configuration
+    struct axiom_effects_manager *effects_manager = window->server->effects_manager;
+    int shadow_blur_radius = effects_manager ? effects_manager->shadow.blur_radius : SHADOW_BLUR_RADIUS;
+    int shadow_width = (window->geometry.width > 0 ? window->geometry.width : window->width) + shadow_blur_radius * 2;
+    int shadow_height = (window->geometry.height > 0 ? window->geometry.height : window->height) + shadow_blur_radius * 2;
     if (!axiom_realtime_shadow_create(&effects->shadow, shadow_width, shadow_height)) {
         fprintf(stderr, "Failed to create shadow for window\n");
         free(window->effects);
@@ -128,8 +130,10 @@ void axiom_window_effects_update(struct axiom_window *window, uint32_t time_ms) 
     effects->last_frame_time = time_ms;
     
     // Mark effects for update if window geometry changed
-    if (effects->shadow.width != window->geometry.width + SHADOW_BLUR_RADIUS * 2 ||
-        effects->shadow.height != window->geometry.height + SHADOW_BLUR_RADIUS * 2) {
+    struct axiom_effects_manager *effects_manager = window->server->effects_manager;
+    int shadow_blur_radius = effects_manager ? effects_manager->shadow.blur_radius : SHADOW_BLUR_RADIUS;
+    if (effects->shadow.width != window->geometry.width + shadow_blur_radius * 2 ||
+        effects->shadow.height != window->geometry.height + shadow_blur_radius * 2) {
         effects->shadow.needs_update = true;
         effects->blur.needs_update = true;
     }
@@ -211,13 +215,13 @@ bool axiom_realtime_shadow_render(struct axiom_effects_manager *manager,
     // Capture window content and render as shadow
     GLuint window_texture = axiom_capture_window_texture(window);
     if (window_texture) {
-        // Create shadow parameters
+        // Create shadow parameters from configuration
         struct axiom_shadow_params params = {
-            .offset_x = SHADOW_OFFSET_X,
-            .offset_y = SHADOW_OFFSET_Y,
-            .blur_radius = SHADOW_BLUR_RADIUS,
-            .opacity = 0.5f,
-            .color = {0.0f, 0.0f, 0.0f, 0.5f},
+            .offset_x = manager->shadow.offset_x > 0 ? manager->shadow.offset_x : SHADOW_OFFSET_X,
+            .offset_y = manager->shadow.offset_y > 0 ? manager->shadow.offset_y : SHADOW_OFFSET_Y,
+            .blur_radius = manager->shadow.blur_radius > 0 ? manager->shadow.blur_radius : SHADOW_BLUR_RADIUS,
+            .opacity = manager->shadow.opacity > 0.0f ? manager->shadow.opacity : 0.5f,
+            .color = {0.0f, 0.0f, 0.0f, manager->shadow.opacity > 0.0f ? manager->shadow.opacity : 0.5f},
             .width = shadow->width,
             .height = shadow->height
         };
@@ -236,9 +240,14 @@ bool axiom_realtime_shadow_render(struct axiom_effects_manager *manager,
 void axiom_realtime_shadow_update_scene(struct axiom_window *window) {
     if (!window || !window->effects || !window->effects->shadow_rect) return;
     
-    // Update shadow position relative to window
-    int shadow_x = window->geometry.x + SHADOW_OFFSET_X;
-    int shadow_y = window->geometry.y + SHADOW_OFFSET_Y;
+    // Update shadow position relative to window using configuration
+    struct axiom_effects_manager *effects_manager = window->server->effects_manager;
+    int offset_x = effects_manager && effects_manager->shadow.offset_x > 0 ? 
+                   effects_manager->shadow.offset_x : SHADOW_OFFSET_X;
+    int offset_y = effects_manager && effects_manager->shadow.offset_y > 0 ? 
+                   effects_manager->shadow.offset_y : SHADOW_OFFSET_Y;
+    int shadow_x = window->geometry.x + offset_x;
+    int shadow_y = window->geometry.y + offset_y;
     
     wlr_scene_node_set_position(&window->effects->shadow_rect->node, shadow_x, shadow_y);
 }
@@ -367,47 +376,73 @@ bool axiom_realtime_blur_render(struct axiom_effects_manager *manager,
     return true;
 }
 
-// Window content capture
+// Window content capture from wlroots texture system
 GLuint axiom_capture_window_texture(struct axiom_window *window) {
     if (!window || !window->surface) return 0;
     
     // Get the wlr_texture from the window's surface
     struct wlr_texture *wlr_tex = wlr_surface_get_texture(window->surface);
-    if (!wlr_tex) return 0;
+    if (!wlr_tex) {
+        // If no texture available, create placeholder
+        return axiom_create_placeholder_texture(window);
+    }
     
-    // Create a new texture for window content
-    GLuint texture;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
+    // Get texture dimensions from wlroots
+    int tex_width = wlr_tex->width;
+    int tex_height = wlr_tex->height;
     
-    // Initialize texture with window dimensions
-    int width = window->geometry.width > 0 ? window->geometry.width : window->width;
-    int height = window->geometry.height > 0 ? window->geometry.height : window->height;
+    if (tex_width <= 0 || tex_height <= 0) {
+        return axiom_create_placeholder_texture(window);
+    }
     
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    // Create OpenGL texture
+    GLuint gl_texture;
+    glGenTextures(1, &gl_texture);
+    glBindTexture(GL_TEXTURE_2D, gl_texture);
+    
+    // Set texture parameters
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     
-    // TODO: Copy actual window surface content to texture
-    // This would require integration with wlroots texture system
-    // For now, create a solid color texture as placeholder
-    GLubyte *placeholder_data = malloc(width * height * 4);
-    if (placeholder_data) {
-        // Fill with semi-transparent white for shadow generation
-        for (int i = 0; i < width * height * 4; i += 4) {
-            placeholder_data[i] = 255;     // R
-            placeholder_data[i+1] = 255;   // G
-            placeholder_data[i+2] = 255;   // B
-            placeholder_data[i+3] = 200;   // A (semi-transparent)
+    // Try to extract OpenGL texture ID from wlroots texture
+    // This is implementation-specific and may vary based on wlroots version
+    bool content_copied = false;
+    
+    // Method 1: Try to read pixel data using wlroots 0.19 API
+    if (!content_copied) {
+        void *pixel_data = malloc(tex_width * tex_height * 4);
+        if (pixel_data) {
+            // Use the correct wlroots 0.19 API signature
+            if (wlr_texture_read_pixels(wlr_tex, pixel_data)) {
+                // Upload pixel data to our OpenGL texture
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tex_width, tex_height, 0, 
+                            GL_RGBA, GL_UNSIGNED_BYTE, pixel_data);
+                content_copied = true;
+                printf("Successfully captured window content via pixel readback\n");
+            }
+            free(pixel_data);
         }
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, placeholder_data);
-        free(placeholder_data);
+    }
+    
+    // Method 3: Final fallback - create window-based content
+    if (!content_copied) {
+        printf("Warning: Could not capture window content, using window-based fallback\n");
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tex_width, tex_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+        
+        // Create simple gradient based on window properties
+        GLubyte *fallback_data = malloc(tex_width * tex_height * 4);
+        if (fallback_data) {
+            axiom_generate_window_fallback_content(window, fallback_data, tex_width, tex_height);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, tex_width, tex_height, GL_RGBA, GL_UNSIGNED_BYTE, fallback_data);
+            free(fallback_data);
+        }
     }
     
     glBindTexture(GL_TEXTURE_2D, 0);
-    return texture;
+    printf("Captured window texture: %dx%d (ID: %u)\n", tex_width, tex_height, gl_texture);
+    return gl_texture;
 }
 
 bool axiom_upload_window_content(struct axiom_window *window, GLuint texture) {
@@ -539,4 +574,117 @@ void axiom_effects_animate_blur_strength(struct axiom_window *window,
     
     // Placeholder for blur strength animation
     printf("Animating blur strength to %.2f over %u ms\n", target_strength, duration);
+}
+
+// Helper functions for window content capture
+GLuint axiom_create_placeholder_texture(struct axiom_window *window) {
+    if (!window) return 0;
+    
+    int width = window->geometry.width > 0 ? window->geometry.width : window->width;
+    int height = window->geometry.height > 0 ? window->geometry.height : window->height;
+    
+    if (width <= 0) width = 400;
+    if (height <= 0) height = 300;
+    
+    GLuint texture;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    
+    // Create placeholder data
+    GLubyte *data = malloc(width * height * 4);
+    if (data) {
+        axiom_generate_window_fallback_content(window, data, width, height);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+        free(data);
+    } else {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    }
+    
+    glBindTexture(GL_TEXTURE_2D, 0);
+    return texture;
+}
+
+void axiom_generate_window_fallback_content(struct axiom_window *window, GLubyte *data, int width, int height) {
+    if (!data || width <= 0 || height <= 0) return;
+    
+    // Generate content based on window properties
+    const char *app_id = window->xdg_toplevel ? window->xdg_toplevel->app_id : NULL;
+    // Note: title could be used for additional content generation in the future
+    
+    // Use app_id or title to determine color scheme
+    uint8_t base_r = 100, base_g = 100, base_b = 100;
+    
+    if (app_id) {
+        // Simple hash to color mapping
+        uint32_t hash = 0;
+        for (const char *p = app_id; *p; p++) {
+            hash = hash * 31 + *p;
+        }
+        base_r = 80 + (hash % 100);
+        base_g = 80 + ((hash >> 8) % 100);
+        base_b = 80 + ((hash >> 16) % 100);
+    }
+    
+    // Create gradient effect
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            int idx = (y * width + x) * 4;
+            
+            float fx = (float)x / width;
+            float fy = (float)y / height;
+            
+            // Create radial gradient from center
+            float dx = fx - 0.5f;
+            float dy = fy - 0.5f;
+            float dist = sqrt(dx * dx + dy * dy);
+            float fade = 1.0f - (dist * 1.4f);
+            if (fade < 0.0f) fade = 0.0f;
+            
+            data[idx] = (uint8_t)(base_r * fade);
+            data[idx + 1] = (uint8_t)(base_g * fade);
+            data[idx + 2] = (uint8_t)(base_b * fade);
+            data[idx + 3] = window->is_focused ? 220 : 180; // More opaque if focused
+        }
+    }
+}
+
+bool axiom_copy_texture_via_fbo(GLuint source_texture, GLuint target_texture, int width, int height) {
+    // Create temporary FBO for copying
+    GLuint temp_fbo;
+    glGenFramebuffers(1, &temp_fbo);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, temp_fbo);
+    glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, source_texture, 0);
+    
+    if (glCheckFramebufferStatus(GL_READ_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        glDeleteFramebuffers(1, &temp_fbo);
+        return false;
+    }
+    
+    // Bind target texture to another FBO
+    GLuint target_fbo;
+    glGenFramebuffers(1, &target_fbo);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, target_fbo);
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, target_texture, 0);
+    
+    if (glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        glDeleteFramebuffers(1, &temp_fbo);
+        glDeleteFramebuffers(1, &target_fbo);
+        return false;
+    }
+    
+    // Copy from source to target
+    glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    
+    // Cleanup
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    glDeleteFramebuffers(1, &temp_fbo);
+    glDeleteFramebuffers(1, &target_fbo);
+    
+    return glGetError() == GL_NO_ERROR;
 }

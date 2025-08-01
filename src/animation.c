@@ -102,10 +102,44 @@ float axiom_easing_apply(enum axiom_easing_type easing, float t) {
         case AXIOM_EASE_LINEAR:
             result = t;
             break;
+        case AXIOM_EASE_IN_QUAD:
+            result = t * t;
+            break;
+        case AXIOM_EASE_OUT_QUAD:
+            result = 1.0f - (1.0f - t) * (1.0f - t);
+            break;
+        case AXIOM_EASE_IN_OUT_QUAD:
+            result = t < 0.5f ? 2.0f * t * t : 1.0f - pow(-2.0f * t + 2.0f, 2) / 2.0f;
+            break;
+        case AXIOM_EASE_IN_CUBIC:
+            result = t * t * t;
+            break;
         case AXIOM_EASE_OUT_CUBIC:
             result = 1.0f - pow(1.0f - t, 3);
             break;
-        // Add more easing implementations here
+        case AXIOM_EASE_IN_OUT_CUBIC:
+            result = t < 0.5f ? 4.0f * t * t * t : 1.0f - pow(-2.0f * t + 2.0f, 3) / 2.0f;
+            break;
+        case AXIOM_EASE_OUT_BOUNCE: {
+            const float n1 = 7.5625f;
+            const float d1 = 2.75f;
+            if (t < 1.0f / d1) {
+                result = n1 * t * t;
+            } else if (t < 2.0f / d1) {
+                t -= 1.5f / d1;
+                result = n1 * t * t + 0.75f;
+            } else if (t < 2.5f / d1) {
+                t -= 2.25f / d1;
+                result = n1 * t * t + 0.9375f;
+            } else {
+                t -= 2.625f / d1;
+                result = n1 * t * t + 0.984375f;
+            }
+            break;
+        }
+        case AXIOM_EASE_SPRING:
+            result = sinf(t * M_PI * (0.2f + 2.5f * t * t * t)) * powf(1.0f - t, 2.2f) + t * (1.0f + (1.2f * (1.0f - t)));
+            break;
         default:
             result = t;
             break;

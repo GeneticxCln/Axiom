@@ -8,29 +8,67 @@
 // Helper macros
 #define RGBA_COLOR(r, g, b, a) (((a) << 24) | ((b) << 16) | ((g) << 8) | (r))
 
-bool axiom_effects_manager_init(struct axiom_effects_manager *manager) {
+bool axiom_effects_manager_init(struct axiom_effects_manager *manager, struct axiom_effects_config *config) {
     if (!manager) return false;
     memset(manager, 0, sizeof(*manager));
 
-    // Shadow defaults
-    manager->shadow.enabled = true;
-    manager->shadow.blur_radius = 10;
-    manager->shadow.offset_x = 5;
-    manager->shadow.offset_y = 5;
-    manager->shadow.opacity = 0.5;
-    manager->shadow.color = RGBA_COLOR(0, 0, 0, 128);
+    // Apply configuration if provided
+    if (config) {
+        // Shadow configuration
+        manager->shadow.enabled = config->shadows_enabled;
+        manager->shadow.blur_radius = config->shadow_blur_radius;
+        manager->shadow.offset_x = config->shadow_offset_x;
+        manager->shadow.offset_y = config->shadow_offset_y;
+        manager->shadow.opacity = config->shadow_opacity;
+        
+        // Parse shadow color from hex string to RGBA
+        uint32_t shadow_color = RGBA_COLOR(0, 0, 0, 128); // Default black
+        if (config->shadow_color && strlen(config->shadow_color) >= 7 && config->shadow_color[0] == '#') {
+            // Simple hex color parsing
+            unsigned int r, g, b;
+            if (sscanf(config->shadow_color + 1, "%02x%02x%02x", &r, &g, &b) == 3) {
+                shadow_color = RGBA_COLOR(r, g, b, (int)(config->shadow_opacity * 255));
+            }
+        }
+        manager->shadow.color = shadow_color;
 
-    // Blur defaults
-    manager->blur.enabled = true;
-    manager->blur.radius = 15;
-    manager->blur.focus_only = false;
-    manager->blur.intensity = 0.7;
+        // Blur configuration
+        manager->blur.enabled = config->blur_enabled;
+        manager->blur.radius = config->blur_radius;
+        manager->blur.focus_only = config->blur_focus_only;
+        manager->blur.intensity = config->blur_intensity;
 
-    // Transparency defaults
-    manager->transparency.enabled = true;
-    manager->transparency.focused_opacity = 1.0;
-    manager->transparency.unfocused_opacity = 0.85;
-    manager->transparency.inactive_opacity = 0.7;
+        // Transparency configuration
+        manager->transparency.enabled = config->transparency_enabled;
+        manager->transparency.focused_opacity = config->focused_opacity;
+        manager->transparency.unfocused_opacity = config->unfocused_opacity;
+        manager->transparency.inactive_opacity = config->inactive_opacity;
+        
+        printf("Effects manager configured: shadows=%s, blur=%s, transparency=%s\n",
+               manager->shadow.enabled ? "on" : "off",
+               manager->blur.enabled ? "on" : "off",
+               manager->transparency.enabled ? "on" : "off");
+    } else {
+        // Use defaults
+        manager->shadow.enabled = true;
+        manager->shadow.blur_radius = 10;
+        manager->shadow.offset_x = 5;
+        manager->shadow.offset_y = 5;
+        manager->shadow.opacity = 0.5;
+        manager->shadow.color = RGBA_COLOR(0, 0, 0, 128);
+
+        manager->blur.enabled = true;
+        manager->blur.radius = 15;
+        manager->blur.focus_only = false;
+        manager->blur.intensity = 0.7;
+
+        manager->transparency.enabled = true;
+        manager->transparency.focused_opacity = 1.0;
+        manager->transparency.unfocused_opacity = 0.85;
+        manager->transparency.inactive_opacity = 0.7;
+        
+        printf("Effects manager using default configuration\n");
+    }
 
     manager->gl_initialized = false;
     wl_list_init(&manager->shadow_cache);
@@ -57,7 +95,15 @@ bool axiom_shadow_init(struct axiom_effects_manager *manager) {
 }
 
 void axiom_shadow_destroy(struct axiom_effects_manager *manager) {
-    // Cleanup OpenGL context and shadow textures here
+    if (!manager) return;
+    
+    // Clean up shadow texture cache
+    struct axiom_shadow_texture *shadow_texture, *tmp;
+    wl_list_for_each_safe(shadow_texture, tmp, &manager->shadow_cache, link) {
+        wl_list_remove(&shadow_texture->link);
+        free(shadow_texture->texture_data);
+        free(shadow_texture);
+    }
 }
 
 struct axiom_shadow_texture *axiom_shadow_create_texture(

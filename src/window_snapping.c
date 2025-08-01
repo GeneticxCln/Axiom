@@ -57,16 +57,37 @@ struct axiom_window_snapping_manager *axiom_window_snapping_manager_create(struc
 }
 
 /**
- * Initialize window snapping manager
+ * Initialize window snapping manager with configuration
  */
-bool axiom_window_snapping_manager_init(struct axiom_window_snapping_manager *manager) {
+bool axiom_window_snapping_manager_init(struct axiom_window_snapping_manager *manager, 
+                                       struct axiom_snapping_config *config) {
     if (!manager) {
         return false;
     }
     
-    // Load configuration from config system if available
-    if (manager->server && manager->server->config) {
-        axiom_window_snapping_load_config(manager, "./axiom.conf");
+    // Apply configuration if provided
+    if (config) {
+        // Note: config is axiom_snapping_config, not the full window_snapping_config
+        // manager->enabled = true; // Keep default enabled state since config doesn't have this field
+        manager->config.snap_threshold = config->snap_threshold;
+        manager->config.edge_resistance = config->edge_resistance;
+        manager->config.magnetism_strength = config->magnetism_strength;
+        manager->config.smart_corners = config->smart_corners;
+        manager->config.multi_monitor_snapping = config->multi_monitor_snapping;
+        manager->config.window_to_window_snapping = config->window_to_window_snapping;
+        manager->config.edge_snapping = config->edge_snapping;
+        
+        // Use animation duration from config if available
+        manager->config.animation_duration = config->animation_duration;
+        
+        wlr_log(WLR_INFO, "Window snapping configured: enabled=%s, threshold=%d, magnetism=%.2f",
+               manager->enabled ? "yes" : "no", 
+               manager->config.snap_threshold,
+               manager->config.magnetism_strength);
+    } else {
+        // Use defaults
+        manager->config = default_config;
+        wlr_log(WLR_INFO, "Window snapping using default configuration");
     }
     
     wlr_log(WLR_INFO, "Window snapping manager initialized successfully");

@@ -530,7 +530,7 @@ int main(int argc, char *argv[]) {
     
     // Initialize visual effects system
     server.effects_manager = calloc(1, sizeof(struct axiom_effects_manager));
-    if (server.effects_manager && !axiom_effects_manager_init(server.effects_manager)) {
+    if (server.effects_manager && !axiom_effects_manager_init(server.effects_manager, &server.config->effects)) {
         fprintf(stderr, "Failed to initialize effects manager\n");
         free(server.effects_manager);
         server.effects_manager = NULL;
@@ -565,7 +565,7 @@ int main(int argc, char *argv[]) {
     }
     
     // Initialize smart gaps system (Phase 3.2)
-    if (!axiom_server_init_smart_gaps(&server)) {
+    if (!axiom_server_init_smart_gaps(&server, &server.config->smart_gaps)) {
         fprintf(stderr, "Failed to initialize smart gaps system\n");
     } else {
         printf("Smart gaps system initialized successfully\n");

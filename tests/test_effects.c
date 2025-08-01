@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <string.h>
 #include "../include/effects.h"
+#include "../include/config.h"
 
 // Test helpers
 static bool test_passed = true;
@@ -20,7 +21,23 @@ static void test_effects_manager_init() {
     printf("\n1. Testing effects manager initialization...\n");
     
     struct axiom_effects_manager manager;
-    bool result = axiom_effects_manager_init(&manager);
+    struct axiom_effects_config config = {
+        .shadows_enabled = true,
+        .blur_enabled = true,
+        .transparency_enabled = true,
+        .shadow_blur_radius = 10,
+        .shadow_offset_x = 4,
+        .shadow_offset_y = 4,
+        .shadow_opacity = 0.5f,
+        .shadow_color = "#000000",
+        .blur_radius = 8,
+        .blur_focus_only = false,
+        .blur_intensity = 0.7f,
+        .focused_opacity = 1.0f,
+        .unfocused_opacity = 0.9f,
+        .inactive_opacity = 0.8f
+    };
+    bool result = axiom_effects_manager_init(&manager, &config);
     
     test_assert(result == true, "Effects manager initialization");
     test_assert(manager.shadow.enabled == true, "Shadow effects enabled by default");
@@ -38,7 +55,23 @@ static void test_shadow_configuration() {
     printf("\n2. Testing shadow configuration...\n");
     
     struct axiom_effects_manager manager;
-    axiom_effects_manager_init(&manager);
+    struct axiom_effects_config config = {
+        .shadows_enabled = true,
+        .blur_enabled = true,
+        .transparency_enabled = true,
+        .shadow_blur_radius = 10,
+        .shadow_offset_x = 4,
+        .shadow_offset_y = 4,
+        .shadow_opacity = 0.5f,
+        .shadow_color = "#000000",
+        .blur_radius = 8,
+        .blur_focus_only = false,
+        .blur_intensity = 0.7f,
+        .focused_opacity = 1.0f,
+        .unfocused_opacity = 0.9f,
+        .inactive_opacity = 0.8f
+    };
+    axiom_effects_manager_init(&manager, &config);
     
     // Test shadow config update
     struct axiom_shadow_config new_shadow_config = {
@@ -64,7 +97,23 @@ static void test_blur_configuration() {
     printf("\n3. Testing blur configuration...\n");
     
     struct axiom_effects_manager manager;
-    axiom_effects_manager_init(&manager);
+    struct axiom_effects_config config = {
+        .shadows_enabled = true,
+        .blur_enabled = true,
+        .transparency_enabled = true,
+        .shadow_blur_radius = 10,
+        .shadow_offset_x = 4,
+        .shadow_offset_y = 4,
+        .shadow_opacity = 0.5f,
+        .shadow_color = "#000000",
+        .blur_radius = 8,
+        .blur_focus_only = false,
+        .blur_intensity = 0.7f,
+        .focused_opacity = 1.0f,
+        .unfocused_opacity = 0.9f,
+        .inactive_opacity = 0.8f
+    };
+    axiom_effects_manager_init(&manager, &config);
     
     // Test blur config update
     struct axiom_blur_config new_blur_config = {
@@ -87,7 +136,23 @@ static void test_transparency_configuration() {
     printf("\n4. Testing transparency configuration...\n");
     
     struct axiom_effects_manager manager;
-    axiom_effects_manager_init(&manager);
+    struct axiom_effects_config config = {
+        .shadows_enabled = true,
+        .blur_enabled = true,
+        .transparency_enabled = true,
+        .shadow_blur_radius = 10,
+        .shadow_offset_x = 4,
+        .shadow_offset_y = 4,
+        .shadow_opacity = 0.5f,
+        .shadow_color = "#000000",
+        .blur_radius = 8,
+        .blur_focus_only = false,
+        .blur_intensity = 0.7f,
+        .focused_opacity = 1.0f,
+        .unfocused_opacity = 0.9f,
+        .inactive_opacity = 0.8f
+    };
+    axiom_effects_manager_init(&manager, &config);
     
     // Test transparency config update
     struct axiom_transparency_config new_transparency_config = {
@@ -129,7 +194,23 @@ static void test_shadow_texture_creation() {
     printf("\n6. Testing shadow texture creation...\n");
     
     struct axiom_effects_manager manager;
-    axiom_effects_manager_init(&manager);
+    struct axiom_effects_config config = {
+        .shadows_enabled = true,
+        .blur_enabled = true,
+        .transparency_enabled = true,
+        .shadow_blur_radius = 10,
+        .shadow_offset_x = 4,
+        .shadow_offset_y = 4,
+        .shadow_opacity = 0.5f,
+        .shadow_color = "#000000",
+        .blur_radius = 8,
+        .blur_focus_only = false,
+        .blur_intensity = 0.7f,
+        .focused_opacity = 1.0f,
+        .unfocused_opacity = 0.9f,
+        .inactive_opacity = 0.8f
+    };
+    axiom_effects_manager_init(&manager, &config);
     
     // Create a shadow texture
     struct axiom_shadow_texture *texture = axiom_shadow_create_texture(
@@ -151,7 +232,23 @@ static void test_effects_initialization() {
     printf("\n7. Testing effects subsystem initialization...\n");
     
     struct axiom_effects_manager manager;
-    axiom_effects_manager_init(&manager);
+    struct axiom_effects_config config = {
+        .shadows_enabled = true,
+        .blur_enabled = true,
+        .transparency_enabled = true,
+        .shadow_blur_radius = 10,
+        .shadow_offset_x = 4,
+        .shadow_offset_y = 4,
+        .shadow_opacity = 0.5f,
+        .shadow_color = "#000000",
+        .blur_radius = 8,
+        .blur_focus_only = false,
+        .blur_intensity = 0.7f,
+        .focused_opacity = 1.0f,
+        .unfocused_opacity = 0.9f,
+        .inactive_opacity = 0.8f
+    };
+    axiom_effects_manager_init(&manager, &config);
     
     bool shadow_init = axiom_shadow_init(&manager);
     bool blur_init = axiom_blur_init(&manager);

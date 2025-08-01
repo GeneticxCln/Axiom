@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_scene.h>
+#include "config.h"
 
 // Forward declarations
 struct axiom_server;
@@ -66,7 +67,7 @@ struct axiom_shadow_texture {
 };
 
 // Effects manager functions
-bool axiom_effects_manager_init(struct axiom_effects_manager *manager);
+bool axiom_effects_manager_init(struct axiom_effects_manager *manager, struct axiom_effects_config *config);
 void axiom_effects_manager_destroy(struct axiom_effects_manager *manager);
 void axiom_effects_apply_to_window(struct axiom_effects_manager *manager, 
                                    struct axiom_window *window);

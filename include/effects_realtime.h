@@ -98,4 +98,9 @@ void axiom_effects_animate_shadow_opacity(struct axiom_window *window,
 void axiom_effects_animate_blur_strength(struct axiom_window *window,
                                           float target_strength, uint32_t duration);
 
+// Helper functions for window content capture
+GLuint axiom_create_placeholder_texture(struct axiom_window *window);
+void axiom_generate_window_fallback_content(struct axiom_window *window, GLubyte *data, int width, int height);
+bool axiom_copy_texture_via_fbo(GLuint source_texture, GLuint target_texture, int width, int height);
+
 #endif // AXIOM_EFFECTS_REALTIME_H

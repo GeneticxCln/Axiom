@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <wayland-server-core.h>
+#include "config.h"
 
 // Forward declaration
 struct axiom_server;
@@ -92,7 +93,8 @@ struct axiom_window_snapping_manager {
 // Snapping functions
 struct axiom_window_snapping_manager *axiom_window_snapping_manager_create(struct axiom_server *server);
 void axiom_window_snapping_manager_destroy(struct axiom_window_snapping_manager *manager);
-bool axiom_window_snapping_manager_init(struct axiom_window_snapping_manager *manager);
+bool axiom_window_snapping_manager_init(struct axiom_window_snapping_manager *manager, 
+                                       struct axiom_snapping_config *config);
 
 bool axiom_window_snap_to(struct axiom_window *window, enum axiom_snap_direction direction);
 bool axiom_window_snap_toggle(struct axiom_window *window);

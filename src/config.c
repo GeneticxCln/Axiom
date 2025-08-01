@@ -49,6 +49,58 @@ struct axiom_config *axiom_config_create(void) {
     config->animation_speed_multiplier = 1.0f;
     config->default_easing = strdup("ease_out_cubic");
     config->animation_debug_mode = false;
+    
+    // Effects defaults
+    config->effects.shadows_enabled = true;
+    config->effects.blur_enabled = true;
+    config->effects.transparency_enabled = true;
+    config->effects.shadow_blur_radius = 10;
+    config->effects.shadow_offset_x = 5;
+    config->effects.shadow_offset_y = 5;
+    config->effects.shadow_opacity = 0.5f;
+    config->effects.shadow_color = strdup("#000000");
+    config->effects.blur_radius = 15;
+    config->effects.blur_focus_only = false;
+    config->effects.blur_intensity = 0.7f;
+    config->effects.focused_opacity = 1.0f;
+    config->effects.unfocused_opacity = 0.85f;
+    config->effects.inactive_opacity = 0.7f;
+    
+    // Smart gaps defaults
+    config->smart_gaps.enabled = true;
+    config->smart_gaps.base_gap = 10;
+    config->smart_gaps.min_gap = 0;
+    config->smart_gaps.max_gap = 50;
+    config->smart_gaps.single_window_gap = 0;
+    config->smart_gaps.adaptive_mode = strdup("count");
+    
+    // Window snapping defaults
+    config->window_snapping.enabled = true;
+    config->window_snapping.snap_threshold = 20;
+    config->window_snapping.edge_resistance = 5;
+    config->window_snapping.magnetism_strength = 0.8f;
+    config->window_snapping.smart_corners = true;
+    config->window_snapping.multi_monitor_snapping = true;
+    config->window_snapping.window_to_window_snapping = true;
+    config->window_snapping.edge_snapping = true;
+    config->window_snapping.show_snap_preview = true;
+    
+    // Workspaces defaults
+    config->workspaces.max_workspaces = 9;
+    config->workspaces.names = calloc(9, sizeof(char*));
+    if (config->workspaces.names) {
+        config->workspaces.names[0] = strdup("Main");
+        config->workspaces.names[1] = strdup("Web");
+        config->workspaces.names[2] = strdup("Code");
+        config->workspaces.names[3] = strdup("Term");
+        config->workspaces.names[4] = strdup("Media");
+        config->workspaces.names[5] = strdup("Files");
+        config->workspaces.names[6] = strdup("Chat");
+        config->workspaces.names[7] = strdup("Game");
+        config->workspaces.names[8] = strdup("Misc");
+        config->workspaces.names_count = 9;
+    }
+    config->workspaces.persistent_layouts = true;
 
     return config;
 }
@@ -63,6 +115,21 @@ void axiom_config_destroy(struct axiom_config *config) {
     free(config->border_active);
     free(config->border_inactive);
     free(config->default_easing);
+    
+    // Free effects config
+    free(config->effects.shadow_color);
+    
+    // Free smart gaps config
+    free(config->smart_gaps.adaptive_mode);
+    
+    // Free workspaces config
+    if (config->workspaces.names) {
+        for (int i = 0; i < config->workspaces.names_count; i++) {
+            free(config->workspaces.names[i]);
+        }
+        free(config->workspaces.names);
+    }
+    
     free(config);
 }
 
@@ -193,6 +260,79 @@ bool axiom_config_load(struct axiom_config *config, const char *path) {
             } else if (strcmp(key, "debug_mode") == 0) {
                 config->animation_debug_mode = strcmp(value, "true") == 0;
             }
+        } else if (strcmp(section, "effects") == 0) {
+            if (strcmp(key, "shadows_enabled") == 0) {
+                config->effects.shadows_enabled = strcmp(value, "true") == 0;
+            } else if (strcmp(key, "blur_enabled") == 0) {
+                config->effects.blur_enabled = strcmp(value, "true") == 0;
+            } else if (strcmp(key, "transparency_enabled") == 0) {
+                config->effects.transparency_enabled = strcmp(value, "true") == 0;
+            } else if (strcmp(key, "shadow_blur_radius") == 0) {
+                config->effects.shadow_blur_radius = atoi(value);
+            } else if (strcmp(key, "shadow_offset_x") == 0) {
+                config->effects.shadow_offset_x = atoi(value);
+            } else if (strcmp(key, "shadow_offset_y") == 0) {
+                config->effects.shadow_offset_y = atoi(value);
+            } else if (strcmp(key, "shadow_opacity") == 0) {
+                config->effects.shadow_opacity = atof(value);
+            } else if (strcmp(key, "shadow_color") == 0) {
+                free(config->effects.shadow_color);
+                config->effects.shadow_color = strdup(value);
+            } else if (strcmp(key, "blur_radius") == 0) {
+                config->effects.blur_radius = atoi(value);
+            } else if (strcmp(key, "blur_focus_only") == 0) {
+                config->effects.blur_focus_only = strcmp(value, "true") == 0;
+            } else if (strcmp(key, "blur_intensity") == 0) {
+                config->effects.blur_intensity = atof(value);
+            } else if (strcmp(key, "focused_opacity") == 0) {
+                config->effects.focused_opacity = atof(value);
+            } else if (strcmp(key, "unfocused_opacity") == 0) {
+                config->effects.unfocused_opacity = atof(value);
+            } else if (strcmp(key, "inactive_opacity") == 0) {
+                config->effects.inactive_opacity = atof(value);
+            }
+        } else if (strcmp(section, "smart_gaps") == 0) {
+            if (strcmp(key, "enabled") == 0) {
+                config->smart_gaps.enabled = strcmp(value, "true") == 0;
+            } else if (strcmp(key, "base_gap") == 0) {
+                config->smart_gaps.base_gap = atoi(value);
+            } else if (strcmp(key, "min_gap") == 0) {
+                config->smart_gaps.min_gap = atoi(value);
+            } else if (strcmp(key, "max_gap") == 0) {
+                config->smart_gaps.max_gap = atoi(value);
+            } else if (strcmp(key, "single_window_gap") == 0) {
+                config->smart_gaps.single_window_gap = atoi(value);
+            } else if (strcmp(key, "adaptive_mode") == 0) {
+                free(config->smart_gaps.adaptive_mode);
+                config->smart_gaps.adaptive_mode = strdup(value);
+            }
+        } else if (strcmp(section, "window_snapping") == 0) {
+            if (strcmp(key, "enabled") == 0) {
+                config->window_snapping.enabled = strcmp(value, "true") == 0;
+            } else if (strcmp(key, "snap_threshold") == 0) {
+                config->window_snapping.snap_threshold = atoi(value);
+            } else if (strcmp(key, "edge_resistance") == 0) {
+                config->window_snapping.edge_resistance = atoi(value);
+            } else if (strcmp(key, "magnetism_strength") == 0) {
+                config->window_snapping.magnetism_strength = atof(value);
+            } else if (strcmp(key, "smart_corners") == 0) {
+                config->window_snapping.smart_corners = strcmp(value, "true") == 0;
+            } else if (strcmp(key, "multi_monitor_snapping") == 0) {
+                config->window_snapping.multi_monitor_snapping = strcmp(value, "true") == 0;
+            } else if (strcmp(key, "window_to_window_snapping") == 0) {
+                config->window_snapping.window_to_window_snapping = strcmp(value, "true") == 0;
+            } else if (strcmp(key, "edge_snapping") == 0) {
+                config->window_snapping.edge_snapping = strcmp(value, "true") == 0;
+            } else if (strcmp(key, "show_snap_preview") == 0) {
+                config->window_snapping.show_snap_preview = strcmp(value, "true") == 0;
+            }
+        } else if (strcmp(section, "workspaces") == 0) {
+            if (strcmp(key, "max_workspaces") == 0) {
+                config->workspaces.max_workspaces = atoi(value);
+            } else if (strcmp(key, "persistent_layouts") == 0) {
+                config->workspaces.persistent_layouts = strcmp(value, "true") == 0;
+            }
+            // Note: workspace names parsing would require more complex array handling
         }
     }
     

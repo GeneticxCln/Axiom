@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <wayland-server-core.h>
+#include "config.h"
 
 // Forward declarations
 struct axiom_server;
@@ -81,6 +82,7 @@ struct axiom_gap_profile {
 
 // Current gap state for an output
 struct axiom_gap_state {
+    struct wl_list link;  // For gap_states list
     struct axiom_output *output;
     struct axiom_gap_profile *active_profile;
     
@@ -151,7 +153,7 @@ struct axiom_gap_context {
 // Core gap management functions
 struct axiom_smart_gaps_manager *axiom_smart_gaps_manager_create(struct axiom_server *server);
 void axiom_smart_gaps_manager_destroy(struct axiom_smart_gaps_manager *manager);
-bool axiom_smart_gaps_manager_init(struct axiom_smart_gaps_manager *manager);
+bool axiom_smart_gaps_manager_init(struct axiom_smart_gaps_manager *manager, struct axiom_smart_gaps_config *config);
 
 // Gap profile management
 bool axiom_smart_gaps_add_profile(struct axiom_smart_gaps_manager *manager, 
@@ -230,7 +232,7 @@ bool axiom_smart_gaps_apply_workspace_profile(struct axiom_smart_gaps_manager *m
                                               int workspace, const char *profile_name);
 
 // Server integration
-bool axiom_server_init_smart_gaps(struct axiom_server *server);
+bool axiom_server_init_smart_gaps(struct axiom_server *server, struct axiom_smart_gaps_config *config);
 void axiom_server_destroy_smart_gaps(struct axiom_server *server);
 
 #endif // AXIOM_SMART_GAPS_H

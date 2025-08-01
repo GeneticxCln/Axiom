@@ -397,23 +397,106 @@ void axiom_gpu_clear_errors(void) {
     while (glGetError() != GL_NO_ERROR) {}
 }
 
-// Placeholder implementations for full effect rendering
+// Actual shadow rendering implementation
 bool axiom_gpu_render_shadow(struct axiom_gpu_context *ctx, 
                               struct axiom_shadow_params *params,
                               GLuint source_texture,
                               GLuint target_texture) {
-    // This would implement actual shadow rendering
-    // For now, return success to indicate the framework is ready
-    return true;
+    if (!ctx || !params || !source_texture) {
+        return false;
+    }
+    
+    // Save current OpenGL state
+    GLint prev_fbo;
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prev_fbo);
+    
+    // Use shadow shader program
+    glUseProgram(ctx->shadow_program);
+    
+    // Set viewport for shadow rendering
+    glViewport(0, 0, params->width, params->height);
+    
+    // Bind source texture
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, source_texture);
+    glUniform1i(glGetUniformLocation(ctx->shadow_program, "u_texture"), 0);
+    
+    // Set shadow uniforms
+    glUniform2f(ctx->uniforms.shadow_offset, params->offset_x, params->offset_y);
+    glUniform4fv(ctx->uniforms.shadow_color, 1, params->color);
+    glUniform1f(ctx->uniforms.shadow_opacity, params->opacity);
+    glUniform1f(glGetUniformLocation(ctx->shadow_program, "u_blur_radius"), params->blur_radius);
+    glUniform2f(glGetUniformLocation(ctx->shadow_program, "u_texture_size"), 
+                (float)params->width, (float)params->height);
+    
+    // Enable blending for shadow transparency
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    
+    // Render shadow quad
+    axiom_gpu_render_quad(ctx);
+    
+    // Restore OpenGL state
+    glDisable(GL_BLEND);
+    glBindFramebuffer(GL_FRAMEBUFFER, prev_fbo);
+    glUseProgram(0);
+    
+    return axiom_gpu_check_error("shadow rendering");
 }
 
 bool axiom_gpu_render_blur(struct axiom_gpu_context *ctx,
                            struct axiom_blur_params *params,
                            GLuint source_texture,
                            GLuint target_texture) {
-    // This would implement actual blur rendering
-    // For now, return success to indicate the framework is ready
-    return true;
+    if (!ctx || !params || !source_texture) {
+        return false;
+    }
+    
+    // Save current OpenGL state
+    GLint prev_fbo;
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prev_fbo);
+    
+    // Determine blur direction for two-pass blur
+    float blur_direction[2] = {0.0f, 0.0f};
+    if (params->horizontal) {
+        blur_direction[0] = 1.0f;  // Horizontal pass
+    } else {
+        blur_direction[1] = 1.0f;  // Vertical pass
+    }
+    
+    // Use blur shader program
+    glUseProgram(ctx->blur_program);
+    
+    // Set viewport for blur rendering
+    glViewport(0, 0, params->width, params->height);
+    
+    // Bind source texture
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, source_texture);
+    glUniform1i(glGetUniformLocation(ctx->blur_program, "u_texture"), 0);
+    
+    // Set blur uniforms
+    glUniform1f(ctx->uniforms.blur_radius, params->radius * params->intensity);
+    glUniform2fv(ctx->uniforms.blur_direction, 1, blur_direction);
+    glUniform2f(ctx->uniforms.texture_size, (float)params->width, (float)params->height);
+    
+    // Enable blending for smooth blur compositing
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    
+    // Clear the target with transparent black
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    
+    // Render blur quad
+    axiom_gpu_render_quad(ctx);
+    
+    // Restore OpenGL state
+    glDisable(GL_BLEND);
+    glBindFramebuffer(GL_FRAMEBUFFER, prev_fbo);
+    glUseProgram(0);
+    
+    return axiom_gpu_check_error("blur rendering");
 }
 
 // Framebuffer management

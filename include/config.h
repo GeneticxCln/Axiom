@@ -4,7 +4,62 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* Configuration structure */
+/* Effects configuration */
+struct axiom_effects_config {
+    bool shadows_enabled;
+    bool blur_enabled;
+    bool transparency_enabled;
+    
+    // Shadow settings
+    int shadow_blur_radius;
+    int shadow_offset_x;
+    int shadow_offset_y;
+    float shadow_opacity;
+    char *shadow_color;
+    
+    // Blur settings
+    int blur_radius;
+    bool blur_focus_only;
+    float blur_intensity;
+    
+    // Transparency settings
+    float focused_opacity;
+    float unfocused_opacity;
+    float inactive_opacity;
+};
+
+/* Smart gaps configuration */
+struct axiom_smart_gaps_config {
+    bool enabled;
+    int base_gap;
+    int min_gap;
+    int max_gap;
+    int single_window_gap;
+    char *adaptive_mode;
+};
+
+/* Window snapping configuration */
+struct axiom_window_snapping_config {
+    bool enabled;
+    int snap_threshold;
+    int edge_resistance;
+    float magnetism_strength;
+    bool smart_corners;
+    bool multi_monitor_snapping;
+    bool window_to_window_snapping;
+    bool edge_snapping;
+    bool show_snap_preview;
+};
+
+/* Workspaces configuration */
+struct axiom_workspaces_config {
+    int max_workspaces;
+    char **names;
+    int names_count;
+    bool persistent_layouts;
+};
+
+/* Main configuration structure */
 struct axiom_config {
     // Input settings
     char *cursor_theme;
@@ -40,7 +95,14 @@ struct axiom_config {
     float animation_speed_multiplier;
     char *default_easing;
     bool animation_debug_mode;
+    
+    // Extended configuration sections
+    struct axiom_effects_config effects;
+    struct axiom_smart_gaps_config smart_gaps;
+    struct axiom_window_snapping_config window_snapping;
+    struct axiom_workspaces_config workspaces;
 };
+
 
 // Forward declarations
 struct axiom_server;
@@ -50,6 +112,7 @@ struct axiom_config *axiom_config_create(void);
 void axiom_config_destroy(struct axiom_config *config);
 bool axiom_config_load(struct axiom_config *config, const char *path);
 bool axiom_config_validate(struct axiom_config *config);
+
 
 // Logging function (needs to be provided)
 void axiom_log(const char *level, const char *format, ...);
