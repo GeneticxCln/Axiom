@@ -208,6 +208,9 @@ struct axiom_server {
     
     // Visual effects system
     struct axiom_effects_manager *effects_manager;
+    
+    // Window rules system (Phase 3.1)
+    struct axiom_window_rules_manager *window_rules_manager;
 };
 
 /* Function declarations */

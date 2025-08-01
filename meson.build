@@ -63,7 +63,8 @@ axiom_sources = files(
   'src/animation.c',
   'src/effects.c',
   'src/effects_realtime.c',
-  'src/renderer.c'
+  'src/renderer.c',
+  'src/window_rules.c'
 )
 
 # Executable
@@ -144,4 +145,17 @@ test_effects = executable('test_effects',
     install: false,
 )
 test('effects_tests', test_effects)
+
+# Window rules test (basic functionality only)
+test_window_rules_sources = files(
+  'tests/test_window_rules.c'
+)
+
+test_window_rules = executable('test_window_rules',
+    sources: test_window_rules_sources,
+    dependencies: [wayland_server],
+    include_directories: inc,
+    install: false,
+)
+test('window_rules_tests', test_window_rules)
 

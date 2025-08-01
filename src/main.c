@@ -10,6 +10,7 @@
 #include "effects.h"
 #include "effects_realtime.h"
 #include "renderer.h"
+#include "window_rules.h"
 void axiom_calculate_window_layout(struct axiom_server *server, int index, int *x, int *y, int *width, int *height);
 
 void axiom_arrange_windows(struct axiom_server *server) {
@@ -297,6 +298,17 @@ static void server_new_xdg_toplevel(struct wl_listener *listener, void *data) {
         }
     }
     
+    // Apply window rules if rules system is enabled
+    if (server->window_rules_manager) {
+        // Debug window properties
+        axiom_window_rules_debug_window_properties(window);
+        
+        // Apply matching rules
+        if (!axiom_window_rules_apply_to_window(server->window_rules_manager, window)) {
+            printf("No window rules applied to this window\n");
+        }
+    }
+    
     window->map.notify = window_map;
     wl_signal_add(&xdg_toplevel->base->surface->events.map, &window->map);
     
@@ -500,6 +512,18 @@ int main(int argc, char *argv[]) {
         }
     }
     
+    // Initialize window rules system (Phase 3.1)
+    if (!axiom_server_init_window_rules(&server)) {
+        fprintf(stderr, "Failed to initialize window rules system\n");
+    } else {
+        printf("Window rules system initialized successfully\n");
+        
+        // Print loaded rules for debugging
+        if (server.window_rules_manager) {
+            axiom_window_rules_print_rules(server.window_rules_manager);
+        }
+    }
+    
     // Set up input management
     wl_list_init(&server.input_devices);
     
@@ -581,6 +605,11 @@ int main(int argc, char *argv[]) {
     if (server.effects_manager) {
         axiom_effects_manager_destroy(server.effects_manager);
         free(server.effects_manager);
+    }
+    
+    // Cleanup window rules system
+    if (server.window_rules_manager) {
+        axiom_server_destroy_window_rules(&server);
     }
     
     axiom_config_destroy(server.config);
