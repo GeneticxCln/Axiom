@@ -53,7 +53,8 @@ axiom_sources = files(
   'src/logging.c',
   'src/input.c',
   'src/cursor.c',
-  'src/config.c'
+  'src/config.c',
+  'src/process.c'
 )
 
 # Executable

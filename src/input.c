@@ -16,15 +16,103 @@ static void keyboard_handle_modifiers(struct wl_listener *listener, void *data) 
         &keyboard->modifiers);
 }
 
-static bool handle_keybinding(struct axiom_server *server, xkb_keysym_t sym) {
-    switch (sym) {
-    case XKB_KEY_Escape:
-        if (server->cursor_mode != AXIOM_CURSOR_PASSTHROUGH) {
-            server->cursor_mode = AXIOM_CURSOR_PASSTHROUGH;
-            wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
-            return true;
+static void cycle_windows(struct axiom_server *server) {
+    if (wl_list_empty(&server->windows)) {
+        return;
+    }
+    
+    // Find next window in the list
+    struct axiom_window *next_window = NULL;
+    if (server->focused_window) {
+        // Get the next window after the focused one
+        struct wl_list *next_link = server->focused_window->link.next;
+        if (next_link == &server->windows) {
+            // Wrap around to the first window
+            next_link = server->windows.next;
         }
-        break;
+        next_window = wl_container_of(next_link, next_window, link);
+    } else {
+        // No focused window, focus the first one
+        next_window = wl_container_of(server->windows.next, next_window, link);
+    }
+    
+    if (next_window) {
+        axiom_focus_window(server, next_window, next_window->xdg_toplevel->base->surface);
+        AXIOM_LOG_INFO("Switched to window: %s", next_window->xdg_toplevel->title ?: "(no title)");
+    }
+}
+
+static bool handle_keybinding(struct axiom_server *server, xkb_keysym_t sym, uint32_t modifiers) {
+    // Handle Super key bindings
+    if (modifiers & WLR_MODIFIER_LOGO) {
+        switch (sym) {
+        case XKB_KEY_Escape:
+            if (server->cursor_mode != AXIOM_CURSOR_PASSTHROUGH) {
+                server->cursor_mode = AXIOM_CURSOR_PASSTHROUGH;
+                wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
+                return true;
+            }
+            break;
+        case XKB_KEY_q:
+            wl_display_terminate(server->wl_display);
+            return true;
+        case XKB_KEY_t:
+            server->tiling_enabled = !server->tiling_enabled;
+            AXIOM_LOG_INFO("Tiling %s", server->tiling_enabled ? "enabled" : "disabled");
+            if (server->tiling_enabled) {
+                axiom_arrange_windows(server);
+            }
+            return true;
+        case XKB_KEY_Return:
+            axiom_spawn_terminal();
+            return true;
+        case XKB_KEY_d:
+            axiom_spawn_rofi();
+            return true;
+        case XKB_KEY_b:
+            if (axiom_process_exists("waybar")) {
+                axiom_kill_waybar();
+            } else {
+                axiom_spawn_waybar(server);
+            }
+            return true;
+        case XKB_KEY_w:
+            // Close focused window
+            if (server->focused_window && server->focused_window->xdg_toplevel) {
+                wlr_xdg_toplevel_send_close(server->focused_window->xdg_toplevel);
+                return true;
+            }
+            break;
+        case XKB_KEY_f:
+            // Toggle fullscreen
+            if (server->focused_window) {
+                bool is_fullscreen = server->focused_window->is_fullscreen;
+                wlr_xdg_toplevel_set_fullscreen(server->focused_window->xdg_toplevel, !is_fullscreen);
+                server->focused_window->is_fullscreen = !is_fullscreen;
+                return true;
+            }
+            break;
+        }
+    }
+    
+    // Handle Alt key bindings
+    if (modifiers & WLR_MODIFIER_ALT) {
+        switch (sym) {
+        case XKB_KEY_Tab:
+            cycle_windows(server);
+            return true;
+        case XKB_KEY_F4:
+            // Alt+F4 to close window
+            if (server->focused_window && server->focused_window->xdg_toplevel) {
+                wlr_xdg_toplevel_send_close(server->focused_window->xdg_toplevel);
+                return true;
+            }
+            break;
+        }
+    }
+    
+    // Legacy keybindings (remove these eventually)
+    switch (sym) {
     case XKB_KEY_F1: {
         if (wl_list_length(&server->windows) < 2) {
             break;
@@ -45,6 +133,26 @@ static bool handle_keybinding(struct axiom_server *server, xkb_keysym_t sym) {
             axiom_arrange_windows(server);
         }
         return true;
+    case XKB_KEY_Return:
+        axiom_spawn_terminal();
+        return true;
+    case XKB_KEY_d:
+        axiom_spawn_rofi();
+        return true;
+    case XKB_KEY_b:
+        if (axiom_process_exists("waybar")) {
+            axiom_kill_waybar();
+        } else {
+            axiom_spawn_waybar(server);
+        }
+        return true;
+    case XKB_KEY_w:
+        // Close focused window
+        if (server->focused_window && server->focused_window->xdg_toplevel) {
+            wlr_xdg_toplevel_send_close(server->focused_window->xdg_toplevel);
+            return true;
+        }
+        break;
     }
     return false;
 }
@@ -63,9 +171,10 @@ static void keyboard_handle_key(struct wl_listener *listener, void *data) {
     bool handled = false;
     uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard);
     
-    if ((modifiers & WLR_MODIFIER_LOGO) && event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
+    if (event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
         for (int i = 0; i < nsyms; i++) {
-            handled = handle_keybinding(server, syms[i]);
+            handled = handle_keybinding(server, syms[i], modifiers);
+            if (handled) break;
         }
     }
     

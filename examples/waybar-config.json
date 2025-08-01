@@ -1,0 +1,63 @@
+{
+    "layer": "top",
+    "position": "top",
+    "height": 30,
+    "spacing": 4,
+    "modules-left": ["custom/axiom", "wlr/workspaces"],
+    "modules-center": ["clock"],
+    "modules-right": ["memory", "cpu", "network", "pulseaudio", "tray"],
+    
+    "custom/axiom": {
+        "format": "󰇄 Axiom",
+        "tooltip": false
+    },
+    
+    "wlr/workspaces": {
+        "format": "{name}",
+        "on-click": "activate",
+        "sort-by-number": true
+    },
+    
+    "clock": {
+        "format": "{:%Y-%m-%d %H:%M}",
+        "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>"
+    },
+    
+    "memory": {
+        "format": "{}% ",
+        "tooltip": false
+    },
+    
+    "cpu": {
+        "format": "{usage}%",
+        "tooltip": false
+    },
+    
+    "network": {
+        "format-wifi": "{signalStrength}% ",
+        "format-ethernet": " ",
+        "format-disconnected": "⚠ ",
+        "tooltip-format": "{ifname}: {ipaddr}"
+    },
+    
+    "pulseaudio": {
+        "format": "{volume}% {icon}",
+        "format-bluetooth": "{volume}% {icon}",
+        "format-muted": "",
+        "format-icons": {
+            "headphone": "",
+            "hands-free": "",
+            "headset": "",
+            "phone": "",
+            "portable": "",
+            "car": "",
+            "default": ["", "", ""]
+        },
+        "on-click": "pavucontrol"
+    },
+    
+    "tray": {
+        "icon-size": 21,
+        "spacing": 10
+    }
+}

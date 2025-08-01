@@ -201,6 +201,16 @@ void axiom_calculate_window_layout(struct axiom_server *server, int index,
 // Output management
 void axiom_new_output(struct wl_listener *listener, void *data);
 
+// Process management
+void axiom_process_init(struct axiom_server *server);
+void axiom_process_cleanup(void);
+pid_t axiom_spawn_process(const char *command, bool autostart);
+void axiom_spawn_terminal(void);
+void axiom_spawn_rofi(void);
+void axiom_spawn_waybar(struct axiom_server *server);
+void axiom_kill_waybar(void);
+bool axiom_process_exists(const char *name);
+
 // Configuration
 struct axiom_config *axiom_config_create(void);
 void axiom_config_destroy(struct axiom_config *config);

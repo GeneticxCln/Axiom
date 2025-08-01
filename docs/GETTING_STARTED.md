@@ -25,6 +25,10 @@ meson compile -C build
 - `Super + Q`: Quit compositor
 - `Super + T`: Toggle tiling mode
 - `Super + F1`: Focus next window
+- `Super + Return`: Launch terminal
+- `Super + D`: Launch rofi application launcher
+- `Super + B`: Toggle waybar status bar
+- `Super + W`: Close focused window
 - `Escape`: Cancel interactive operations
 
 ## Configuration

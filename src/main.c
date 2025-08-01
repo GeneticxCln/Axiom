@@ -89,12 +89,30 @@ static void window_unmap(struct wl_listener *listener, void *data) {
 static void window_destroy(struct wl_listener *listener, void *data) {
     (void)data; // Suppress unused parameter warning
     struct axiom_window *window = wl_container_of(listener, window, destroy);
+    struct axiom_server *server = window->server;
+    
     printf("Window destroyed\n");
     
-    // For now, we'll just update the count when destroying windows
-    // A better approach would be to store server reference in window
-    if (window->is_tiled) {
-        printf("Tiled window destroyed\n");
+    // Update the window count properly
+    if (window->is_tiled && server->window_count > 0) {
+        server->window_count--;
+        printf("Tiled window destroyed, remaining: %d\n", server->window_count);
+        
+        // Rearrange remaining windows if tiling is enabled
+        if (server->tiling_enabled) {
+            axiom_arrange_windows(server);
+        }
+    }
+    
+    // Clear focus if this was the focused window
+    if (server->focused_window == window) {
+        server->focused_window = NULL;
+    }
+    
+    // Clear grabbed window if this was the grabbed window
+    if (server->grabbed_window == window) {
+        server->grabbed_window = NULL;
+        server->cursor_mode = AXIOM_CURSOR_PASSTHROUGH;
     }
     
     wl_list_remove(&window->link);
@@ -269,6 +287,9 @@ int main(int argc, char *argv[]) {
     // Apply configuration to server state
     server.tiling_enabled = server.config->tiling_enabled;
     
+    // Initialize process management
+    axiom_process_init(&server);
+    
     // Set up input management
     wl_list_init(&server.input_devices);
     
@@ -316,6 +337,7 @@ int main(int argc, char *argv[]) {
     }
     
     // Cleanup
+    axiom_process_cleanup();
     axiom_config_destroy(server.config);
     wl_display_destroy(server.wl_display);
     return EXIT_SUCCESS;
