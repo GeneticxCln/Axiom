@@ -54,7 +54,8 @@ axiom_sources = files(
   'src/input.c',
   'src/cursor.c',
   'src/config.c',
-  'src/process.c'
+  'src/process.c',
+  'src/tiling.c'
 )
 
 # Executable

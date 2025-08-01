@@ -21,10 +21,13 @@ void axiom_arrange_windows(struct axiom_server *server) {
             continue;
         }
         
-        axiom_calculate_window_layout(server, index, &window->x, &window->y, &window->width, &window->height);
+        axiom_calculate_window_layout_advanced(server, index, &window->x, &window->y, &window->width, &window->height);
         
         // Position the window using scene tree
         wlr_scene_node_set_position(&window->scene_tree->node, window->x, window->y);
+        
+        // Update window decorations to match new position and size
+        axiom_update_window_decorations(window);
                 
         uint32_t configure_serial = wlr_xdg_toplevel_set_size(
             window->xdg_toplevel, window->width, window->height);
@@ -151,22 +154,113 @@ static void server_new_xdg_toplevel(struct wl_listener *listener, void *data) {
     // Create decoration tree
     window->decoration_tree = wlr_scene_tree_create(&server->scene->tree);
     if (window->decoration_tree) {
-        // Create title bar (dark gray)
-        float title_color[4] = {0.2, 0.2, 0.2, 0.9};
-        window->title_bar = wlr_scene_rect_create(window->decoration_tree, window->width, 24, title_color);
+        // Create rounded border effect using multiple thin rectangles
+        // We'll create a layered border with slightly different colors for depth
+        float border_outer[4] = {0.3, 0.5, 0.9, 1.0}; // Darker blue outer
+        float border_inner[4] = {0.4, 0.6, 1.0, 1.0}; // Brighter blue inner
         
-        // Create border (configurable color)
-        float border_color[4] = {0.4, 0.6, 1.0, 1.0}; // Blue border for now
-        window->border = wlr_scene_rect_create(window->decoration_tree, window->width + 4, window->height + 28, border_color);
+        // Create border components for rounded effect
+        // Top border
+        window->border_top = wlr_scene_rect_create(window->decoration_tree, window->width + 4, 3, border_outer);
+        // Bottom border  
+        window->border_bottom = wlr_scene_rect_create(window->decoration_tree, window->width + 4, 3, border_outer);
+        // Left border
+        window->border_left = wlr_scene_rect_create(window->decoration_tree, 3, window->height + 28, border_outer);
+        // Right border
+        window->border_right = wlr_scene_rect_create(window->decoration_tree, 3, window->height + 28, border_outer);
         
+        // Corner rounding simulation using smaller rectangles
+        // Top-left corner pieces
+        window->corner_tl1 = wlr_scene_rect_create(window->decoration_tree, 2, 2, border_inner);
+        window->corner_tl2 = wlr_scene_rect_create(window->decoration_tree, 1, 1, border_inner);
+        // Top-right corner pieces
+        window->corner_tr1 = wlr_scene_rect_create(window->decoration_tree, 2, 2, border_inner);
+        window->corner_tr2 = wlr_scene_rect_create(window->decoration_tree, 1, 1, border_inner);
+        // Bottom-left corner pieces
+        window->corner_bl1 = wlr_scene_rect_create(window->decoration_tree, 2, 2, border_inner);
+        window->corner_bl2 = wlr_scene_rect_create(window->decoration_tree, 1, 1, border_inner);
+        // Bottom-right corner pieces
+        window->corner_br1 = wlr_scene_rect_create(window->decoration_tree, 2, 2, border_inner);
+        window->corner_br2 = wlr_scene_rect_create(window->decoration_tree, 1, 1, border_inner);
+        
+        // Create enhanced title bar with gradient effect
+        float title_bg[4] = {0.15, 0.15, 0.15, 0.95};     // Dark background
+        float title_accent[4] = {0.25, 0.35, 0.55, 0.8};  // Subtle accent strip
+        
+        window->title_bar = wlr_scene_rect_create(window->decoration_tree, window->width, 24, title_bg);
+        window->title_accent = wlr_scene_rect_create(window->decoration_tree, window->width, 2, title_accent);
+        
+        // Position all decoration elements
         if (window->title_bar) {
             window->title_bar->node.data = window;
             wlr_scene_node_set_position(&window->title_bar->node, window->x, window->y - 24);
         }
         
-        if (window->border) {
-            window->border->node.data = window;
-            wlr_scene_node_set_position(&window->border->node, window->x - 2, window->y - 26);
+        if (window->title_accent) {
+            window->title_accent->node.data = window;
+            wlr_scene_node_set_position(&window->title_accent->node, window->x, window->y - 2);
+        }
+        
+        // Position border elements
+        if (window->border_top) {
+            window->border_top->node.data = window;
+            wlr_scene_node_set_position(&window->border_top->node, window->x - 2, window->y - 27);
+        }
+        
+        if (window->border_bottom) {
+            window->border_bottom->node.data = window;
+            wlr_scene_node_set_position(&window->border_bottom->node, window->x - 2, window->y + window->height);
+        }
+        
+        if (window->border_left) {
+            window->border_left->node.data = window;
+            wlr_scene_node_set_position(&window->border_left->node, window->x - 3, window->y - 26);
+        }
+        
+        if (window->border_right) {
+            window->border_right->node.data = window;
+            wlr_scene_node_set_position(&window->border_right->node, window->x + window->width, window->y - 26);
+        }
+        
+        // Position corner elements for rounded effect
+        // Top-left corners
+        if (window->corner_tl1) {
+            window->corner_tl1->node.data = window;
+            wlr_scene_node_set_position(&window->corner_tl1->node, window->x - 1, window->y - 25);
+        }
+        if (window->corner_tl2) {
+            window->corner_tl2->node.data = window;
+            wlr_scene_node_set_position(&window->corner_tl2->node, window->x, window->y - 24);
+        }
+        
+        // Top-right corners
+        if (window->corner_tr1) {
+            window->corner_tr1->node.data = window;
+            wlr_scene_node_set_position(&window->corner_tr1->node, window->x + window->width - 1, window->y - 25);
+        }
+        if (window->corner_tr2) {
+            window->corner_tr2->node.data = window;
+            wlr_scene_node_set_position(&window->corner_tr2->node, window->x + window->width - 1, window->y - 24);
+        }
+        
+        // Bottom-left corners
+        if (window->corner_bl1) {
+            window->corner_bl1->node.data = window;
+            wlr_scene_node_set_position(&window->corner_bl1->node, window->x - 1, window->y + window->height - 1);
+        }
+        if (window->corner_bl2) {
+            window->corner_bl2->node.data = window;
+            wlr_scene_node_set_position(&window->corner_bl2->node, window->x, window->y + window->height - 2);
+        }
+        
+        // Bottom-right corners
+        if (window->corner_br1) {
+            window->corner_br1->node.data = window;
+            wlr_scene_node_set_position(&window->corner_br1->node, window->x + window->width - 1, window->y + window->height - 1);
+        }
+        if (window->corner_br2) {
+            window->corner_br2->node.data = window;
+            wlr_scene_node_set_position(&window->corner_br2->node, window->x + window->width - 1, window->y + window->height - 2);
         }
     }
     // Initialize tiling properties

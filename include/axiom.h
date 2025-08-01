@@ -67,10 +67,28 @@ struct axiom_window {
     int x, y, width, height;
     int saved_x, saved_y, saved_width, saved_height; // For restore operations
     
-    // Window decorations
-    struct wlr_scene_rect *title_bar;
-    struct wlr_scene_rect *border;
+    // Window decorations - Enhanced rounded border system
     struct wlr_scene_tree *decoration_tree;
+    
+    // Title bar components
+    struct wlr_scene_rect *title_bar;
+    struct wlr_scene_rect *title_accent;
+    
+    // Border components (4-sided)
+    struct wlr_scene_rect *border_top;
+    struct wlr_scene_rect *border_bottom;
+    struct wlr_scene_rect *border_left;
+    struct wlr_scene_rect *border_right;
+    
+    // Corner rounding elements (8 corner pieces for smooth effect)
+    struct wlr_scene_rect *corner_tl1;  // Top-left corner piece 1
+    struct wlr_scene_rect *corner_tl2;  // Top-left corner piece 2
+    struct wlr_scene_rect *corner_tr1;  // Top-right corner piece 1
+    struct wlr_scene_rect *corner_tr2;  // Top-right corner piece 2
+    struct wlr_scene_rect *corner_bl1;  // Bottom-left corner piece 1
+    struct wlr_scene_rect *corner_bl2;  // Bottom-left corner piece 2
+    struct wlr_scene_rect *corner_br1;  // Bottom-right corner piece 1
+    struct wlr_scene_rect *corner_br2;  // Bottom-right corner piece 2
 };
 
 struct axiom_output {
@@ -202,6 +220,13 @@ void axiom_begin_interactive(struct axiom_window *window, enum axiom_cursor_mode
 void axiom_arrange_windows(struct axiom_server *server);
 void axiom_calculate_window_layout(struct axiom_server *server, int index, 
                                    int *x, int *y, int *width, int *height);
+void axiom_calculate_window_layout_advanced(struct axiom_server *server, int index,
+                                           int *x, int *y, int *width, int *height);
+void axiom_cycle_layout(struct axiom_server *server);
+void axiom_toggle_window_floating(struct axiom_server *server, struct axiom_window *window);
+void axiom_adjust_master_ratio(float delta);
+const char* axiom_get_layout_name(void);
+void axiom_update_window_decorations(struct axiom_window *window);
 
 // Output management
 void axiom_new_output(struct wl_listener *listener, void *data);

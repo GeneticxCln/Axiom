@@ -92,6 +92,24 @@ static bool handle_keybinding(struct axiom_server *server, xkb_keysym_t sym, uin
                 return true;
             }
             break;
+        case XKB_KEY_l:
+            // Cycle through tiling layouts
+            axiom_cycle_layout(server);
+            return true;
+        case XKB_KEY_space:
+            // Toggle focused window floating/tiled
+            axiom_toggle_window_floating(server, server->focused_window);
+            return true;
+        case XKB_KEY_h:
+            // Decrease master ratio
+            axiom_adjust_master_ratio(-0.05f);
+            axiom_arrange_windows(server);
+            return true;
+        case XKB_KEY_j:
+            // Increase master ratio  
+            axiom_adjust_master_ratio(0.05f);
+            axiom_arrange_windows(server);
+            return true;
         }
     }
     
