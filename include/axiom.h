@@ -66,6 +66,11 @@ struct axiom_window {
     bool is_maximized;
     int x, y, width, height;
     int saved_x, saved_y, saved_width, saved_height; // For restore operations
+    
+    // Window decorations
+    struct wlr_scene_rect *title_bar;
+    struct wlr_scene_rect *border;
+    struct wlr_scene_tree *decoration_tree;
 };
 
 struct axiom_output {

@@ -138,8 +138,37 @@ static void server_new_xdg_toplevel(struct wl_listener *listener, void *data) {
     }
     
     window->scene_tree->node.data = window;
+
+
     window->server = server;
     
+    // Initialize window dimensions (default values)
+    window->width = 800;
+    window->height = 600;
+    window->x = 100;
+    window->y = 100;
+    
+    // Create decoration tree
+    window->decoration_tree = wlr_scene_tree_create(&server->scene->tree);
+    if (window->decoration_tree) {
+        // Create title bar (dark gray)
+        float title_color[4] = {0.2, 0.2, 0.2, 0.9};
+        window->title_bar = wlr_scene_rect_create(window->decoration_tree, window->width, 24, title_color);
+        
+        // Create border (configurable color)
+        float border_color[4] = {0.4, 0.6, 1.0, 1.0}; // Blue border for now
+        window->border = wlr_scene_rect_create(window->decoration_tree, window->width + 4, window->height + 28, border_color);
+        
+        if (window->title_bar) {
+            window->title_bar->node.data = window;
+            wlr_scene_node_set_position(&window->title_bar->node, window->x, window->y - 24);
+        }
+        
+        if (window->border) {
+            window->border->node.data = window;
+            wlr_scene_node_set_position(&window->border->node, window->x - 2, window->y - 26);
+        }
+    }
     // Initialize tiling properties
     window->is_tiled = server->tiling_enabled;
     if (window->is_tiled) {
