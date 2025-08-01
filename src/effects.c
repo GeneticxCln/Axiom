@@ -34,6 +34,11 @@ bool axiom_effects_manager_init(struct axiom_effects_manager *manager) {
 
     manager->gl_initialized = false;
     wl_list_init(&manager->shadow_cache);
+    
+    // Initialize real-time capabilities
+    manager->realtime_enabled = false;
+    manager->last_frame_time = 0;
+    manager->frame_count = 0;
 
     return true;
 }

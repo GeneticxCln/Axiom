@@ -62,6 +62,7 @@ axiom_sources = files(
   'src/workspace.c',
   'src/animation.c',
   'src/effects.c',
+  'src/effects_realtime.c',
   'src/renderer.c'
 )
 

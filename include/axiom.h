@@ -44,6 +44,12 @@ struct axiom_window {
     struct wl_listener request_maximize;
     struct wl_listener request_fullscreen;
 
+    // Surface for effects
+    struct wlr_surface *surface;
+    
+    // Geometry convenience access
+    struct wlr_box geometry;
+
     // Tiling properties
     bool is_tiled;
     bool is_focused;
@@ -78,6 +84,9 @@ struct axiom_window {
     // Visual effects
     struct wlr_scene_tree *shadow_tree;  // Shadow rendering tree
     bool effects_enabled;                // Window has effects enabled
+    
+    // Real-time effects support
+    struct axiom_window_effects *effects; // Per-window effects state
 };
 
 struct axiom_workspace {

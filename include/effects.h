@@ -46,6 +46,11 @@ struct axiom_effects_manager {
     bool gl_initialized;
     void *gl_context;
     
+    // Real-time capabilities
+    bool realtime_enabled;
+    uint32_t last_frame_time;
+    uint32_t frame_count;
+    
     // Shadow texture cache
     struct wl_list shadow_cache; // list of cached shadow textures
 };

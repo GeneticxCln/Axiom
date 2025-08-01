@@ -8,6 +8,7 @@
 #include "axiom.h"
 #include "animation.h"
 #include "effects.h"
+#include "effects_realtime.h"
 #include "renderer.h"
 void axiom_calculate_window_layout(struct axiom_server *server, int index, int *x, int *y, int *width, int *height);
 
@@ -105,6 +106,11 @@ static void window_destroy(struct wl_listener *listener, void *data) {
     struct axiom_server *server = window->server;
     
     printf("Window destroyed\n");
+    
+    // Cleanup window effects
+    if (window->effects) {
+        axiom_window_effects_destroy(window);
+    }
     
     // Update the window count properly
     if (window->is_tiled && server->window_count > 0) {
@@ -277,6 +283,18 @@ static void server_new_xdg_toplevel(struct wl_listener *listener, void *data) {
     window->is_tiled = server->tiling_enabled;
     if (window->is_tiled) {
         server->window_count++;
+    }
+    
+    // Store surface reference for effects
+    window->surface = xdg_toplevel->base->surface;
+    
+    // Initialize window effects if real-time effects are enabled
+    if (server->effects_manager && server->effects_manager->realtime_enabled) {
+        if (!axiom_window_effects_init(window)) {
+            fprintf(stderr, "Failed to initialize effects for window\n");
+        } else {
+            printf("Window effects initialized successfully\n");
+        }
     }
     
     window->map.notify = window_map;
@@ -470,6 +488,13 @@ int main(int argc, char *argv[]) {
         // Initialize GPU acceleration for effects
         if (server.effects_manager && axiom_effects_gpu_init(server.effects_manager, &server)) {
             printf("GPU acceleration enabled for visual effects\n");
+            
+            // Initialize real-time effects system
+            if (!axiom_realtime_effects_init(server.effects_manager)) {
+                fprintf(stderr, "Failed to initialize real-time effects\n");
+            } else {
+                printf("Real-time effects system initialized\n");
+            }
         } else {
             printf("GPU acceleration not available, using software fallback\n");
         }
@@ -529,6 +554,19 @@ int main(int argc, char *argv[]) {
                 current_time = (uint32_t)(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
             }
             axiom_animation_manager_update(server.animation_manager, current_time);
+            
+            // Update real-time window effects
+            if (server.effects_manager && server.effects_manager->realtime_enabled) {
+                struct axiom_window *window;
+                wl_list_for_each(window, &server.windows, link) {
+                    if (window->effects) {
+                        axiom_window_effects_update(window, current_time);
+                    }
+                }
+                
+                // Throttle effects updates for performance
+                axiom_effects_throttle_updates(server.effects_manager);
+            }
         }
         
         if (wl_event_loop_dispatch(server.wl_event_loop, -1) < 0) {
