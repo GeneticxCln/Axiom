@@ -21,7 +21,7 @@ static bool processes_initialized = false;
 
 static int handle_sigchld(int signal, void *data) {
     (void)signal;
-    struct axiom_server *server = data;
+    (void)data;  // Mark as unused to avoid compiler warning
     
     pid_t pid;
     int status;
@@ -167,6 +167,8 @@ void axiom_spawn_rofi(void) {
 }
 
 void axiom_spawn_waybar(struct axiom_server *server) {
+    (void)server;  // Mark as unused to avoid compiler warning
+    
     // Check if waybar is already running
     if (system("pgrep waybar > /dev/null 2>&1") == 0) {
         AXIOM_LOG_INFO("Waybar is already running");

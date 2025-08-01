@@ -90,7 +90,7 @@ void axiom_switch_workspace(struct axiom_server *server, int workspace) {
     axiom_hide_workspace_windows(server, server->current_workspace);
     
     // Update current workspace
-    int old_workspace = server->current_workspace;
+    // int old_workspace = server->current_workspace; // Currently unused
     server->current_workspace = workspace;
     
     // Show new workspace windows

@@ -31,7 +31,7 @@ static void test_update_callback(struct axiom_animation *anim, void *user_data) 
 }
 
 // Test completion callback
-static void test_complete_callback(struct axiom_animation *anim, void *user_data) {
+static void test_complete_callback(struct axiom_animation *anim __attribute__((unused)), void *user_data) {
     int *completed = (int*)user_data;
     *completed = 1;
     printf("Animation completed!\n");

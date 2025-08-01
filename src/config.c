@@ -172,8 +172,12 @@ bool axiom_config_load(struct axiom_config *config, const char *path) {
         
         // Check for section headers
         if (line[0] == '[' && line[strlen(line)-1] == ']') {
-            strncpy(section, line + 1, sizeof(section) - 1);
-            section[strlen(section) - 1] = '\0'; // Remove closing bracket
+            size_t section_len = strlen(line) - 2; // Exclude '[' and ']'
+            if (section_len >= sizeof(section)) {
+                section_len = sizeof(section) - 1;
+            }
+            memcpy(section, line + 1, section_len);
+            section[section_len] = '\0';
             continue;
         }
         
