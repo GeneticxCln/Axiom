@@ -66,7 +66,8 @@ axiom_sources = files(
   'src/renderer.c',
   'src/window_rules.c',
   'src/smart_gaps.c',
-  'src/window_snapping.c'
+  'src/window_snapping.c',
+  'src/pip_manager.c'
 )
 
 # Executable
@@ -182,4 +183,17 @@ test_window_rules = executable('test_window_rules',
 )
 test('window_rules_tests', test_window_rules)
 
+# PiP manager test
+test_pip_manager_sources = files(
+  'tests/test_pip_manager.c',
+  'src/pip_manager.c'
+)
+
+test_pip_manager = executable('test_pip_manager',
+    sources: test_pip_manager_sources,
+    dependencies: [wayland_server, wlroots, proto_inc],
+    include_directories: inc,
+    install: false,
+)
+test('pip_manager_tests', test_pip_manager)
 

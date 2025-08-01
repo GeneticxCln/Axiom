@@ -89,6 +89,7 @@ void axiom_effects_manager_destroy(struct axiom_effects_manager *manager) {
 }
 
 bool axiom_shadow_init(struct axiom_effects_manager *manager) {
+    (void)manager; // Suppress unused parameter warning
     // Initialize OpenGL context and shadow textures here
     // Placeholder implementation - actual OpenGL initialization required
     return true;
@@ -127,8 +128,27 @@ struct axiom_shadow_texture *axiom_shadow_create_texture(
 
 void axiom_shadow_render_for_window(struct axiom_effects_manager *manager,
                                     struct axiom_window *window) {
-    // Render shadows for the provided window
-    // Placeholder implementation - actual shadow rendering needed
+    if (!manager || !window || !manager->gl_initialized) {
+        return;
+    }
+
+    struct axiom_gpu_context *ctx = (struct axiom_gpu_context *)manager->gl_context;
+    if (!ctx) return;
+
+    // Get window dimensions
+    int width = window->geometry.width > 0 ? window->geometry.width : window->width;
+    int height = window->geometry.height > 0 ? window->geometry.height : window->height;
+    
+    if (width <= 0 || height <= 0) return;
+
+    // For now, just mark as processed without calling GPU functions
+    // This allows tests to run without requiring the full renderer
+    printf("Shadow rendering requested for window %dx%d (offset: %d,%d, blur: %d, opacity: %.2f)\n",
+           width, height, manager->shadow.offset_x, manager->shadow.offset_y,
+           manager->shadow.blur_radius, manager->shadow.opacity);
+           
+    // Real GPU rendering would happen here when fully integrated
+    // axiom_gpu_render_shadow(ctx, &params, ctx->temp_texture, ctx->shadow_texture);
 }
 
 void axiom_shadow_update_config(struct axiom_effects_manager *manager,
@@ -176,6 +196,8 @@ bool axiom_effects_gl_check_extensions(void) {
 }
 
 bool axiom_effects_load_config(struct axiom_effects_manager *manager, const char *config_path) {
+    (void)manager; // Suppress unused parameter warning
+    (void)config_path; // Suppress unused parameter warning
     // Load effects configuration from a file (e.g., JSON or INI format)
     // Placeholder implementation - add code to read actual config file
     return true;
@@ -188,12 +210,33 @@ bool axiom_blur_init(struct axiom_effects_manager *manager) {
 }
 
 void axiom_blur_destroy(struct axiom_effects_manager *manager) {
+    (void)manager; // Suppress unused parameter warning
     // Clean up blur-related state
 }
 
 void axiom_blur_apply_to_window(struct axiom_effects_manager *manager, struct axiom_window *window) {
-    // Apply blur effect to the specific window
-    // Placeholder implementation
+    if (!manager || !window || !manager->gl_initialized) {
+        return;
+    }
+
+    struct axiom_gpu_context *ctx = (struct axiom_gpu_context *)manager->gl_context;
+    if (!ctx) return;
+
+    // Get window dimensions
+    int width = window->geometry.width > 0 ? window->geometry.width : window->width;
+    int height = window->geometry.height > 0 ? window->geometry.height : window->height;
+    
+    if (width <= 0 || height <= 0) return;
+
+    // For now, just mark as processed without calling GPU functions
+    // This allows tests to run without requiring the full renderer
+    printf("Blur rendering requested for window %dx%d (radius: %d, intensity: %.2f)\n",
+           width, height, manager->blur.radius, manager->blur.intensity);
+           
+    // Real GPU rendering would happen here when fully integrated
+    // Two-pass blur: horizontal then vertical
+    // axiom_gpu_render_blur(ctx, &h_params, ctx->temp_texture, ctx->blur_texture);
+    // axiom_gpu_render_blur(ctx, &v_params, ctx->blur_texture, ctx->temp_texture);
 }
 
 void axiom_blur_update_config(struct axiom_effects_manager *manager, struct axiom_blur_config *config) {
@@ -204,6 +247,8 @@ void axiom_blur_update_config(struct axiom_effects_manager *manager, struct axio
 }
 
 void axiom_transparency_apply_to_window(struct axiom_effects_manager *manager, struct axiom_window *window) {
+    (void)manager; // Suppress unused parameter warning
+    (void)window; // Suppress unused parameter warning
     // Apply transparency based on focused/unfocused state
     // Placeholder implementation
 }

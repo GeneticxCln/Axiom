@@ -51,6 +51,39 @@ struct axiom_window_snapping_config {
     bool show_snap_preview;
 };
 
+/* Picture-in-Picture configuration */
+struct axiom_pip_config {
+    bool enabled;
+    
+    // Default settings
+    char *default_corner;           // "bottom-right", "top-left", etc.
+    char *default_size;             // "small", "medium", "large", "custom"
+    int default_margin_x;
+    int default_margin_y;
+    
+    // Behavior settings
+    bool always_on_top;
+    bool auto_hide_unfocused;
+    bool maintain_aspect_ratio;
+    bool animate_transitions;
+    
+    // Opacity settings
+    float pip_opacity;
+    float focused_opacity;
+    float unfocused_opacity;
+    
+    // Animation settings
+    uint32_t animation_duration;
+    
+    // Auto-hide settings
+    uint32_t auto_hide_delay;
+    bool auto_hide_on_fullscreen;
+    
+    // Size constraints
+    int min_width, min_height;
+    int max_width, max_height;
+};
+
 /* Workspaces configuration */
 struct axiom_workspaces_config {
     int max_workspaces;
@@ -100,6 +133,7 @@ struct axiom_config {
     struct axiom_effects_config effects;
     struct axiom_smart_gaps_config smart_gaps;
     struct axiom_window_snapping_config window_snapping;
+    struct axiom_pip_config picture_in_picture;
     struct axiom_workspaces_config workspaces;
 };
 

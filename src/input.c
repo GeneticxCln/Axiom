@@ -8,6 +8,7 @@
 #include "axiom.h"
 #include "config.h"
 #include "animation.h"
+#include "pip_manager.h"
 
 static void keyboard_handle_modifiers(struct wl_listener *listener, void *data) {
     (void)data; // Suppress unused parameter warning
@@ -45,7 +46,7 @@ static void cycle_windows(struct axiom_server *server) {
 }
 
 static bool handle_keybinding(struct axiom_server *server, xkb_keysym_t sym, uint32_t modifiers) {
-    // Handle Super + Shift key bindings (window tagging)
+    // Handle Super + Shift key bindings
     if ((modifiers & WLR_MODIFIER_LOGO) && (modifiers & WLR_MODIFIER_SHIFT)) {
         switch (sym) {
         case XKB_KEY_1:
@@ -62,6 +63,16 @@ static bool handle_keybinding(struct axiom_server *server, xkb_keysym_t sym, uin
                 axiom_move_focused_window_to_workspace(server, workspace_num);
                 return true;
             }
+        case XKB_KEY_p:
+            // Cycle PiP corner position (Super+Shift+P)
+            if (server->focused_window && server->pip_manager &&
+                axiom_pip_is_window_pip(server->pip_manager, server->focused_window)) {
+                axiom_pip_cycle_corners(server->pip_manager, server->focused_window);
+                AXIOM_LOG_INFO("Cycled PiP corner for window: %s", 
+                               server->focused_window->xdg_toplevel->title ?: "(no title)");
+                return true;
+            }
+            break;
         }
     }
     
@@ -136,6 +147,21 @@ static bool handle_keybinding(struct axiom_server *server, xkb_keysym_t sym, uin
             // Reload configuration (Super+R)
             axiom_reload_configuration(server);
             return true;
+        case XKB_KEY_p:
+            // Toggle Picture-in-Picture mode (Super+P)
+            if (server->focused_window && server->pip_manager) {
+                if (axiom_pip_is_window_pip(server->pip_manager, server->focused_window)) {
+                    axiom_pip_disable_for_window(server->pip_manager, server->focused_window);
+                    AXIOM_LOG_INFO("Disabled PiP for window: %s", 
+                                   server->focused_window->xdg_toplevel->title ?: "(no title)");
+                } else {
+                    axiom_pip_enable_for_window(server->pip_manager, server->focused_window);
+                    AXIOM_LOG_INFO("Enabled PiP for window: %s", 
+                                   server->focused_window->xdg_toplevel->title ?: "(no title)");
+                }
+                return true;
+            }
+            break;
         // Phase 2: Workspace number key switching (Super + 1-9)
         case XKB_KEY_1:
         case XKB_KEY_2:

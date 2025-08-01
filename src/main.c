@@ -13,6 +13,7 @@
 #include "window_rules.h"
 #include "smart_gaps.h"
 #include "window_snapping.h"
+#include "pip_manager.h"
 void axiom_calculate_window_layout(struct axiom_server *server, int index, int *x, int *y, int *width, int *height);
 
 // Configuration reload function
@@ -659,6 +660,18 @@ int main(int argc, char *argv[]) {
         }
     }
     
+    // Initialize Picture-in-Picture system (Phase 3.1)
+    if (!axiom_server_init_pip_manager(&server, &server.config->picture_in_picture)) {
+        fprintf(stderr, "Failed to initialize PiP manager\n");
+    } else {
+        printf("Picture-in-Picture system initialized successfully\n");
+        
+        // Print PiP statistics for debugging
+        if (server.pip_manager) {
+            axiom_pip_print_stats(server.pip_manager);
+        }
+    }
+    
     // Set up input management
     wl_list_init(&server.input_devices);
     
@@ -768,6 +781,11 @@ int main(int argc, char *argv[]) {
     // Cleanup smart gaps system
     if (server.smart_gaps_manager) {
         axiom_server_destroy_smart_gaps(&server);
+    }
+    
+    // Cleanup PiP manager
+    if (server.pip_manager) {
+        axiom_server_destroy_pip_manager(&server);
     }
     
     axiom_config_destroy(server.config);
