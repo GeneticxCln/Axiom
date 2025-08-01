@@ -15,6 +15,9 @@ wayland_protos = dependency('wayland-protocols', version: '>=1.25')
 wlroots = dependency('wlroots-0.19')
 xkbcommon = dependency('xkbcommon')
 math_lib = cc.find_library('m', required: true)
+egl = dependency('egl')
+gl = dependency('gl')
+gles3 = dependency('glesv2')
 
 # Protocol generation
 wayland_scanner = find_program('wayland-scanner')
@@ -58,7 +61,8 @@ axiom_sources = files(
   'src/tiling.c',
   'src/workspace.c',
   'src/animation.c',
-  'src/effects.c'
+  'src/effects.c',
+  'src/renderer.c'
 )
 
 # Executable
@@ -66,7 +70,7 @@ proto_inc = declare_dependency(
   sources: server_protos_headers,
 )
 
-global_deps = [wayland_server, wlroots, xkbcommon, proto_inc, math_lib]
+global_deps = [wayland_server, wlroots, xkbcommon, proto_inc, math_lib, egl, gles3]
 executable('axiom',
   sources: axiom_sources + server_protos_src,
   dependencies: global_deps,

@@ -8,6 +8,7 @@
 #include "axiom.h"
 #include "animation.h"
 #include "effects.h"
+#include "renderer.h"
 void axiom_calculate_window_layout(struct axiom_server *server, int index, int *x, int *y, int *width, int *height);
 
 void axiom_arrange_windows(struct axiom_server *server) {
@@ -465,6 +466,13 @@ int main(int argc, char *argv[]) {
         server.effects_manager = NULL;
     } else {
         printf("Effects manager initialized successfully\n");
+        
+        // Initialize GPU acceleration for effects
+        if (server.effects_manager && axiom_effects_gpu_init(server.effects_manager, &server)) {
+            printf("GPU acceleration enabled for visual effects\n");
+        } else {
+            printf("GPU acceleration not available, using software fallback\n");
+        }
     }
     
     // Set up input management
