@@ -17,8 +17,52 @@ static void process_motion(struct axiom_server *server, uint32_t time) {
         server->cursor->x, server->cursor->y,
         &surface, &sx, &sy);
     
-    if (!window) {
-        // Only set cursor if we have cursor manager and it's loaded
+    // Set cursor on first motion - attach cursor to layout and load theme if needed
+    static bool cursor_attached = false;
+    static bool cursor_theme_loaded = false;
+    static bool cursor_set = false;
+    
+    // Attach cursor to output layout on first motion
+    if (!cursor_attached) {
+        wlr_cursor_attach_output_layout(server->cursor, server->output_layout);
+        printf("Debug: Cursor attached to output layout during first motion\n");
+        cursor_attached = true;
+    }
+    
+    if (!cursor_theme_loaded && server->cursor_mgr) {
+        // Try to load cursor theme now that we're in motion and output should be ready
+        struct axiom_output *output;
+        wl_list_for_each(output, &server->outputs, link) {
+            if (wlr_xcursor_manager_load(server->cursor_mgr, output->wlr_output->scale)) {
+                printf("Debug: Cursor theme loaded successfully during motion\n");
+                cursor_theme_loaded = true;
+                break;
+            }
+        }
+        if (!cursor_theme_loaded) {
+            printf("Debug: Failed to load cursor theme during motion, trying default scale\n");
+            if (wlr_xcursor_manager_load(server->cursor_mgr, 1.0)) {
+                cursor_theme_loaded = true;
+                printf("Debug: Cursor theme loaded with default scale\n");
+            }
+        }
+    }
+    
+    if (!cursor_set && cursor_theme_loaded && server->cursor_mgr) {
+        struct wlr_xcursor *xcursor = wlr_xcursor_manager_get_xcursor(server->cursor_mgr, "default", 1.0);
+        if (xcursor && xcursor->image_count > 0) {
+            // This should be safe now that output is fully initialized and theme is loaded
+            wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
+            cursor_set = true;
+            printf("Debug: Cursor set successfully on first motion\n");
+        }
+    } else if (!cursor_set && !server->cursor_mgr) {
+        printf("Debug: Skipping cursor setting (cursor_mgr is NULL)\n");
+        cursor_set = true; // Mark as set to avoid repeated messages
+    }
+    
+    if (!window && cursor_set) {
+        // Only set cursor if we have cursor manager and it's already been set once
         if (server->cursor_mgr) {
             struct wlr_xcursor *cursor = wlr_xcursor_manager_get_xcursor(server->cursor_mgr, "default", 1.0);
             if (cursor && cursor->image_count > 0) {

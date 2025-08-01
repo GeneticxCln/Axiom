@@ -440,21 +440,14 @@ static void server_new_output(struct wl_listener *listener, void *data) {
     
     wl_list_insert(&server->outputs, &output->link);
     
-    // Skip cursor setup entirely during output creation to avoid renderer assertion
-    // The cursor will be handled by the software cursor system
-    printf("Debug: Skipping cursor setup to avoid renderer assertion in nested mode\n");
+    // Defer cursor theme loading completely to avoid renderer assertion during setup
+    printf("Debug: Deferring cursor theme loading for output %s to avoid renderer assertion\n", 
+           wlr_output->name);
+    printf("Debug: cursor_mgr=%p, renderer=%p - will load theme during cursor motion\n", 
+           (void*)server->cursor_mgr, (void*)server->renderer);
     
-    // Load cursor theme for this output scale but don't set it immediately 
-    if (server->cursor_mgr) {
-        printf("Debug: Loading cursor theme for output %s (scale=%.2f)\n", 
-               wlr_output->name, wlr_output->scale);
-        
-        if (wlr_xcursor_manager_load(server->cursor_mgr, wlr_output->scale)) {
-            printf("Debug: Cursor theme loaded successfully (not setting cursor yet)\n");
-        } else {
-            printf("Warning: Failed to load cursor theme for output %s\n", wlr_output->name);
-        }
-    }
+    // Defer cursor attachment completely to avoid triggering cursor setup
+    printf("Debug: Deferring cursor attachment to output layout until cursor motion\n");
     
     // Update workspace dimensions based on output size
     if (wlr_output->current_mode) {
@@ -474,9 +467,17 @@ int main(int argc, char *argv[]) {
     
     // Parse command line arguments
     bool nested = false;
+    printf("Debug: argc=%d, argv:", argc);
+    for (int i = 0; i < argc; i++) {
+        printf(" '%s'", argv[i]);
+    }
+    printf("\n");
+    
     for (int i = 1; i < argc; i++) {
+        printf("Debug: Processing argument %d: '%s'\n", i, argv[i]);
         if (strcmp(argv[i], "--nested") == 0) {
             nested = true;
+            printf("Debug: Nested mode enabled!\n");
         } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
             printf("Usage: %s [OPTIONS]\n", argv[0]);
             printf("Options:\n");
@@ -485,6 +486,8 @@ int main(int argc, char *argv[]) {
             return EXIT_SUCCESS;
         }
     }
+    
+    printf("Debug: Final nested value: %s\n", nested ? "true" : "false");
     
     struct axiom_server server = {0};
     
@@ -692,17 +695,19 @@ int main(int argc, char *argv[]) {
     
     printf("Debug: Cursor created: %p\n", (void*)server.cursor);
     
+    // Try to create cursor manager even in nested mode, but with special handling
     server.cursor_mgr = wlr_xcursor_manager_create(server.config->cursor_theme, server.config->cursor_size);
     if (!server.cursor_mgr) {
-        fprintf(stderr, "Failed to create cursor manager\n");
-        return EXIT_FAILURE;
+        if (nested) {
+            printf("Debug: Failed to create cursor manager in nested mode (expected)\n");
+        } else {
+            fprintf(stderr, "Failed to create cursor manager\n");
+            return EXIT_FAILURE;
+        }
+    } else {
+        printf("Debug: Cursor manager created: %p (theme=%s, size=%d)\n", 
+               (void*)server.cursor_mgr, server.config->cursor_theme, server.config->cursor_size);
     }
-    
-    printf("Debug: Cursor manager created: %p (theme=%s, size=%d)\n", 
-           (void*)server.cursor_mgr, server.config->cursor_theme, server.config->cursor_size);
-    
-    wlr_cursor_attach_output_layout(server.cursor, server.output_layout);
-    printf("Debug: Cursor attached to output layout\n");
     
     server.cursor_mode = AXIOM_CURSOR_PASSTHROUGH;
     
@@ -716,6 +721,8 @@ int main(int argc, char *argv[]) {
     wl_signal_add(&server.cursor->events.axis, &server.cursor_axis);
     server.cursor_frame.notify = axiom_cursor_frame;
     wl_signal_add(&server.cursor->events.frame, &server.cursor_frame);
+    
+    // Note: Cursor will be attached to output layout after backend starts
     
     server.new_input.notify = axiom_new_input;
     wl_signal_add(&server.backend->events.new_input, &server.new_input);
