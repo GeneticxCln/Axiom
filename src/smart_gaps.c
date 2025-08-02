@@ -17,7 +17,7 @@ static uint32_t axiom_get_time_ms(void) {
 struct axiom_smart_gaps_manager *axiom_smart_gaps_manager_create(struct axiom_server *server) {
     struct axiom_smart_gaps_manager *manager = calloc(1, sizeof(struct axiom_smart_gaps_manager));
     if (!manager) {
-        fprintf(stderr, "Failed to allocate smart gaps manager\n");
+        axiom_log_error("Failed to allocate smart gaps manager");
         return NULL;
     }
     manager->server = server;
@@ -49,16 +49,16 @@ bool axiom_smart_gaps_manager_init(struct axiom_smart_gaps_manager *manager, str
 bool axiom_server_init_smart_gaps(struct axiom_server *server, struct axiom_smart_gaps_config *config) {
     server->smart_gaps_manager = axiom_smart_gaps_manager_create(server);
     if (!server->smart_gaps_manager) {
-        fprintf(stderr, "Failed to create smart gaps manager\n");
+        axiom_log_error("Failed to create smart gaps manager");
         return false;
     }
     if (!axiom_smart_gaps_manager_init(server->smart_gaps_manager, config)) {
-        fprintf(stderr, "Failed to initialize smart gaps manager\n");
+        axiom_log_error("Failed to initialize smart gaps manager");
         axiom_smart_gaps_manager_destroy(server->smart_gaps_manager);
         server->smart_gaps_manager = NULL;
         return false;
     }
-    printf("Smart gaps system initialized\n");
+    axiom_log_info("Smart gaps system initialized");
     return true;
 }
 
@@ -280,7 +280,7 @@ bool axiom_smart_gaps_load_defaults(struct axiom_smart_gaps_manager *manager) {
     success &= axiom_smart_gaps_add_profile(manager, &spacious_profile);
     
     if (success) {
-        printf("Loaded %d default gap profiles\n", manager->profile_count);
+        axiom_log_info("Loaded %d default gap profiles", manager->profile_count);
     }
     
     return success;
@@ -598,7 +598,7 @@ bool axiom_smart_gaps_start_animation(struct axiom_gap_state *state,
         state->animation.target_values[i] = target_gaps[i];
     }
     
-    printf("Started gap animation: duration %u ms\n", duration_ms);
+    axiom_log_debug("Started gap animation: duration %u ms", duration_ms);
     return true;
 }
 

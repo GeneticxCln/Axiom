@@ -26,16 +26,16 @@ static void process_motion(struct axiom_server *server, uint32_t time) {
         struct axiom_output *output;
         wl_list_for_each(output, &server->outputs, link) {
             if (wlr_xcursor_manager_load(server->cursor_mgr, output->wlr_output->scale)) {
-                printf("Debug: Cursor theme loaded successfully during motion\n");
+                axiom_log_debug("Cursor theme loaded successfully during motion");
                 cursor_theme_loaded = true;
                 break;
             }
         }
         if (!cursor_theme_loaded) {
-            printf("Debug: Failed to load cursor theme during motion, trying default scale\n");
+            axiom_log_debug("Failed to load cursor theme during motion, trying default scale");
             if (wlr_xcursor_manager_load(server->cursor_mgr, 1.0)) {
                 cursor_theme_loaded = true;
-                printf("Debug: Cursor theme loaded with default scale\n");
+                axiom_log_debug("Cursor theme loaded with default scale");
             }
         }
     }
@@ -46,10 +46,10 @@ static void process_motion(struct axiom_server *server, uint32_t time) {
             // This should be safe now that output is fully initialized and theme is loaded
             wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
             cursor_set = true;
-            printf("Debug: Cursor set successfully on first motion\n");
+            axiom_log_debug("Cursor set successfully on first motion");
         }
     } else if (!cursor_set && !server->cursor_mgr) {
-        printf("Debug: Skipping cursor setting (cursor_mgr is NULL)\n");
+        axiom_log_debug("Skipping cursor setting (cursor_mgr is NULL)");
         cursor_set = true; // Mark as set to avoid repeated messages
     }
     

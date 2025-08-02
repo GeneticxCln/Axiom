@@ -339,10 +339,33 @@ bool axiom_process_exists(const char *name);
 void axiom_reload_configuration(struct axiom_server *server);
 
 // Logging
-void axiom_log(const char *level, const char *format, ...);
+typedef enum {
+    AXIOM_LOG_DEBUG = 0,
+    AXIOM_LOG_INFO = 1,
+    AXIOM_LOG_WARN = 2,
+    AXIOM_LOG_ERROR = 3
+} axiom_log_level_t;
 
-#define AXIOM_LOG_INFO(fmt, ...) axiom_log("INFO", fmt, ##__VA_ARGS__)
-#define AXIOM_LOG_ERROR(fmt, ...) axiom_log("ERROR", fmt, ##__VA_ARGS__)
-#define AXIOM_LOG_DEBUG(fmt, ...) axiom_log("DEBUG", fmt, ##__VA_ARGS__)
+// Core logging functions
+void axiom_log(const char *level, const char *format, ...);
+void axiom_log_impl(axiom_log_level_t level, const char *format, ...);
+
+// Configuration functions
+void axiom_log_set_level(axiom_log_level_t level);
+void axiom_log_set_enabled(bool enabled);
+void axiom_log_set_file(const char *filename);
+void axiom_log_cleanup(void);
+
+// Convenience functions
+void axiom_log_debug(const char *format, ...);
+void axiom_log_info(const char *format, ...);
+void axiom_log_warn(const char *format, ...);
+void axiom_log_error(const char *format, ...);
+
+// Legacy macros for compatibility
+#define AXIOM_LOG_INFO(fmt, ...) axiom_log_info(fmt, ##__VA_ARGS__)
+#define AXIOM_LOG_ERROR(fmt, ...) axiom_log_error(fmt, ##__VA_ARGS__)
+#define AXIOM_LOG_DEBUG(fmt, ...) axiom_log_debug(fmt, ##__VA_ARGS__)
+#define AXIOM_LOG_WARN(fmt, ...) axiom_log_warn(fmt, ##__VA_ARGS__)
 
 #endif /* AXIOM_H */

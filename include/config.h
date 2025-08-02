@@ -157,11 +157,6 @@ bool axiom_config_load(struct axiom_config *config, const char *path);
 bool axiom_config_validate(struct axiom_config *config);
 
 
-// Logging function (needs to be provided)
-void axiom_log(const char *level, const char *format, ...);
-
-#define AXIOM_LOG_INFO(fmt, ...) axiom_log("INFO", fmt, ##__VA_ARGS__)
-#define AXIOM_LOG_ERROR(fmt, ...) axiom_log("ERROR", fmt, ##__VA_ARGS__)
-#define AXIOM_LOG_DEBUG(fmt, ...) axiom_log("DEBUG", fmt, ##__VA_ARGS__)
+// Logging functions are now defined in axiom.h
 
 #endif /* AXIOM_CONFIG_H */

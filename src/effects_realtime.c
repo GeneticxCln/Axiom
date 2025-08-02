@@ -27,14 +27,30 @@ static void blur_strength_animation_callback(struct axiom_animation *anim, void 
 #define TARGET_FRAME_TIME_MS 16     // Target 16ms frame time (60fps)
 #define PERFORMANCE_ADJUSTMENT_THRESHOLD 5  // Adjust after 5 consecutive slow frames
 
+// Performance tracking structure
+struct axiom_performance_tracker {
+    uint32_t frame_times[PERFORMANCE_SAMPLE_SIZE];
+    int frame_index;
+    uint32_t slow_frame_count;
+    uint32_t update_threshold_ms;
+    bool adaptive_performance;
+};
+
+static struct axiom_performance_tracker perf_tracker = {
+    .frame_index = 0,
+    .slow_frame_count = 0,
+    .update_threshold_ms = EFFECT_UPDATE_THRESHOLD_MS,
+    .adaptive_performance = true
+};
+
 // Real-time effects initialization
 bool axiom_realtime_effects_init(struct axiom_effects_manager *manager) {
     if (!manager || !manager->gl_initialized) {
-        fprintf(stderr, "Effects manager not initialized for real-time effects\n");
+        axiom_log_error("Effects manager not initialized for real-time effects");
         return false;
     }
 
-    printf("Initializing real-time effects system...\n");
+    axiom_log_info("Initializing real-time effects system...");
     
     // Initialize OpenGL state for effects
     glEnable(GL_BLEND);
@@ -43,14 +59,14 @@ bool axiom_realtime_effects_init(struct axiom_effects_manager *manager) {
     // Check for required OpenGL extensions
     const char *extensions = (const char*)glGetString(GL_EXTENSIONS);
     if (!strstr(extensions, "GL_OES_texture_float")) {
-        fprintf(stderr, "Warning: Float textures not supported, effects may be limited\n");
+        axiom_log_warn("Float textures not supported, effects may be limited");
     }
     
     manager->realtime_enabled = true;
     manager->last_frame_time = 0;
     manager->frame_count = 0;
     
-    printf("Real-time effects system initialized successfully\n");
+    axiom_log_info("Real-time effects system initialized successfully");
     return true;
 }
 
@@ -58,7 +74,7 @@ void axiom_realtime_effects_destroy(struct axiom_effects_manager *manager) {
     if (!manager) return;
     
     manager->realtime_enabled = false;
-    printf("Real-time effects system destroyed\n");
+    axiom_log_info("Real-time effects system destroyed");
 }
 
 // Window effects lifecycle
@@ -67,7 +83,7 @@ bool axiom_window_effects_init(struct axiom_window *window) {
     
     window->effects = calloc(1, sizeof(struct axiom_window_effects));
     if (!window->effects) {
-        fprintf(stderr, "Failed to allocate window effects\n");
+        axiom_log_error("Failed to allocate window effects");
         return false;
     }
     
@@ -82,7 +98,7 @@ bool axiom_window_effects_init(struct axiom_window *window) {
     int shadow_width = (window->geometry.width > 0 ? window->geometry.width : window->width) + shadow_blur_radius * 2;
     int shadow_height = (window->geometry.height > 0 ? window->geometry.height : window->height) + shadow_blur_radius * 2;
     if (!axiom_realtime_shadow_create(&effects->shadow, shadow_width, shadow_height)) {
-        fprintf(stderr, "Failed to create shadow for window\n");
+        axiom_log_error("Failed to create shadow for window");
         free(window->effects);
         window->effects = NULL;
         return false;
@@ -92,7 +108,7 @@ bool axiom_window_effects_init(struct axiom_window *window) {
     int blur_width = window->geometry.width > 0 ? window->geometry.width : window->width;
     int blur_height = window->geometry.height > 0 ? window->geometry.height : window->height;
     if (!axiom_realtime_blur_create(&effects->blur, blur_width, blur_height)) {
-        fprintf(stderr, "Failed to create blur for window\n");
+        axiom_log_error("Failed to create blur for window");
         axiom_realtime_shadow_destroy(&effects->shadow);
         free(window->effects);
         window->effects = NULL;
@@ -102,7 +118,7 @@ bool axiom_window_effects_init(struct axiom_window *window) {
     // Create scene graph nodes for effects
     axiom_effects_create_shadow_node(window);
     
-    printf("Window effects initialized for window %p\n", (void*)window);
+    axiom_log_debug("Window effects initialized for window %p", (void*)window);
     return true;
 }
 
@@ -125,7 +141,7 @@ void axiom_window_effects_destroy(struct axiom_window *window) {
     free(window->effects);
     window->effects = NULL;
     
-    printf("Window effects destroyed for window %p\n", (void*)window);
+    axiom_log_debug("Window effects destroyed for window %p", (void*)window);
 }
 
 void axiom_window_effects_update(struct axiom_window *window, uint32_t time_ms) {
@@ -179,7 +195,7 @@ bool axiom_realtime_shadow_create(struct axiom_realtime_shadow *shadow,
                           shadow->shadow_texture, 0);
     
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        fprintf(stderr, "Shadow framebuffer incomplete\n");
+        axiom_log_error("Shadow framebuffer incomplete");
         axiom_realtime_shadow_destroy(shadow);
         return false;
     }
@@ -187,7 +203,7 @@ bool axiom_realtime_shadow_create(struct axiom_realtime_shadow *shadow,
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
     
-    printf("Shadow created: %dx%d\n", width, height);
+    axiom_log_debug("Shadow created: %dx%d", width, height);
     return true;
 }
 
@@ -302,7 +318,7 @@ bool axiom_realtime_blur_create(struct axiom_realtime_blur *blur,
     
     // Check framebuffer completeness
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        fprintf(stderr, "Blur framebuffer incomplete\n");
+        axiom_log_error("Blur framebuffer incomplete");
         axiom_realtime_blur_destroy(blur);
         return false;
     }
@@ -310,7 +326,7 @@ bool axiom_realtime_blur_create(struct axiom_realtime_blur *blur,
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
     
-    printf("Blur created: %dx%d\n", width, height);
+    axiom_log_debug("Blur created: %dx%d", width, height);
     return true;
 }
 
@@ -431,7 +447,7 @@ GLuint axiom_capture_window_texture(struct axiom_window *window) {
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tex_width, tex_height, 0, 
                             GL_RGBA, GL_UNSIGNED_BYTE, pixel_data);
                 content_copied = true;
-                printf("Successfully captured window content via pixel readback\n");
+                axiom_log_debug("Successfully captured window content via pixel readback");
             }
             free(pixel_data);
         }
@@ -439,7 +455,7 @@ GLuint axiom_capture_window_texture(struct axiom_window *window) {
     
     // Method 3: Final fallback - create window-based content
     if (!content_copied) {
-        printf("Warning: Could not capture window content, using window-based fallback\n");
+        axiom_log_warn("Could not capture window content, using window-based fallback");
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tex_width, tex_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
         
         // Create simple gradient based on window properties
@@ -452,7 +468,7 @@ GLuint axiom_capture_window_texture(struct axiom_window *window) {
     }
     
     glBindTexture(GL_TEXTURE_2D, 0);
-    printf("Captured window texture: %dx%d (ID: %u)\n", tex_width, tex_height, gl_texture);
+    axiom_log_debug("Captured window texture: %dx%d (ID: %u)", tex_width, tex_height, gl_texture);
     return gl_texture;
 }
 
@@ -462,7 +478,7 @@ bool axiom_upload_window_content(struct axiom_window *window, GLuint texture) {
     // Get the wlr_texture from the window's surface
     struct wlr_texture *wlr_tex = wlr_surface_get_texture(window->surface);
     if (!wlr_tex) {
-        printf("No wlroots texture available for window\n");
+        axiom_log_debug("No wlroots texture available for window");
         return false;
     }
     
@@ -471,7 +487,7 @@ bool axiom_upload_window_content(struct axiom_window *window, GLuint texture) {
     int height = wlr_tex->height;
     
     if (width <= 0 || height <= 0) {
-        printf("Invalid texture dimensions: %dx%d\n", width, height);
+        axiom_log_warn("Invalid texture dimensions: %dx%d", width, height);
         return false;
     }
     
@@ -491,9 +507,9 @@ bool axiom_upload_window_content(struct axiom_window *window, GLuint texture) {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, 
                     GL_RGBA, GL_UNSIGNED_BYTE, pixel_data);
         success = true;
-        printf("Successfully uploaded window content to texture: %dx%d\n", width, height);
+        axiom_log_debug("Successfully uploaded window content to texture: %dx%d", width, height);
     } else {
-        printf("Failed to read pixels from wlroots texture\n");
+        axiom_log_debug("Failed to read pixels from wlroots texture");
     }
     
     free(pixel_data);
@@ -519,7 +535,7 @@ void axiom_effects_create_shadow_node(struct axiom_window *window) {
     // Position shadow behind the window
     wlr_scene_node_place_below(&effects->shadow_rect->node, &window->scene_tree->node);
     
-    printf("Shadow scene node created for window %p\n", (void*)window);
+    axiom_log_debug("Shadow scene node created for window %p", (void*)window);
 }
 
 void axiom_effects_update_shadow_position(struct axiom_window *window) {
@@ -555,34 +571,70 @@ bool axiom_effects_should_update(struct axiom_window *window, uint32_t current_t
 void axiom_effects_throttle_updates(struct axiom_effects_manager *manager, uint32_t *effect_update_threshold_ms) {
     if (!manager || !effect_update_threshold_ms) return;
 
-    // Implement adaptive frame rate management
-    manager->frame_count++;
-
-    // Update current time in milliseconds
-    uint32_t current_time = time(NULL) * 1000;
-
-    // Adaptive frame rate logic
-    if (manager->frame_count == PERFORMANCE_SAMPLE_SIZE) {
-        uint32_t average_frame_time = (current_time - manager->last_frame_time) / manager->frame_count;
-        manager->frame_count = 0;
-        manager->last_frame_time = current_time;
-
-        // Adjust effect update threshold based on performance
-        if (average_frame_time > TARGET_FRAME_TIME_MS + PERFORMANCE_ADJUSTMENT_THRESHOLD) {
-            *effect_update_threshold_ms = EFFECT_UPDATE_THRESHOLD_LOW_MS;
-            printf("Lowering effect frame rate due to high render time: %ums/frame\n", average_frame_time);
-        } else if (average_frame_time < TARGET_FRAME_TIME_MS) {
-            *effect_update_threshold_ms = EFFECT_UPDATE_THRESHOLD_HIGH_MS;
-            printf("Increasing effect frame rate due to low render time: %ums/frame\n", average_frame_time);
+    // Get current time with better precision
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    uint32_t current_time = ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+    
+    // Record frame time
+    uint32_t frame_time = 0;
+    if (manager->last_frame_time > 0) {
+        frame_time = current_time - manager->last_frame_time;
+        
+        // Update performance tracker
+        perf_tracker.frame_times[perf_tracker.frame_index] = frame_time;
+        perf_tracker.frame_index = (perf_tracker.frame_index + 1) % PERFORMANCE_SAMPLE_SIZE;
+        
+        // Check if frame was slow
+        if (frame_time > TARGET_FRAME_TIME_MS + PERFORMANCE_ADJUSTMENT_THRESHOLD) {
+            perf_tracker.slow_frame_count++;
         } else {
-            *effect_update_threshold_ms = TARGET_FRAME_TIME_MS;
+            perf_tracker.slow_frame_count = 0; // Reset counter on good frame
+        }
+    }
+    
+    manager->frame_count++;
+    manager->last_frame_time = current_time;
+
+    // Adaptive performance adjustment
+    if (perf_tracker.adaptive_performance && manager->frame_count % 30 == 0) { // Check every 30 frames
+        // Calculate average frame time over sample window
+        uint32_t total_time = 0;
+        uint32_t valid_samples = 0;
+        
+        for (int i = 0; i < PERFORMANCE_SAMPLE_SIZE; i++) {
+            if (perf_tracker.frame_times[i] > 0) {
+                total_time += perf_tracker.frame_times[i];
+                valid_samples++;
+            }
+        }
+        
+        if (valid_samples > 10) {
+            uint32_t average_frame_time = total_time / valid_samples;
+            
+            // Adjust threshold based on performance
+            if (perf_tracker.slow_frame_count >= PERFORMANCE_ADJUSTMENT_THRESHOLD) {
+                // Multiple slow frames detected, lower quality/frequency
+                perf_tracker.update_threshold_ms = EFFECT_UPDATE_THRESHOLD_LOW_MS;
+                *effect_update_threshold_ms = perf_tracker.update_threshold_ms;
+                axiom_log_info("Performance: Reducing effects frequency (avg: %ums, slow frames: %u)", 
+                       average_frame_time, perf_tracker.slow_frame_count);
+                perf_tracker.slow_frame_count = 0;
+            } else if (average_frame_time < TARGET_FRAME_TIME_MS - 2) {
+                // Good performance, can increase quality
+                if (perf_tracker.update_threshold_ms > EFFECT_UPDATE_THRESHOLD_HIGH_MS) {
+                    perf_tracker.update_threshold_ms = EFFECT_UPDATE_THRESHOLD_MS;
+                    *effect_update_threshold_ms = perf_tracker.update_threshold_ms;
+                    axiom_log_debug("Performance: Restoring normal effects frequency (avg: %ums)", average_frame_time);
+                }
+            }
         }
     }
 
-    if (current_time - manager->last_frame_time >= 1000) {
-        printf("Effects FPS: %u\n", manager->frame_count);
-        manager->frame_count = 0;
-        manager->last_frame_time = current_time;
+    // Log performance stats periodically
+    if (manager->frame_count % 300 == 0) { // Every ~5 seconds at 60fps
+        uint32_t fps = (1000 * 300) / (current_time - (manager->last_frame_time - 5000));
+        axiom_log_debug("Effects performance: ~%u FPS, threshold: %ums", fps, perf_tracker.update_threshold_ms);
     }
 }
 
@@ -626,7 +678,7 @@ void axiom_effects_update_transparency_config(struct axiom_window *window,
 void axiom_effects_debug_render_times(struct axiom_effects_manager *manager) {
     if (!manager) return;
     
-    printf("Effects render times - Frame: %u, Last: %u ms\n",
+    axiom_log_debug("Effects render times - Frame: %u, Last: %u ms",
            manager->frame_count, manager->last_frame_time);
 }
 
@@ -645,7 +697,7 @@ void axiom_effects_animate_shadow_opacity(struct axiom_window *window,
     // Create fade animation for shadow opacity
     struct axiom_animation *anim = axiom_animation_create(AXIOM_ANIM_FADE, duration);
     if (!anim) {
-        printf("Failed to create shadow opacity animation\n");
+        axiom_log_error("Failed to create shadow opacity animation");
         return;
     }
     
@@ -664,7 +716,7 @@ void axiom_effects_animate_shadow_opacity(struct axiom_window *window,
     
     // Start the animation
     axiom_animation_start(window->server->animation_manager, anim);
-    printf("Started shadow opacity animation: %.2f -> %.2f over %u ms\n", 
+    axiom_log_debug("Started shadow opacity animation: %.2f -> %.2f over %u ms", 
            anim->start_values.opacity, target_opacity, duration);
 }
 
@@ -675,7 +727,7 @@ void axiom_effects_animate_blur_strength(struct axiom_window *window,
     // Create custom animation for blur strength
     struct axiom_animation *anim = axiom_animation_create(AXIOM_ANIM_FADE, duration);
     if (!anim) {
-        printf("Failed to create blur strength animation\n");
+        axiom_log_error("Failed to create blur strength animation");
         return;
     }
     
@@ -694,7 +746,7 @@ void axiom_effects_animate_blur_strength(struct axiom_window *window,
     
     // Start the animation
     axiom_animation_start(window->server->animation_manager, anim);
-    printf("Started blur strength animation: %.2f -> %.2f over %u ms\n", 
+    axiom_log_debug("Started blur strength animation: %.2f -> %.2f over %u ms", 
            anim->start_values.opacity, target_strength, duration);
 }
 

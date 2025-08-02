@@ -108,7 +108,8 @@ install_data('axiom.desktop',
 # Thumbnail manager test
 test_thumbnail_manager_sources = files(
   'tests/test_thumbnail_manager.c',
-  'src/thumbnail_manager.c'
+  'src/thumbnail_manager.c',
+  'src/logging.c'
 )
 
 test_thumbnail_manager = executable('test_thumbnail_manager',
@@ -148,7 +149,8 @@ test_executable = executable('test_axiom',
 )
 
 test_config_sources = files(
-  'tests/test_config.c'
+  'tests/test_config.c',
+  'src/logging.c'
 )
 
 test_config_executable = executable('test_config',
@@ -176,7 +178,8 @@ test('animation_tests', test_animation_executable)
 # Animation config test
 test_animation_config_sources = files(
   'tests/test_animation_config.c',
-  'src/config.c'
+  'src/config.c',
+  'src/logging.c'
 )
 
 test_animation_config = executable('test_animation_config',
@@ -190,12 +193,14 @@ test('animation_config_tests', test_animation_config)
 # Effects test
 test_effects_sources = files(
   'tests/test_effects.c',
-  'src/effects.c'
+  'src/effects.c',
+  'src/renderer.c',
+  'src/logging.c'
 )
 
 test_effects = executable('test_effects',
     sources: test_effects_sources,
-    dependencies: [math_lib, wayland_server, wlroots, proto_inc],
+    dependencies: [math_lib, wayland_server, wlroots, proto_inc, gles3, egl, gl],
     include_directories: inc,
     install: false,
 )
@@ -217,7 +222,8 @@ test('window_rules_tests', test_window_rules)
 # PiP manager test
 test_pip_manager_sources = files(
   'tests/test_pip_manager.c',
-  'src/pip_manager.c'
+  'src/pip_manager.c',
+  'src/logging.c'
 )
 
 test_pip_manager = executable('test_pip_manager',

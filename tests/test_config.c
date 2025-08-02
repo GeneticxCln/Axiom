@@ -4,13 +4,6 @@
 #include <string.h>
 #include <unistd.h>
 
-// Mock axiom_log function for testing
-void axiom_log(const char *level, const char *format, ...) {
-    (void)level;
-    (void)format;
-    // Do nothing in tests
-}
-
 // Include the config header and implementation
 #include "config.h"
 #include "../src/config.c"

@@ -7,7 +7,7 @@
 struct axiom_pip_manager *axiom_pip_manager_create(struct axiom_server *server) {
     struct axiom_pip_manager *manager = calloc(1, sizeof(*manager));
     if (!manager) {
-        fprintf(stderr, "Failed to allocate PiP manager\n");
+        axiom_log_error("Failed to allocate PiP manager");
         return NULL;
     }
     
@@ -33,7 +33,7 @@ void axiom_pip_manager_destroy(struct axiom_pip_manager *manager) {
     }
     
     free(manager);
-    printf("PiP manager destroyed\n");
+    axiom_log_debug("PiP manager destroyed");
 }
 
 // Initialize the PiP manager with configuration
@@ -41,7 +41,7 @@ bool axiom_pip_manager_init(struct axiom_pip_manager *manager, struct axiom_pip_
     if (!manager || !config) return false;
     
     manager->config = *config;
-    printf("PiP manager initialized with default configuration\n");
+    axiom_log_info("PiP manager initialized with default configuration");
     return true;
 }
 
@@ -66,7 +66,7 @@ bool axiom_pip_enable_for_window(struct axiom_pip_manager *manager,
     // Add to the PiP windows list
     wl_list_insert(&manager->pip_windows, &pip_window->link);
 
-    printf("Enabled PiP for window\n");
+    axiom_log_info("Enabled PiP for window");
     return true;
 }
 
@@ -80,7 +80,7 @@ bool axiom_pip_disable_for_window(struct axiom_pip_manager *manager,
         if (pip_window->window == window) {
             wl_list_remove(&pip_window->link);
             free(pip_window);
-            printf("Disabled PiP for window\n");
+            axiom_log_info("Disabled PiP for window");
             return true;
         }
     }
@@ -123,7 +123,7 @@ bool axiom_pip_set_corner(struct axiom_pip_manager *manager,
     wl_list_for_each(pip_window, &manager->pip_windows, link) {
         if (pip_window->window == window) {
             pip_window->corner = corner;
-            printf("Set PiP corner to %s\n", axiom_pip_corner_to_string(corner));
+            axiom_log_debug("Set PiP corner to %s", axiom_pip_corner_to_string(corner));
             return true;
         }
     }
@@ -143,7 +143,7 @@ bool axiom_pip_set_custom_position(struct axiom_pip_manager *manager,
             pip_window->corner = AXIOM_PIP_CUSTOM;
             pip_window->custom_x = x;
             pip_window->custom_y = y;
-            printf("Set PiP custom position to %d,%d\n", x, y);
+            axiom_log_debug("Set PiP custom position to %d,%d", x, y);
             return true;
         }
     }
@@ -175,7 +175,7 @@ bool axiom_pip_cycle_corners(struct axiom_pip_manager *manager,
                     break;
             }
             pip_window->corner = next_corner;
-            printf("Cycled PiP corner to %s\n", axiom_pip_corner_to_string(next_corner));
+            axiom_log_debug("Cycled PiP corner to %s", axiom_pip_corner_to_string(next_corner));
             return true;
         }
     }
@@ -193,7 +193,7 @@ bool axiom_pip_set_size_preset(struct axiom_pip_manager *manager,
     wl_list_for_each(pip_window, &manager->pip_windows, link) {
         if (pip_window->window == window) {
             pip_window->size_preset = preset;
-            printf("Set PiP size preset to %s\n", axiom_pip_size_preset_to_string(preset));
+            axiom_log_debug("Set PiP size preset to %s", axiom_pip_size_preset_to_string(preset));
             return true;
         }
     }
@@ -213,7 +213,7 @@ bool axiom_pip_set_custom_size(struct axiom_pip_manager *manager,
             pip_window->size_preset = AXIOM_PIP_SIZE_CUSTOM;
             pip_window->custom_width = width;
             pip_window->custom_height = height;
-            printf("Set PiP custom size to %dx%d\n", width, height);
+            axiom_log_debug("Set PiP custom size to %dx%d", width, height);
             return true;
         }
     }
@@ -270,7 +270,7 @@ void axiom_pip_load_defaults(struct axiom_pip_manager *manager) {
     manager->config.max_width = 1280;
     manager->config.max_height = 720;
 
-    printf("Loaded default PiP configuration\n");
+    axiom_log_debug("Loaded default PiP configuration");
 }
 
 // Get statistics
@@ -299,12 +299,12 @@ void axiom_pip_print_stats(struct axiom_pip_manager *manager) {
     if (!manager) return;
 
     struct axiom_pip_stats stats = axiom_pip_get_stats(manager);
-    printf("PiP Statistics:\n");
-    printf("  Active PiP windows: %u\n", stats.active_pip_windows);
-    printf("  Total activations: %u\n", stats.total_pip_activations);
-    printf("  Total deactivations: %u\n", stats.total_pip_deactivations);
-    printf("  Auto-hide activations: %u\n", stats.auto_hide_activations);
-    printf("  Position changes: %u\n", stats.position_changes);
+    axiom_log_info("PiP Statistics:");
+    axiom_log_info("  Active PiP windows: %u", stats.active_pip_windows);
+    axiom_log_info("  Total activations: %u", stats.total_pip_activations);
+    axiom_log_info("  Total deactivations: %u", stats.total_pip_deactivations);
+    axiom_log_info("  Auto-hide activations: %u", stats.auto_hide_activations);
+    axiom_log_info("  Position changes: %u", stats.position_changes);
 }
 
 // Utility functions for string conversion
@@ -362,20 +362,20 @@ bool axiom_server_init_pip_manager(struct axiom_server *server, struct axiom_pip
 
     server->pip_manager = axiom_pip_manager_create(server);
     if (!server->pip_manager) {
-        fprintf(stderr, "Failed to create PiP manager\n");
+        axiom_log_error("Failed to create PiP manager");
         return false;
     }
 
     if (config) {
         if (!axiom_pip_manager_init(server->pip_manager, config)) {
-            fprintf(stderr, "Failed to initialize PiP manager\n");
+            axiom_log_error("Failed to initialize PiP manager");
             axiom_pip_manager_destroy(server->pip_manager);
             server->pip_manager = NULL;
             return false;
         }
     }
 
-    printf("PiP system initialized\n");
+    axiom_log_info("PiP system initialized");
     return true;
 }
 
@@ -384,5 +384,5 @@ void axiom_server_destroy_pip_manager(struct axiom_server *server) {
 
     axiom_pip_manager_destroy(server->pip_manager);
     server->pip_manager = NULL;
-    printf("PiP system destroyed\n");
+    axiom_log_debug("PiP system destroyed");
 }

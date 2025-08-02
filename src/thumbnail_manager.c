@@ -57,7 +57,7 @@ struct axiom_thumbnail_manager *axiom_thumbnail_manager_create(struct axiom_serv
     // Initialize statistics
     memset(&manager->stats, 0, sizeof(manager->stats));
     
-    printf("Thumbnail manager created successfully\n");
+    axiom_log_info("Thumbnail manager created successfully");
     return manager;
 }
 
@@ -79,7 +79,7 @@ bool axiom_thumbnail_manager_init(struct axiom_thumbnail_manager *manager) {
         }
     }
     
-    printf("Thumbnail manager initialized successfully\n");
+    axiom_log_info("Thumbnail manager initialized successfully");
     return true;
 }
 
@@ -108,7 +108,7 @@ void axiom_thumbnail_manager_destroy(struct axiom_thumbnail_manager *manager) {
     }
     
     free(manager);
-    printf("Thumbnail manager destroyed\n");
+    axiom_log_info("Thumbnail manager destroyed");
 }
 
 struct axiom_thumbnail *axiom_thumbnail_create(struct axiom_thumbnail_manager *manager, 
@@ -125,7 +125,7 @@ struct axiom_thumbnail *axiom_thumbnail_create(struct axiom_thumbnail_manager *m
     
     // Check thumbnail limit
     if (manager->thumbnail_count >= AXIOM_MAX_THUMBNAILS) {
-        printf("Maximum thumbnail limit reached\n");
+        axiom_log_warn("Maximum thumbnail limit reached");
         return NULL;
     }
     
@@ -156,7 +156,7 @@ struct axiom_thumbnail *axiom_thumbnail_create(struct axiom_thumbnail_manager *m
     manager->thumbnail_count++;
     manager->stats.thumbnails_created++;
     
-    printf("Created thumbnail for window (total: %d)\n", manager->thumbnail_count);
+    axiom_log_debug("Created thumbnail for window (total: %d)", manager->thumbnail_count);
     return thumbnail;
 }
 
@@ -180,7 +180,7 @@ void axiom_thumbnail_destroy(struct axiom_thumbnail *thumbnail) {
     
     wl_list_remove(&thumbnail->link);
     free(thumbnail);
-    printf("Thumbnail destroyed\n");
+    axiom_log_debug("Thumbnail destroyed");
 }
 
 bool axiom_thumbnail_update(struct axiom_thumbnail_manager *manager, 
@@ -203,7 +203,7 @@ bool axiom_thumbnail_update(struct axiom_thumbnail_manager *manager,
     thumbnail->last_update_time = current_time;
     manager->stats.thumbnails_updated++;
     
-    printf("Updated thumbnail\n");
+    axiom_log_debug("Updated thumbnail");
     return true;
 }
 
@@ -221,7 +221,7 @@ bool axiom_thumbnail_render(struct axiom_thumbnail_manager *manager,
     // Try to get actual window content first
     bool content_captured = false;
     
-    if (window->surface) {
+    if (window->surface && wlr_surface_has_buffer(window->surface)) {
         struct wlr_texture *wlr_tex = wlr_surface_get_texture(window->surface);
         if (wlr_tex && wlr_tex->width > 0 && wlr_tex->height > 0) {
             // Try to read pixels from the surface texture
@@ -231,7 +231,7 @@ bool axiom_thumbnail_render(struct axiom_thumbnail_manager *manager,
                 axiom_thumbnail_scale_content(pixel_buffer, wlr_tex->width, wlr_tex->height,
                                             data, width, height);
                 content_captured = true;
-                printf("Captured actual window content for thumbnail\n");
+                axiom_log_debug("Captured actual window content for thumbnail");
             }
             if (pixel_buffer) free(pixel_buffer);
         }
@@ -353,7 +353,7 @@ void axiom_thumbnail_on_window_mapped(struct axiom_thumbnail_manager *manager,
     }
     
     axiom_thumbnail_create(manager, window);
-    printf("Thumbnail created for mapped window\n");
+    axiom_log_debug("Thumbnail created for mapped window");
 }
 
 void axiom_thumbnail_on_window_unmapped(struct axiom_thumbnail_manager *manager,
@@ -365,7 +365,7 @@ void axiom_thumbnail_on_window_unmapped(struct axiom_thumbnail_manager *manager,
     struct axiom_thumbnail *thumbnail = axiom_thumbnail_get_for_window(manager, window);
     if (thumbnail) {
         thumbnail->needs_update = true;
-        printf("Marked thumbnail for update on window unmap\n");
+        axiom_log_debug("Marked thumbnail for update on window unmap");
     }
 }
 
@@ -379,7 +379,7 @@ void axiom_thumbnail_on_window_destroyed(struct axiom_thumbnail_manager *manager
     if (thumbnail) {
         manager->thumbnail_count--;
         axiom_thumbnail_destroy(thumbnail);
-        printf("Destroyed thumbnail for destroyed window\n");
+        axiom_log_debug("Destroyed thumbnail for destroyed window");
     }
 }
 
@@ -395,7 +395,7 @@ void axiom_thumbnail_update_all(struct axiom_thumbnail_manager *manager) {
     }
     
     manager->stats.update_requests++;
-    printf("Updated all thumbnails (%d total)\n", manager->thumbnail_count);
+    axiom_log_debug("Updated all thumbnails (%d total)", manager->thumbnail_count);
 }
 
 void axiom_thumbnail_cleanup_stale(struct axiom_thumbnail_manager *manager) {
@@ -405,7 +405,7 @@ void axiom_thumbnail_cleanup_stale(struct axiom_thumbnail_manager *manager) {
     
     // In a real implementation, this would remove thumbnails for windows
     // that no longer exist or haven't been updated in a long time
-    printf("Cleaned up stale thumbnails\n");
+    axiom_log_debug("Cleaned up stale thumbnails");
 }
 
 void axiom_thumbnail_set_size(struct axiom_thumbnail_manager *manager, int width, int height) {
@@ -423,16 +423,24 @@ void axiom_thumbnail_set_size(struct axiom_thumbnail_manager *manager, int width
         thumbnail->height = height;
         thumbnail->needs_update = true;
         
-        // Reallocate pixel buffer
+        // Reallocate pixel buffer safely
         size_t new_size = width * height * 4;
         uint8_t *new_data = realloc(thumbnail->pixel_data, new_size);
         if (new_data) {
             thumbnail->pixel_data = new_data;
             thumbnail->data_size = new_size;
+            // Initialize new memory if size increased
+            if (new_size > thumbnail->data_size) {
+                memset(thumbnail->pixel_data + thumbnail->data_size, 0, new_size - thumbnail->data_size);
+            }
+        } else {
+            // realloc failed, keep existing data
+            axiom_log_error("Failed to reallocate thumbnail pixel buffer");
+            return;
         }
     }
     
-    printf("Set thumbnail size to %dx%d\n", width, height);
+    axiom_log_info("Set thumbnail size to %dx%d", width, height);
 }
 
 void axiom_thumbnail_set_update_interval(struct axiom_thumbnail_manager *manager, uint32_t interval_ms) {
@@ -446,7 +454,7 @@ void axiom_thumbnail_set_update_interval(struct axiom_thumbnail_manager *manager
         wl_event_source_timer_update(manager->update_timer, interval_ms);
     }
     
-    printf("Set thumbnail update interval to %u ms\n", interval_ms);
+    axiom_log_info("Set thumbnail update interval to %u ms", interval_ms);
 }
 
 void axiom_thumbnail_enable(struct axiom_thumbnail_manager *manager, bool enabled) {
@@ -455,7 +463,7 @@ void axiom_thumbnail_enable(struct axiom_thumbnail_manager *manager, bool enable
     }
     
     manager->enabled = enabled;
-    printf("Thumbnail system %s\n", enabled ? "enabled" : "disabled");
+    axiom_log_info("Thumbnail system %s", enabled ? "enabled" : "disabled");
 }
 
 const uint8_t *axiom_thumbnail_get_pixel_data(struct axiom_thumbnail *thumbnail) {
@@ -471,16 +479,16 @@ void axiom_thumbnail_print_stats(struct axiom_thumbnail_manager *manager) {
         return;
     }
     
-    printf("=== Thumbnail Manager Statistics ===\n");
-    printf("Active thumbnails: %d\n", manager->thumbnail_count);
-    printf("Thumbnails created: %u\n", manager->stats.thumbnails_created);
-    printf("Thumbnails updated: %u\n", manager->stats.thumbnails_updated);
-    printf("Update requests: %u\n", manager->stats.update_requests);
-    printf("Render errors: %u\n", manager->stats.render_errors);
-    printf("Thumbnail size: %dx%d\n", manager->thumbnail_width, manager->thumbnail_height);
-    printf("Update interval: %u ms\n", manager->update_interval_ms);
-    printf("System enabled: %s\n", manager->enabled ? "yes" : "no");
-    printf("=====================================\n");
+    axiom_log_info("=== Thumbnail Manager Statistics ===");
+    axiom_log_info("Active thumbnails: %d", manager->thumbnail_count);
+    axiom_log_info("Thumbnails created: %u", manager->stats.thumbnails_created);
+    axiom_log_info("Thumbnails updated: %u", manager->stats.thumbnails_updated);
+    axiom_log_info("Update requests: %u", manager->stats.update_requests);
+    axiom_log_info("Render errors: %u", manager->stats.render_errors);
+    axiom_log_info("Thumbnail size: %dx%d", manager->thumbnail_width, manager->thumbnail_height);
+    axiom_log_info("Update interval: %u ms", manager->update_interval_ms);
+    axiom_log_info("System enabled: %s", manager->enabled ? "yes" : "no");
+    axiom_log_info("=====================================");
 }
 
 void axiom_thumbnail_reset_stats(struct axiom_thumbnail_manager *manager) {
@@ -489,6 +497,6 @@ void axiom_thumbnail_reset_stats(struct axiom_thumbnail_manager *manager) {
     }
     
     memset(&manager->stats, 0, sizeof(manager->stats));
-    printf("Thumbnail statistics reset\n");
+    axiom_log_info("Thumbnail statistics reset");
 }
 

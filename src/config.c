@@ -4,6 +4,14 @@
 #include <ctype.h>
 #include "config.h"
 
+// Forward declarations for logging functions
+void axiom_log_info(const char *format, ...);
+void axiom_log_error(const char *format, ...);
+
+// Use the new logging functions directly
+#define AXIOM_LOG_INFO axiom_log_info
+#define AXIOM_LOG_ERROR axiom_log_error
+
 bool axiom_config_validate(struct axiom_config *config) {
     if (config->animation_speed_multiplier < 0.1f || config->animation_speed_multiplier > 5.0f) {
         AXIOM_LOG_ERROR("Animation speed multiplier out of range (0.1 - 5.0): %f", config->animation_speed_multiplier);
@@ -19,17 +27,25 @@ struct axiom_config *axiom_config_create(void) {
         return NULL;
     }
 
-    // Set defaults
+    // Set defaults with NULL checks
     config->cursor_theme = strdup("default");
+    if (!config->cursor_theme) goto cleanup_error;
+    
     config->cursor_size = 24;
     config->repeat_rate = 25;
     config->repeat_delay = 600;
     config->tiling_enabled = true;
     config->border_width = 2;
     config->gap_size = 5;
+    
     config->background_color = strdup("#1e1e1e");
+    if (!config->background_color) goto cleanup_error;
+    
     config->border_active = strdup("#ffffff");
+    if (!config->border_active) goto cleanup_error;
+    
     config->border_inactive = strdup("#666666");
+    if (!config->border_inactive) goto cleanup_error;
     
     // Animation defaults
     config->animations_enabled = true;
@@ -48,6 +64,7 @@ struct axiom_config *axiom_config_create(void) {
     
     config->animation_speed_multiplier = 1.0f;
     config->default_easing = strdup("ease_out_cubic");
+    if (!config->default_easing) goto cleanup_error;
     config->animation_debug_mode = false;
     
     // Effects defaults
@@ -59,6 +76,7 @@ struct axiom_config *axiom_config_create(void) {
     config->effects.shadow_offset_y = 5;
     config->effects.shadow_opacity = 0.5f;
     config->effects.shadow_color = strdup("#000000");
+    if (!config->effects.shadow_color) goto cleanup_error;
     config->effects.blur_radius = 15;
     config->effects.blur_focus_only = false;
     config->effects.blur_intensity = 0.7f;
@@ -73,6 +91,7 @@ struct axiom_config *axiom_config_create(void) {
     config->smart_gaps.max_gap = 50;
     config->smart_gaps.single_window_gap = 0;
     config->smart_gaps.adaptive_mode = strdup("count");
+    if (!config->smart_gaps.adaptive_mode) goto cleanup_error;
     
     // Window snapping defaults
     config->window_snapping.enabled = true;
@@ -88,18 +107,20 @@ struct axiom_config *axiom_config_create(void) {
     // Workspaces defaults
     config->workspaces.max_workspaces = 9;
     config->workspaces.names = calloc(9, sizeof(char*));
-    if (config->workspaces.names) {
-        config->workspaces.names[0] = strdup("Main");
-        config->workspaces.names[1] = strdup("Web");
-        config->workspaces.names[2] = strdup("Code");
-        config->workspaces.names[3] = strdup("Term");
-        config->workspaces.names[4] = strdup("Media");
-        config->workspaces.names[5] = strdup("Files");
-        config->workspaces.names[6] = strdup("Chat");
-        config->workspaces.names[7] = strdup("Game");
-        config->workspaces.names[8] = strdup("Misc");
-        config->workspaces.names_count = 9;
+    if (!config->workspaces.names) goto cleanup_error;
+    
+    const char *default_names[] = {"Main", "Web", "Code", "Term", "Media", "Files", "Chat", "Game", "Misc"};
+    for (int i = 0; i < 9; i++) {
+        config->workspaces.names[i] = strdup(default_names[i]);
+        if (!config->workspaces.names[i]) {
+            // Clean up already allocated names
+            for (int j = 0; j < i; j++) {
+                free(config->workspaces.names[j]);
+            }
+            goto cleanup_error;
+        }
     }
+    config->workspaces.names_count = 9;
     config->workspaces.persistent_layouts = true;
     
     // XWayland defaults
@@ -108,6 +129,12 @@ struct axiom_config *axiom_config_create(void) {
     config->xwayland.force_zero_scaling = false;
 
     return config;
+
+cleanup_error:
+    // Cleanup on error
+    AXIOM_LOG_ERROR("Failed to allocate memory during configuration creation");
+    axiom_config_destroy(config);
+    return NULL;
 }
 
 void axiom_config_destroy(struct axiom_config *config) {
@@ -142,11 +169,15 @@ static void trim_whitespace(char *str) {
     if (!str) return;
     
     // Trim leading space
-    while (isspace((unsigned char)*str)) {
-        size_t len = strlen(str);
-        if (len > 0) {
-            memmove(str, str + 1, len); // len already includes null terminator space
-        }
+    char *start = str;
+    while (isspace((unsigned char)*start)) {
+        start++;
+    }
+    
+    // Move trimmed string to beginning if needed
+    if (start != str) {
+        size_t len = strlen(start);
+        memmove(str, start, len + 1); // +1 for null terminator
     }
     
     // All spaces?
@@ -178,9 +209,10 @@ bool axiom_config_load(struct axiom_config *config, const char *path) {
             continue;
         }
         
-        // Check for section headers
-        if (line[0] == '[' && line[strlen(line)-1] == ']') {
-            size_t section_len = strlen(line) - 2; // Exclude '[' and ']'
+        // Check for section headers - validate minimum length first
+        size_t line_len = strlen(line);
+        if (line_len >= 3 && line[0] == '[' && line[line_len-1] == ']') {
+            size_t section_len = line_len - 2; // Exclude '[' and ']'
             if (section_len >= sizeof(section)) {
                 section_len = sizeof(section) - 1;
             }
@@ -205,9 +237,10 @@ bool axiom_config_load(struct axiom_config *config, const char *path) {
         trim_whitespace(key);
         trim_whitespace(value);
         
-        // Remove quotes from value if present
-        if (value[0] == '"' && value[strlen(value)-1] == '"') {
-            value[strlen(value)-1] = '\0';
+        // Remove quotes from value if present - with length validation
+        size_t value_len = strlen(value);
+        if (value_len >= 2 && value[0] == '"' && value[value_len-1] == '"') {
+            value[value_len-1] = '\0';
             value++;
         }
         

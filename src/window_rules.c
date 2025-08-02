@@ -19,7 +19,7 @@ bool axiom_window_rules_manager_init(struct axiom_window_rules_manager *manager)
     manager->rules_matched = 0;
     manager->rules_failed = 0;
     
-    printf("Window rules manager initialized\n");
+    axiom_log_info("Window rules manager initialized");
     return true;
 }
 
@@ -37,7 +37,7 @@ void axiom_window_rules_manager_destroy(struct axiom_window_rules_manager *manag
     manager->rules_file_path = NULL;
     manager->rules_count = 0;
     
-    printf("Window rules manager destroyed\n");
+    axiom_log_debug("Window rules manager destroyed");
 }
 
 bool axiom_window_rules_load_config(struct axiom_window_rules_manager *manager, 
@@ -52,18 +52,18 @@ bool axiom_window_rules_load_config(struct axiom_window_rules_manager *manager,
     FILE *file = fopen(config_path, "r");
     if (file) {
         if (axiom_window_rules_parse_ini_file(manager, file)) {
-            printf("Loaded %u window rules from config file: %s\n", manager->rules_count, config_path);
+            axiom_log_info("Loaded %u window rules from config file: %s", manager->rules_count, config_path);
         } else {
-            printf("Failed to parse config file, loading defaults\n");
+            axiom_log_warn("Failed to parse config file, loading defaults");
             axiom_window_rules_load_defaults(manager);
         }
         fclose(file);
     } else {
-        printf("Config file not found, loading default window rules\n");
+        axiom_log_info("Config file not found, loading default window rules");
         axiom_window_rules_load_defaults(manager);
     }
     
-    printf("Loaded %u window rules from config\n", manager->rules_count);
+    axiom_log_info("Loaded %u window rules from config", manager->rules_count);
     return true;
 }
 
@@ -151,7 +151,7 @@ bool axiom_window_rules_apply_to_window(struct axiom_window_rules_manager *manag
     struct axiom_window_rule *matching_rule = axiom_window_rules_find_matching_rule(manager, window);
     if (!matching_rule) return false;
     
-    printf("Applying rule '%s' to window\n", 
+    axiom_log_debug("Applying rule '%s' to window", 
            matching_rule->rule_name ? matching_rule->rule_name : "unnamed");
     
     bool success = true;
@@ -309,12 +309,12 @@ bool axiom_window_rule_apply_workspace(struct axiom_window_rule *rule,
     
     // Validate workspace index
     if (rule->workspace < 0 || rule->workspace >= server->max_workspaces) {
-        printf("Invalid workspace %d in rule (max: %d)\n", rule->workspace, server->max_workspaces - 1);
+        axiom_log_error("Invalid workspace %d in rule (max: %d)", rule->workspace, server->max_workspaces - 1);
         return false;
     }
     
     // Move window to the specified workspace
-    printf("Moving window to workspace %d\n", rule->workspace);
+    axiom_log_debug("Moving window to workspace %d", rule->workspace);
     axiom_move_window_to_workspace(server, window, rule->workspace);
     
     // If the window was moved to the current workspace, update window count
@@ -327,7 +327,7 @@ bool axiom_window_rule_apply_workspace(struct axiom_window_rule *rule,
         }
     }
     
-    printf("Applied workspace rule: moved window to workspace %d\n", rule->workspace);
+    axiom_log_info("Applied workspace rule: moved window to workspace %d", rule->workspace);
     return true;
 }
 
@@ -405,7 +405,7 @@ bool axiom_window_rule_apply_position(struct axiom_window_rule *rule,
         wlr_scene_node_set_position(&window->scene_tree->node, new_x, new_y);
     }
     
-    printf("Applied position rule: moved window to %d,%d\n", new_x, new_y);
+    axiom_log_info("Applied position rule: moved window to %d,%d", new_x, new_y);
     return true;
 }
 
@@ -450,7 +450,7 @@ bool axiom_window_rule_apply_size(struct axiom_window_rule *rule,
         wlr_xdg_toplevel_set_size(window->xdg_toplevel, new_width, new_height);
     }
     
-    printf("Applied size rule: resized window to %dx%d\n", new_width, new_height);
+    axiom_log_info("Applied size rule: resized window to %dx%d", new_width, new_height);
     return true;
 }
 
@@ -461,12 +461,12 @@ bool axiom_window_rule_apply_floating(struct axiom_window_rule *rule,
     switch (rule->floating) {
         case AXIOM_RULE_FLOATING_FORCE_TILED:
             window->is_tiled = true;
-            printf("Applied floating rule: forced window to tiled\n");
+            axiom_log_info("Applied floating rule: forced window to tiled");
             break;
             
         case AXIOM_RULE_FLOATING_FORCE_FLOATING:
             window->is_tiled = false;
-            printf("Applied floating rule: forced window to floating\n");
+            axiom_log_info("Applied floating rule: forced window to floating");
             break;
             
         default:
@@ -502,7 +502,7 @@ bool axiom_window_rule_apply_opacity(struct axiom_window_rule *rule,
     // Apply opacity through effects system
     if (window->effects) {
         axiom_effects_set_window_opacity(window, opacity);
-        printf("Applied opacity rule: set window opacity to %.2f\n", opacity);
+        axiom_log_info("Applied opacity rule: set window opacity to %.2f", opacity);
     }
     
     return true;
@@ -526,7 +526,7 @@ bool axiom_window_rule_apply_effects(struct axiom_window_rule *rule,
         struct axiom_shadow_config shadow_config = server->effects_manager->shadow;
         shadow_config.enabled = false;
         axiom_effects_update_shadow_config(window, &shadow_config);
-        printf("Disabled shadows for window per rule\n");
+        axiom_log_info("Disabled shadows for window per rule");
         effects_changed = true;
     }
     
@@ -536,14 +536,14 @@ bool axiom_window_rule_apply_effects(struct axiom_window_rule *rule,
         struct axiom_blur_config blur_config = server->effects_manager->blur;
         blur_config.enabled = false;
         axiom_effects_update_blur_config(window, &blur_config);
-        printf("Disabled blur for window per rule\n");
+        axiom_log_info("Disabled blur for window per rule");
         effects_changed = true;
     }
     
     // Apply transparency override
     if (rule->custom_opacity != 1.0f && window->effects) {
         axiom_effects_set_window_opacity(window, rule->custom_opacity);
-        printf("Set custom opacity %.2f for window per rule\n", rule->custom_opacity);
+        axiom_log_info("Set custom opacity %.2f for window per rule", rule->custom_opacity);
         effects_changed = true;
     }
     
@@ -570,7 +570,7 @@ bool axiom_window_rule_apply_effects(struct axiom_window_rule *rule,
             }
         }
         
-        printf("Enabled picture-in-picture mode for window\n");
+        axiom_log_info("Enabled picture-in-picture mode for window");
         effects_changed = true;
     }
     
@@ -601,40 +601,40 @@ bool axiom_window_rules_glob_match(const char *pattern, const char *text) {
 void axiom_window_rules_print_statistics(struct axiom_window_rules_manager *manager) {
     if (!manager) return;
     
-    printf("Window Rules Statistics:\n");
-    printf("  Total rules: %u\n", manager->rules_count);
-    printf("  Rules matched: %u\n", manager->rules_matched);
-    printf("  Rules applied: %u\n", manager->rules_applied);
-    printf("  Rules failed: %u\n", manager->rules_failed);
+    axiom_log_info("Window Rules Statistics:");
+    axiom_log_info("  Total rules: %u", manager->rules_count);
+    axiom_log_info("  Rules matched: %u", manager->rules_matched);
+    axiom_log_info("  Rules applied: %u", manager->rules_applied);
+    axiom_log_info("  Rules failed: %u", manager->rules_failed);
 }
 
 void axiom_window_rules_print_rules(struct axiom_window_rules_manager *manager) {
     if (!manager) return;
     
-    printf("Window Rules (%u total):\n", manager->rules_count);
+    axiom_log_info("Window Rules (%u total):", manager->rules_count);
     
     struct axiom_window_rule *rule;
     wl_list_for_each(rule, &manager->rules, link) {
-        printf("  Rule: %s (priority: %d, enabled: %s)\n",
+        axiom_log_info("  Rule: %s (priority: %d, enabled: %s)",
                rule->rule_name ? rule->rule_name : "unnamed",
                rule->priority,
                rule->enabled ? "yes" : "no");
         
-        if (rule->app_id) printf("    app_id: %s\n", rule->app_id);
-        if (rule->class) printf("    class: %s\n", rule->class);
-        if (rule->title) printf("    title: %s\n", rule->title);
-        if (rule->workspace >= 0) printf("    workspace: %d\n", rule->workspace);
+        if (rule->app_id) axiom_log_info("    app_id: %s", rule->app_id);
+        if (rule->class) axiom_log_info("    class: %s", rule->class);
+        if (rule->title) axiom_log_info("    title: %s", rule->title);
+        if (rule->workspace >= 0) axiom_log_info("    workspace: %d", rule->workspace);
     }
 }
 
 void axiom_window_rules_debug_window_properties(struct axiom_window *window) {
     if (!window) return;
     
-    printf("Window Properties:\n");
-    printf("  app_id: %s\n", axiom_window_get_app_id(window) ?: "(null)");
-    printf("  class: %s\n", axiom_window_get_class(window) ?: "(null)");
-    printf("  title: %s\n", axiom_window_get_title(window) ?: "(null)");
-    printf("  instance: %s\n", axiom_window_get_instance(window) ?: "(null)");
+    axiom_log_debug("Window Properties:");
+    axiom_log_debug("  app_id: %s", axiom_window_get_app_id(window) ?: "(null)");
+    axiom_log_debug("  class: %s", axiom_window_get_class(window) ?: "(null)");
+    axiom_log_debug("  title: %s", axiom_window_get_title(window) ?: "(null)");
+    axiom_log_debug("  instance: %s", axiom_window_get_instance(window) ?: "(null)");
 }
 
 // Integration with server
@@ -667,7 +667,7 @@ bool axiom_server_init_window_rules(struct axiom_server *server) {
         }
     }
     
-    printf("Window rules system initialized\n");
+    axiom_log_info("Window rules system initialized");
     return true;
 }
 
@@ -678,7 +678,7 @@ void axiom_server_destroy_window_rules(struct axiom_server *server) {
     free(server->window_rules_manager);
     server->window_rules_manager = NULL;
     
-    printf("Window rules system destroyed\n");
+    axiom_log_info("Window rules system destroyed");
 }
 
 // INI file parsing implementation
@@ -707,8 +707,12 @@ bool axiom_window_rules_parse_ini_file(struct axiom_window_rules_manager *manage
             }
             
             // Start new section/rule
-            strncpy(current_section, line + 1, sizeof(current_section) - 1);
-            current_section[strlen(current_section) - 1] = '\0'; // Remove ]
+            size_t len = strlen(line) - 2; // Exclude [ and ]
+            if (len >= sizeof(current_section)) {
+                len = sizeof(current_section) - 1;
+            }
+            memcpy(current_section, line + 1, len);
+            current_section[len] = '\0';
             
             current_rule = axiom_window_rule_create();
             if (current_rule) {
@@ -892,6 +896,6 @@ bool axiom_window_rules_load_defaults(struct axiom_window_rules_manager *manager
         manager->rules_count++;
     }
     
-    printf("Loaded %u default window rules\n", manager->rules_count);
+    axiom_log_info("Loaded %u default window rules", manager->rules_count);
     return true;
 }
