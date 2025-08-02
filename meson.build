@@ -14,6 +14,13 @@ wayland_server = dependency('wayland-server', version: '>=1.20.0')
 wayland_protos = dependency('wayland-protocols', version: '>=1.25')
 wlroots = dependency('wlroots-0.19')
 xkbcommon = dependency('xkbcommon')
+xkbcommon_x11 = dependency('xkbcommon-x11')
+xcb = dependency('xcb')
+xcb_composite = dependency('xcb-composite')
+xcb_icccm = dependency('xcb-icccm')
+xcb_render = dependency('xcb-render')
+xcb_res = dependency('xcb-res')
+xcb_xfixes = dependency('xcb-xfixes')
 math_lib = cc.find_library('m', required: true)
 egl = dependency('egl')
 gl = dependency('gl')
@@ -73,6 +80,7 @@ axiom_sources = files(
   'src/window_snapping.c',
   'src/pip_manager.c',
   'src/thumbnail_manager.c',
+  'src/xwayland.c',
 )
 
 # Executable
@@ -80,7 +88,7 @@ proto_inc = declare_dependency(
   sources: server_protos_headers,
 )
 
-global_deps = [wayland_server, wlroots, xkbcommon, proto_inc, math_lib, egl, gles3]
+global_deps = [wayland_server, wlroots, xkbcommon, xkbcommon_x11, xcb, xcb_composite, xcb_icccm, xcb_render, xcb_res, xcb_xfixes, proto_inc, math_lib, egl, gles3]
 executable('axiom',
   sources: axiom_sources + server_protos_src,
   dependencies: global_deps,

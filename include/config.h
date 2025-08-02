@@ -93,6 +93,13 @@ struct axiom_workspaces_config {
     bool persistent_layouts;
 };
 
+/* XWayland configuration */
+struct axiom_xwayland_config {
+    bool enabled;
+    bool lazy;                  // Start XWayland on demand
+    bool force_zero_scaling;    // Force scaling to 1.0 for X11 apps
+};
+
 /* Main configuration structure */
 struct axiom_config {
     // Input settings
@@ -136,6 +143,7 @@ struct axiom_config {
     struct axiom_window_snapping_config window_snapping;
     struct axiom_pip_config picture_in_picture;
     struct axiom_workspaces_config workspaces;
+    struct axiom_xwayland_config xwayland;
 };
 
 

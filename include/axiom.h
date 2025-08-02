@@ -26,15 +26,25 @@ struct axiom_input_device;
 struct axiom_config;
 struct axiom_animation_manager;
 struct axiom_effects_manager;
+struct axiom_xwayland_manager;
 
 /* Configuration structure - defined in config.h */
 
 /* Forward declarations */
 struct axiom_window {
     struct wl_list link;
-    struct wlr_xdg_toplevel *xdg_toplevel;
+    struct wlr_xdg_toplevel *xdg_toplevel;  // NULL for XWayland windows
     struct wlr_scene_tree *scene_tree;
     struct axiom_server *server;
+    
+    // Window type - either XDG or XWayland
+    enum {
+        AXIOM_WINDOW_XDG,
+        AXIOM_WINDOW_XWAYLAND
+    } type;
+    
+    // XWayland-specific data (NULL for XDG windows)
+    struct axiom_xwayland_surface *xwayland_surface;
     
     struct wl_listener map;
     struct wl_listener unmap;
@@ -222,6 +232,9 @@ struct axiom_server {
     
     // Thumbnail system (Phase 3.4)
     struct axiom_thumbnail_manager *thumbnail_manager;
+    
+    // XWayland system
+    struct axiom_xwayland_manager *xwayland_manager;
 };
 
 /* Function declarations */

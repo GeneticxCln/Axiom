@@ -101,6 +101,11 @@ struct axiom_config *axiom_config_create(void) {
         config->workspaces.names_count = 9;
     }
     config->workspaces.persistent_layouts = true;
+    
+    // XWayland defaults
+    config->xwayland.enabled = true;
+    config->xwayland.lazy = false;
+    config->xwayland.force_zero_scaling = false;
 
     return config;
 }
@@ -343,6 +348,14 @@ bool axiom_config_load(struct axiom_config *config, const char *path) {
                 config->workspaces.persistent_layouts = strcmp(value, "true") == 0;
             }
             // Note: workspace names parsing would require more complex array handling
+        } else if (strcmp(section, "xwayland") == 0) {
+            if (strcmp(key, "enabled") == 0) {
+                config->xwayland.enabled = strcmp(value, "true") == 0;
+            } else if (strcmp(key, "lazy") == 0) {
+                config->xwayland.lazy = strcmp(value, "true") == 0;
+            } else if (strcmp(key, "force_zero_scaling") == 0) {
+                config->xwayland.force_zero_scaling = strcmp(value, "true") == 0;
+            }
         }
     }
     

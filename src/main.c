@@ -15,6 +15,7 @@
 #include "window_snapping.h"
 #include "pip_manager.h"
 #include "thumbnail_manager.h"
+#include "xwayland.h"
 void axiom_calculate_window_layout(struct axiom_server *server, int index, int *x, int *y, int *width, int *height);
 
 // Backend destroy handler for error recovery
@@ -770,6 +771,35 @@ int main(int argc, char *argv[]) {
         }
     }
     
+    // Initialize XWayland support
+    if (server.config->xwayland.enabled) {
+        server.xwayland_manager = axiom_xwayland_manager_create(&server);
+        if (!server.xwayland_manager) {
+            fprintf(stderr, "Failed to create XWayland manager\n");
+        } else {
+            // Configure XWayland settings from config
+            server.xwayland_manager->enabled = server.config->xwayland.enabled;
+            server.xwayland_manager->lazy = server.config->xwayland.lazy;
+            server.xwayland_manager->force_zero_scaling = server.config->xwayland.force_zero_scaling;
+            
+            if (!axiom_xwayland_manager_init(server.xwayland_manager)) {
+                fprintf(stderr, "Failed to initialize XWayland manager\n");
+                axiom_xwayland_manager_destroy(server.xwayland_manager);
+                server.xwayland_manager = NULL;
+            } else {
+                printf("XWayland support initialized successfully\n");
+                if (server.config->xwayland.lazy) {
+                    printf("XWayland will start on demand (lazy mode)\n");
+                }
+                if (server.config->xwayland.force_zero_scaling) {
+                    printf("XWayland will force 1.0 scaling for X11 apps\n");
+                }
+            }
+        }
+    } else {
+        printf("XWayland support disabled in configuration\n");
+    }
+    
     // Set up input management
     wl_list_init(&server.input_devices);
     
@@ -917,6 +947,11 @@ int main(int argc, char *argv[]) {
     // Cleanup thumbnail manager
     if (server.thumbnail_manager) {
         axiom_thumbnail_manager_destroy(server.thumbnail_manager);
+    }
+    
+    // Cleanup XWayland manager
+    if (server.xwayland_manager) {
+        axiom_xwayland_manager_destroy(server.xwayland_manager);
     }
     
     axiom_config_destroy(server.config);
