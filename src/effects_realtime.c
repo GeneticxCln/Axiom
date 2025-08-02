@@ -464,6 +464,8 @@ GLuint axiom_capture_window_texture(struct axiom_window *window) {
             axiom_generate_window_fallback_content(window, fallback_data, tex_width, tex_height);
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, tex_width, tex_height, GL_RGBA, GL_UNSIGNED_BYTE, fallback_data);
             free(fallback_data);
+        } else {
+            axiom_log_error("Failed to allocate fallback data buffer (%d bytes)", tex_width * tex_height * 4);
         }
     }
     
@@ -497,7 +499,9 @@ bool axiom_upload_window_content(struct axiom_window *window, GLuint texture) {
     // Try to read pixel data from wlroots texture
     void *pixel_data = malloc(width * height * 4);
     if (!pixel_data) {
+        axiom_log_error("Failed to allocate pixel data buffer (%d bytes)", width * height * 4);
         glBindTexture(GL_TEXTURE_2D, 0);
+        return false;
         return false;
     }
     

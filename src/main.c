@@ -22,12 +22,12 @@ void axiom_calculate_window_layout(struct axiom_server *server, int index, int *
 void axiom_reload_configuration(struct axiom_server *server) {
     if (!server) return;
     
-    printf("Reloading configuration...\n");
+    axiom_log_info("Reloading configuration...");
     
     // Reload window rules
     if (server->window_rules_manager) {
         axiom_window_rules_reload_config(server->window_rules_manager);
-        printf("Window rules reloaded\n");
+        axiom_log_info("Window rules reloaded");
     }
     
     // Reload main configuration
@@ -52,7 +52,7 @@ void axiom_reload_configuration(struct axiom_server *server) {
                 // Replace old config with new one
                 axiom_config_destroy(server->config);
                 server->config = new_config;
-                printf("Main configuration reloaded\n");
+                axiom_log_info("Main configuration reloaded");
                 
                 // Update effects manager with new config
                 if (server->effects_manager && server->config->effects.shadows_enabled) {
@@ -60,12 +60,12 @@ void axiom_reload_configuration(struct axiom_server *server) {
                     server->effects_manager = calloc(1, sizeof(struct axiom_effects_manager));
                     if (server->effects_manager) {
                         axiom_effects_manager_init(server->effects_manager, &server->config->effects);
-                        printf("Effects configuration reloaded\n");
+                        axiom_log_info("Effects configuration reloaded");
                     }
                 }
             } else {
                 axiom_config_destroy(new_config);
-                printf("Failed to reload main configuration, keeping existing\n");
+                axiom_log_warn("Failed to reload main configuration, keeping existing");
             }
         }
     }
@@ -78,7 +78,7 @@ void axiom_reload_configuration(struct axiom_server *server) {
         }
     }
     
-    printf("Configuration reload complete\n");
+    axiom_log_info("Configuration reload complete");
 }
 
 void axiom_arrange_windows(struct axiom_server *server) {
@@ -94,7 +94,12 @@ void axiom_arrange_windows(struct axiom_server *server) {
             continue;
         }
         
-        axiom_calculate_window_layout_advanced(server, index, &window->x, &window->y, &window->width, &window->height);
+        // Use the defined function instead of undefined one
+        axiom_calculate_window_layout(server, index, &window->x, &window->y, &window->width, &window->height);
+        
+        // Validate window dimensions
+        if (window->width <= 0) window->width = 400;
+        if (window->height <= 0) window->height = 300;
         
         // Position the window using scene tree
         wlr_scene_node_set_position(&window->scene_tree->node, window->x, window->y);
@@ -873,4 +878,23 @@ int main(int argc, char *argv[]) {
     axiom_config_destroy(server.config);
     wl_display_destroy(server.wl_display);
     return EXIT_SUCCESS;
+
+cleanup_error:
+    axiom_log_error("Fatal error during initialization, cleaning up...");
+    
+    // Cleanup in reverse order of initialization
+    if (server.effects_manager) {
+        axiom_effects_manager_destroy(server.effects_manager);
+        free(server.effects_manager);
+    }
+    
+    if (server.config) {
+        axiom_config_destroy(server.config);
+    }
+    
+    if (server.wl_display) {
+        wl_display_destroy(server.wl_display);
+    }
+    
+    return EXIT_FAILURE;
 }

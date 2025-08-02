@@ -458,17 +458,33 @@ const char *axiom_keybinding_action_to_string(enum axiom_action_type action) {
 
 const char *axiom_keybinding_modifiers_to_string(uint32_t modifiers) {
     static char buffer[64];
+    size_t pos = 0;
+    const size_t buffer_size = sizeof(buffer);
+    
     buffer[0] = '\0';
     
-    if (modifiers & AXIOM_MOD_SUPER) strcat(buffer, "Super+");
-    if (modifiers & AXIOM_MOD_CTRL) strcat(buffer, "Ctrl+");
-    if (modifiers & AXIOM_MOD_ALT) strcat(buffer, "Alt+");
-    if (modifiers & AXIOM_MOD_SHIFT) strcat(buffer, "Shift+");
+    if (modifiers & AXIOM_MOD_SUPER && pos < buffer_size - 7) {
+        memcpy(buffer + pos, "Super+", 6);
+        pos += 6;
+    }
+    if (modifiers & AXIOM_MOD_CTRL && pos < buffer_size - 6) {
+        memcpy(buffer + pos, "Ctrl+", 5);
+        pos += 5;
+    }
+    if (modifiers & AXIOM_MOD_ALT && pos < buffer_size - 5) {
+        memcpy(buffer + pos, "Alt+", 4);
+        pos += 4;
+    }
+    if (modifiers & AXIOM_MOD_SHIFT && pos < buffer_size - 7) {
+        memcpy(buffer + pos, "Shift+", 6);
+        pos += 6;
+    }
     
-    // Remove trailing +
-    size_t len = strlen(buffer);
-    if (len > 0 && buffer[len - 1] == '+') {
-        buffer[len - 1] = '\0';
+    // Remove trailing + safely
+    if (pos > 0 && pos < buffer_size) {
+        buffer[pos - 1] = '\0'; // Remove the last '+'
+    } else {
+        buffer[0] = '\0'; // Fallback for empty case
     }
     
     return buffer;

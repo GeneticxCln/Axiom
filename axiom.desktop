@@ -5,5 +5,5 @@ Exec=axiom
 TryExec=axiom
 Type=Application
 Categories=System;
-DesktopNames=Axiom
+X-DesktopNames=Axiom
 Keywords=wayland;compositor;tiling;
