@@ -107,7 +107,7 @@ void axiom_cursor_button(struct wl_listener *listener, void *data) {
             server->cursor->x, server->cursor->y, &surface, &sx, &sy);
         
         if (window) {
-            axiom_focus_window(server, window, surface);
+            axiom_focus_window_legacy(server, window, surface);
             
             // Check if modifiers are held down for move/resize
             if (server->seat->keyboard_state.keyboard) {
@@ -119,7 +119,7 @@ void axiom_cursor_button(struct wl_listener *listener, void *data) {
             }
         } else {
             // Click on empty space - unfocus current window
-            axiom_focus_window(server, NULL, NULL);
+            axiom_focus_window_legacy(server, NULL, NULL);
         }
     }
 }

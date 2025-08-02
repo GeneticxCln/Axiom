@@ -27,6 +27,20 @@ struct axiom_config;
 struct axiom_animation_manager;
 struct axiom_effects_manager;
 struct axiom_xwayland_manager;
+struct axiom_tag_manager;
+struct axiom_keybinding_manager;
+struct axiom_focus_manager;
+
+// Enhanced window properties
+struct axiom_window_tags {
+    uint32_t tags;          // Bitmask for multiple tags
+    bool is_sticky;         // Visible on all workspaces
+    bool is_urgent;         // Window needs attention
+    bool is_floating;       // Force floating mode
+    bool is_private;        // Hide from switchers
+    bool is_scratchpad;     // Hide/show toggle
+    uint32_t workspace;     // Workspace assignment
+};
 
 /* Configuration structure - defined in config.h */
 
@@ -97,6 +111,9 @@ struct axiom_window {
     
     // Real-time effects support
     struct axiom_window_effects *effects; // Per-window effects state
+    
+    // Enhanced window properties
+    struct axiom_window_tags *window_tags; // Tagging and urgency
 };
 
 struct axiom_workspace {
@@ -235,6 +252,11 @@ struct axiom_server {
     
     // XWayland system
     struct axiom_xwayland_manager *xwayland_manager;
+    
+    // Enhanced systems
+    struct axiom_tag_manager *tag_manager;             // Tagging system
+    struct axiom_keybinding_manager *keybinding_manager; // Key bindings
+    struct axiom_focus_manager *focus_manager;           // Focus and stacking
 };
 
 /* Function declarations */
@@ -279,8 +301,8 @@ void axiom_process_cursor_move(struct axiom_server *server, uint32_t time);
 // Window management
 struct axiom_window *axiom_window_at(struct axiom_server *server, double lx, double ly, 
                                      struct wlr_surface **surface, double *sx, double *sy);
-void axiom_focus_window(struct axiom_server *server, struct axiom_window *window, 
-                        struct wlr_surface *surface);
+void axiom_focus_window_legacy(struct axiom_server *server, struct axiom_window *window, 
+                                struct wlr_surface *surface);
 void axiom_begin_interactive(struct axiom_window *window, enum axiom_cursor_mode mode, 
                              uint32_t edges);
 

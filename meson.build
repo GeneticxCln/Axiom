@@ -81,6 +81,10 @@ axiom_sources = files(
   'src/pip_manager.c',
   'src/thumbnail_manager.c',
   'src/xwayland.c',
+  # Enhanced systems
+  'src/tagging.c',
+  'src/keybindings.c',
+  'src/focus.c',
 )
 
 # Executable

@@ -16,6 +16,9 @@
 #include "pip_manager.h"
 #include "thumbnail_manager.h"
 #include "xwayland.h"
+#include "tagging.h"
+#include "keybindings.h"
+#include "focus.h"
 void axiom_calculate_window_layout(struct axiom_server *server, int index, int *x, int *y, int *width, int *height);
 
 // Backend destroy handler for error recovery
@@ -384,6 +387,14 @@ static void server_new_xdg_toplevel(struct wl_listener *listener, void *data) {
     
     // Store surface reference for effects
     window->surface = xdg_toplevel->base->surface;
+    
+    // Initialize enhanced window properties
+    window->window_tags = calloc(1, sizeof(struct axiom_window_tags));
+    if (window->window_tags) {
+        window->window_tags->tags = 1; // Default to tag 1
+        window->window_tags->is_sticky = false;
+        window->window_tags->is_urgent = false;
+    }
     
     // Initialize window effects if real-time effects are enabled
     if (server->effects_manager && server->effects_manager->realtime_enabled) {
@@ -800,6 +811,36 @@ int main(int argc, char *argv[]) {
         printf("XWayland support disabled in configuration\n");
     }
     
+    // Initialize enhanced systems
+    printf("Initializing enhanced systems...\n");
+    
+    // Initialize tagging system
+    server.tag_manager = calloc(1, sizeof(struct axiom_tag_manager));
+    if (!server.tag_manager) {
+        fprintf(stderr, "Failed to allocate tag manager\n");
+        return EXIT_FAILURE;
+    }
+    axiom_tag_manager_init(server.tag_manager);
+    printf("Tagging system initialized successfully\n");
+    
+    // Initialize keybinding system
+    server.keybinding_manager = calloc(1, sizeof(struct axiom_keybinding_manager));
+    if (!server.keybinding_manager) {
+        fprintf(stderr, "Failed to allocate keybinding manager\n");
+        return EXIT_FAILURE;
+    }
+    axiom_keybinding_manager_init(server.keybinding_manager);
+    printf("Keybinding system initialized successfully\n");
+    
+    // Initialize focus and stacking system
+    server.focus_manager = calloc(1, sizeof(struct axiom_focus_manager));
+    if (!server.focus_manager) {
+        fprintf(stderr, "Failed to allocate focus manager\n");
+        return EXIT_FAILURE;
+    }
+    axiom_focus_manager_init(server.focus_manager);
+    printf("Focus and stacking system initialized successfully\n");
+    
     // Set up input management
     wl_list_init(&server.input_devices);
     
@@ -952,6 +993,22 @@ int main(int argc, char *argv[]) {
     // Cleanup XWayland manager
     if (server.xwayland_manager) {
         axiom_xwayland_manager_destroy(server.xwayland_manager);
+    }
+    
+    // Cleanup enhanced systems
+    if (server.tag_manager) {
+        axiom_tag_manager_cleanup(server.tag_manager);
+        free(server.tag_manager);
+    }
+    
+    if (server.keybinding_manager) {
+        axiom_keybinding_manager_cleanup(server.keybinding_manager);
+        free(server.keybinding_manager);
+    }
+    
+    if (server.focus_manager) {
+        axiom_focus_manager_cleanup(server.focus_manager);
+        free(server.focus_manager);
     }
     
     axiom_config_destroy(server.config);

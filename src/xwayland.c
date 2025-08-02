@@ -486,7 +486,7 @@ void axiom_xwayland_surface_handle_request_activate(struct wl_listener *listener
     AXIOM_LOG_DEBUG("XWayland activate request");
     
     if (surface->window) {
-        axiom_focus_window(surface->window->server, surface->window, surface->wlr_xwayland_surface->surface);
+        axiom_focus_window_legacy(surface->window->server, surface->window, surface->wlr_xwayland_surface->surface);
     }
 }
 
