@@ -17,7 +17,42 @@
 
 ---
 
-## 🚀 **NEW in v3.5.0 - SECURITY & STABILITY RELEASE!** 🔒
+## 🚀 **NEW in v3.6.0 - INTELLIGENT UPDATER RELEASE!** 🧠
+
+### 🏆 **REVOLUTIONARY AI-POWERED UPDATE SYSTEM**
+
+**🧠 MACHINE LEARNING-INSPIRED INTELLIGENCE**
+- ML-based risk assessment analyzing 10+ intelligent factors
+- Performance regression detection with automatic rollback
+- A/B testing framework for safer updates
+- Smart compatibility matrix with predictive analysis
+- Historical pattern learning and adaptive behavior
+
+**🛡️ ENTERPRISE-GRADE RELIABILITY**
+- Intelligent decision making with 0-100 risk scoring
+- Smart rollback system with automatic triggers
+- Enhanced backup management (10 backups with intelligent retention)
+- Comprehensive structured logging (performance, risk, operations)
+- Production-ready systemd integration
+
+**🚀 INTELLIGENT FEATURES**
+- **Risk Assessment**: Analyzes commit patterns, system resources, timing, and history
+- **Performance Monitoring**: Build time and startup tracking with regression alerts
+- **A/B Testing**: Version comparison with automatic rollback on degradation
+- **Smart Compatibility**: wlroots ↔ Axiom version matrix with predictions
+- **Historical Learning**: Improves decisions based on past update outcomes
+
+### 🛠️ **SMART UPDATE COMPONENTS**
+- **`axiom-smart-updater-v2.sh`** (17KB) - Core AI-powered updater engine
+- **`axiom-unified-updater.sh`** - Intelligent selection wrapper
+- **`configure-smart-updater.sh`** - Interactive configuration manager
+- **Seamless backward compatibility** with existing update systems
+
+**[Smart Updater Demo](SMART_UPDATER_DEMO.md)** | **[Release Notes](RELEASE_v3.6.0_NOTES.md)** | **[GitHub Release](https://github.com/GeneticxCln/Axiom/releases/tag/v3.6.0-smart-updater)**
+
+---
+
+## 🔒 **SECURITY & STABILITY - v3.5.0** ✅
 
 ### 🏆 **ENTERPRISE-GRADE SECURITY ACHIEVED**
 
@@ -32,20 +67,6 @@
 - 8/8 tests passing with robust error handling
 - Professional resource management and cleanup
 - Thread-safe operations throughout
-
-**🚀 READY FOR ENTERPRISE DEPLOYMENT**
-- Security score elevated from C- to A+ (Excellent)
-- Production-ready with comprehensive testing
-- Clean compilation with professional code quality
-- Extensive documentation and security audit included
-
-### 🛠️ **TECHNICAL IMPROVEMENTS**
-- Enhanced memory management with fail-safe error handling
-- Improved GPU context handling for better hardware compatibility
-- Robust configuration parsing with malicious input protection
-- Professional logging and debugging capabilities
-
-**[View Security Audit](SECURITY_AUDIT_REPORT.md)** | **[Work Completion Summary](WORK_COMPLETION_SUMMARY.md)** | **[GitHub Release](https://github.com/GeneticxCln/Axiom/releases/tag/v3.5.0)**
 
 ---
 
@@ -157,6 +178,56 @@ sudo apt-get install wayland-protocols libwayland-dev libwlroots-dev libpixman-1
 # From TTY (Ctrl+Alt+F2)
 ./build/axiom
 ```
+
+## 🧠 **Intelligent Update System**
+
+Axiom v3.6.0+ includes a revolutionary **AI-powered update system** that provides enterprise-grade reliability with machine learning-inspired intelligence.
+
+### **🚀 Quick Update Commands**
+
+```bash
+# Automatic intelligent selection (recommended)
+./axiom-unified-updater.sh
+
+# Risk assessment only
+./axiom-unified-updater.sh --check-only
+
+# Configure smart updater
+./configure-smart-updater.sh
+
+# Force smart updater with all AI features
+./axiom-unified-updater.sh --use-smart
+```
+
+### **🧠 Intelligence Features**
+
+- **ML-Based Risk Assessment**: Analyzes 10+ factors including commit patterns, system resources, timing, and historical success rates
+- **Performance Regression Detection**: Monitors build times and startup performance with automatic rollback on >20% degradation
+- **A/B Testing Framework**: Compares versions with performance benchmarking before full deployment
+- **Smart Compatibility Matrix**: wlroots ↔ Axiom version database with predictive analysis
+- **Historical Learning**: Improves decisions based on past update outcomes and patterns
+
+### **🛡️ Safety Features**
+
+- **Risk Scoring (0-100)**: Intelligent thresholds for automatic, user-confirmation, and manual-override updates
+- **Smart Rollback**: Automatic triggers on performance regression, build failure, or compatibility issues
+- **Enhanced Backups**: 10 backup retention with intelligent cleanup and rollback points
+- **Structured Logging**: Performance, risk assessment, and operation logs for complete transparency
+
+### **⚙️ Configuration**
+
+```bash
+# Interactive configuration setup
+./configure-smart-updater.sh
+
+# View current settings
+./configure-smart-updater.sh show
+
+# Reset to defaults
+./configure-smart-updater.sh reset
+```
+
+**See [Smart Updater Demo](SMART_UPDATER_DEMO.md) for complete documentation and examples.**
 
 ---
 
