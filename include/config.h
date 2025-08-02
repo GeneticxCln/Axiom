@@ -1,6 +1,6 @@
 #ifndef AXIOM_CONFIG_H
 #define AXIOM_CONFIG_H
-#define AXIOM_VERSION "2.0.0"
+#define AXIOM_VERSION "3.5.0"
 
 #include <stdbool.h>
 #include <stdint.h>
