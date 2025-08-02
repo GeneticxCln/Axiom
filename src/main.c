@@ -505,55 +505,24 @@ int main(int argc, char *argv[]) {
         // For nested mode, we need to use a different backend approach
         server.backend = wlr_backend_autocreate(server.wl_event_loop, NULL);
     } else {
-        // For main session mode, try to detect if we can get seat access first
-        printf("Attempting to create main session backend...\n");
+        // For main session mode, trust the login manager and let wlroots handle seat management
+        printf("Starting main session backend...\n");
         
-        // Check if another compositor is already running by trying to actually connect
-        // Just having environment variables set doesn't mean a compositor is running
-        // (SDDM leaves these set when starting new sessions)
+        // Clear any inherited environment variables that might confuse applications
+        // Login managers sometimes leave these set from the login screen
         const char *wayland_display = getenv("WAYLAND_DISPLAY");
         const char *display = getenv("DISPLAY");
         
-        bool compositor_running = false;
-        
-        // Try to connect to Wayland display if set
         if (wayland_display) {
-            struct wl_display *test_display = wl_display_connect(wayland_display);
-            if (test_display) {
-                wl_display_disconnect(test_display);
-                compositor_running = true;
-                printf("Debug: Found running Wayland compositor on %s\n", wayland_display);
-            } else {
-                printf("Debug: WAYLAND_DISPLAY set to %s but no compositor found\n", wayland_display);
-            }
-        }
-        
-        // Try to connect to X11 display if set and no Wayland compositor found
-        if (!compositor_running && display) {
-            // For X11, we can try to open the display
-            printf("Debug: DISPLAY set to %s, checking if X server is running\n", display);
-            // We'll assume if DISPLAY is set and we're being launched from SDDM,
-            // it's probably just the login screen X server, not a user session
-        }
-        
-        if (compositor_running) {
-            fprintf(stderr, "Error: Another compositor is already running\n");
-            fprintf(stderr, "WAYLAND_DISPLAY=%s, DISPLAY=%s\n", wayland_display ?: "(none)", display ?: "(none)");
-            fprintf(stderr, "Please log out of your current session before starting Axiom\n");
-            fprintf(stderr, "Or use --nested flag to run Axiom inside the current session\n");
-            return EXIT_FAILURE;
-        }
-        
-        // Clear environment variables to avoid conflicts
-        if (wayland_display) {
-            printf("Debug: Clearing WAYLAND_DISPLAY=%s for clean session start\n", wayland_display);
+            printf("Debug: Clearing inherited WAYLAND_DISPLAY=%s\n", wayland_display);
             unsetenv("WAYLAND_DISPLAY");
         }
         if (display) {
-            printf("Debug: Clearing DISPLAY=%s for clean session start\n", display);
+            printf("Debug: Clearing inherited DISPLAY=%s\n", display);
             unsetenv("DISPLAY");
         }
         
+        // Create backend - wlroots will handle all seat management, DRM access, etc.
         server.backend = wlr_backend_autocreate(server.wl_event_loop, NULL);
     }
     
