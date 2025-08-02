@@ -494,7 +494,7 @@ uint32_t axiom_ref_count(void *ptr) {
 // SAFE ALLOCATION WRAPPERS
 // =============================================================================
 
-void *axiom_safe_alloc_impl(size_t type_size, size_t size, axiom_memory_type_t mem_type,
+void *axiom_safe_alloc_impl(size_t type_size __attribute__((unused)), size_t size, axiom_memory_type_t mem_type,
                            const char *file, const char *func, int line) {
     if (size == 0) {
         AXIOM_LOG_ERROR("MEMORY", "Zero-size allocation at %s:%s:%d", file, func, line);

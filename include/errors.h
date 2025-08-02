@@ -15,6 +15,7 @@
 // Forward declarations
 struct axiom_server;
 struct axiom_window;
+struct wlr_xdg_toplevel;
 
 /**
  * Axiom error codes - comprehensive error handling system
