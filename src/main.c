@@ -501,10 +501,42 @@ int main(int argc, char *argv[]) {
     // Create backend with session handling for better compatibility
     if (nested) {
         printf("Running in nested mode\n");
+        // For nested mode, we need to use a different backend approach
+        server.backend = wlr_backend_autocreate(server.wl_event_loop, NULL);
+    } else {
+        // For main session mode, try to detect if we can get seat access first
+        printf("Attempting to create main session backend...\n");
+        
+        // Check if another compositor is already running by trying to connect
+        const char *wayland_display = getenv("WAYLAND_DISPLAY");
+        const char *display = getenv("DISPLAY");
+        
+        if (wayland_display || display) {
+            fprintf(stderr, "Error: Another display server is already running\n");
+            fprintf(stderr, "WAYLAND_DISPLAY=%s, DISPLAY=%s\n", wayland_display ?: "(none)", display ?: "(none)");
+            fprintf(stderr, "Please log out of your current session before starting Axiom\n");
+            fprintf(stderr, "Or use --nested flag to run Axiom inside the current session\n");
+            return EXIT_FAILURE;
+        }
+        
+        server.backend = wlr_backend_autocreate(server.wl_event_loop, NULL);
     }
-    server.backend = wlr_backend_autocreate(server.wl_event_loop, NULL);
+    
     if (!server.backend) {
-        fprintf(stderr, "Failed to create backend\n");
+        if (nested) {
+            fprintf(stderr, "Failed to create nested backend\n");
+            fprintf(stderr, "Make sure you're running inside a Wayland compositor\n");
+        } else {
+            fprintf(stderr, "Failed to create backend\n");
+            fprintf(stderr, "This usually means:\n");
+            fprintf(stderr, "  1. Another session is already active on this seat\n");
+            fprintf(stderr, "  2. You don't have permission to access DRM devices\n");
+            fprintf(stderr, "  3. No suitable display hardware was found\n");
+            fprintf(stderr, "\nTry:\n");
+            fprintf(stderr, "  - Logging out of all other sessions\n");
+            fprintf(stderr, "  - Running with --nested flag for testing\n");
+            fprintf(stderr, "  - Checking if you're in the 'video' group: groups $USER\n");
+        }
         return EXIT_FAILURE;
     }
     
@@ -733,8 +765,27 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
     
+    printf("Starting backend...\n");
     if (!wlr_backend_start(server.backend)) {
-        fprintf(stderr, "Failed to start backend\n");
+        if (nested) {
+            fprintf(stderr, "Failed to start nested backend\n");
+            fprintf(stderr, "Make sure you're running inside a Wayland compositor\n");
+        } else {
+            fprintf(stderr, "Failed to start backend\n");
+            fprintf(stderr, "This usually indicates:\n");
+            fprintf(stderr, "  1. Another session is controlling the display\n");
+            fprintf(stderr, "  2. Permission denied accessing hardware\n");
+            fprintf(stderr, "  3. Display manager conflict\n");
+            fprintf(stderr, "\nTo fix this:\n");
+            fprintf(stderr, "  - Log out completely from other desktop sessions\n");
+            fprintf(stderr, "  - Make sure no other compositor is running\n");
+            fprintf(stderr, "  - Try: sudo loginctl terminate-session \u003csession-id\u003e\n");
+            fprintf(stderr, "  - Or use --nested flag for development/testing\n");
+        }
+        
+        // Clean exit instead of allowing potential abort()
+        axiom_config_destroy(server.config);
+        wl_display_destroy(server.wl_display);
         return EXIT_FAILURE;
     }
     
