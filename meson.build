@@ -11,6 +11,7 @@ cc = meson.get_compiler('c')
 
 # Dependencies
 wayland_server = dependency('wayland-server', version: '>=1.20.0')
+wayland_client = dependency('wayland-client', version: '>=1.20.0')
 wayland_protos = dependency('wayland-protocols', version: '>=1.25')
 wlroots = dependency('wlroots-0.19')
 xkbcommon = dependency('xkbcommon')
@@ -76,7 +77,7 @@ proto_inc = declare_dependency(
   sources: server_protos_headers,
 )
 
-global_deps = [wayland_server, wlroots, xkbcommon, proto_inc, math_lib, egl, gles3]
+global_deps = [wayland_server, wayland_client, wlroots, xkbcommon, proto_inc, math_lib, egl, gles3]
 executable('axiom',
   sources: axiom_sources + server_protos_src,
   dependencies: global_deps,
