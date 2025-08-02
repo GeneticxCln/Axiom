@@ -175,4 +175,82 @@ int axiom_focus_count_urgent_windows(struct axiom_server *server) {
         }
     }
     return count;
-} 
+}
+
+void axiom_focus_next_window(struct axiom_server *server) {
+    if (!server || !server->focus_manager) return;
+    
+    struct axiom_focus_manager *manager = server->focus_manager;
+    struct axiom_window *current = manager->focused_window;
+    
+    // If no current window, focus the first available
+    if (!current) {
+        if (!wl_list_empty(&server->windows)) {
+            struct axiom_window *first = wl_container_of(server->windows.next, first, link);
+            axiom_focus_window(server, first);
+        }
+        return;
+    }
+    
+    // Find next window in the server's window list
+    struct axiom_window *next = NULL;
+    bool found_current = false;
+    
+    struct axiom_window *window;
+    wl_list_for_each(window, &server->windows, link) {
+        if (found_current) {
+            next = window;
+            break;
+        }
+        if (window == current) {
+            found_current = true;
+        }
+    }
+    
+    // If we reached the end or no next window, wrap around to first
+    if (!next && !wl_list_empty(&server->windows)) {
+        next = wl_container_of(server->windows.next, next, link);
+    }
+    
+    if (next && next != current) {
+        axiom_focus_window(server, next);
+        AXIOM_LOG_INFO("Focused next window");
+    }
+}
+
+void axiom_focus_prev_window(struct axiom_server *server) {
+    if (!server || !server->focus_manager) return;
+    
+    struct axiom_focus_manager *manager = server->focus_manager;
+    struct axiom_window *current = manager->focused_window;
+    
+    // If no current window, focus the last available
+    if (!current) {
+        if (!wl_list_empty(&server->windows)) {
+            struct axiom_window *last = wl_container_of(server->windows.prev, last, link);
+            axiom_focus_window(server, last);
+        }
+        return;
+    }
+    
+    // Find previous window in the server's window list
+    struct axiom_window *prev = NULL;
+    
+    struct axiom_window *window;
+    wl_list_for_each_reverse(window, &server->windows, link) {
+        if (window == current) {
+            break;
+        }
+        prev = window;
+    }
+    
+    // If no previous window, wrap around to last
+    if (!prev && !wl_list_empty(&server->windows)) {
+        prev = wl_container_of(server->windows.prev, prev, link);
+    }
+    
+    if (prev && prev != current) {
+        axiom_focus_window(server, prev);
+        AXIOM_LOG_INFO("Focused previous window");
+    }
+}

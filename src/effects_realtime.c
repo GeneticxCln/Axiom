@@ -457,11 +457,48 @@ GLuint axiom_capture_window_texture(struct axiom_window *window) {
 }
 
 bool axiom_upload_window_content(struct axiom_window *window, GLuint texture) {
-    if (!window || !texture) return false;
+    if (!window || !texture || !window->surface) return false;
     
-    // Implementation would copy window surface data to the provided texture
-    // This is a placeholder implementation
-    return true;
+    // Get the wlr_texture from the window's surface
+    struct wlr_texture *wlr_tex = wlr_surface_get_texture(window->surface);
+    if (!wlr_tex) {
+        printf("No wlroots texture available for window\n");
+        return false;
+    }
+    
+    // Get texture dimensions
+    int width = wlr_tex->width;
+    int height = wlr_tex->height;
+    
+    if (width <= 0 || height <= 0) {
+        printf("Invalid texture dimensions: %dx%d\n", width, height);
+        return false;
+    }
+    
+    // Bind our target texture
+    glBindTexture(GL_TEXTURE_2D, texture);
+    
+    // Try to read pixel data from wlroots texture
+    void *pixel_data = malloc(width * height * 4);
+    if (!pixel_data) {
+        glBindTexture(GL_TEXTURE_2D, 0);
+        return false;
+    }
+    
+    bool success = false;
+    if (wlr_texture_read_pixels(wlr_tex, pixel_data)) {
+        // Upload the pixel data to our OpenGL texture
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, 
+                    GL_RGBA, GL_UNSIGNED_BYTE, pixel_data);
+        success = true;
+        printf("Successfully uploaded window content to texture: %dx%d\n", width, height);
+    } else {
+        printf("Failed to read pixels from wlroots texture\n");
+    }
+    
+    free(pixel_data);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    return success;
 }
 
 // Scene graph integration

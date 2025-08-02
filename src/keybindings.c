@@ -6,6 +6,7 @@
 #include "axiom.h"
 #include "keybindings.h"
 #include "tagging.h"
+#include "focus.h"
 
 void axiom_keybinding_manager_init(struct axiom_keybinding_manager *manager) {
     if (!manager) return;
@@ -228,6 +229,17 @@ void axiom_keybinding_execute_action(struct axiom_server *server,
             }
             break;
             
+        case AXIOM_ACTION_WINDOW_KILL:
+            if (server->focused_window) {
+                // Force kill the window's client
+                if (server->focused_window->xdg_toplevel) {
+                    struct wl_client *client = wl_resource_get_client(server->focused_window->xdg_toplevel->base->resource);
+                    wl_client_destroy(client);
+                    AXIOM_LOG_INFO("Force killed window client");
+                }
+            }
+            break;
+            
         case AXIOM_ACTION_WINDOW_FULLSCREEN:
             if (server->focused_window) {
                 bool is_fullscreen = server->focused_window->is_fullscreen;
@@ -321,6 +333,18 @@ void axiom_keybinding_execute_action(struct axiom_server *server,
             
         case AXIOM_ACTION_RELOAD_CONFIG:
             axiom_reload_configuration(server);
+            break;
+            
+        case AXIOM_ACTION_FOCUS_NEXT:
+            axiom_focus_next_window(server);
+            break;
+            
+        case AXIOM_ACTION_FOCUS_PREV:
+            axiom_focus_prev_window(server);
+            break;
+            
+        case AXIOM_ACTION_FOCUS_URGENT:
+            axiom_focus_urgent_window(server);
             break;
             
         default:

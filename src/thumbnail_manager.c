@@ -8,6 +8,12 @@
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/backend.h>
 
+// Forward declarations for helper functions
+static void axiom_thumbnail_scale_content(const uint8_t *src, int src_width, int src_height,
+                                        uint8_t *dst, int dst_width, int dst_height);
+static void axiom_thumbnail_generate_representative_content(struct axiom_window *window, 
+                                                          uint8_t *data, int width, int height);
+
 static int axiom_thumbnail_update_timer_handler(void *data) {
     struct axiom_thumbnail_manager *manager = data;
     if (!manager || !manager->enabled) {
@@ -143,13 +149,8 @@ struct axiom_thumbnail *axiom_thumbnail_create(struct axiom_thumbnail_manager *m
         return NULL;
     }
     
-    // Initialize with placeholder data (solid color for now)
-    for (size_t i = 0; i < thumbnail->data_size; i += 4) {
-        thumbnail->pixel_data[i + 0] = 64;  // R
-        thumbnail->pixel_data[i + 1] = 64;  // G 
-        thumbnail->pixel_data[i + 2] = 128; // B
-        thumbnail->pixel_data[i + 3] = 255; // A
-    }
+    // Initialize with window-based content
+    axiom_thumbnail_render(manager, thumbnail);
     
     wl_list_insert(&manager->thumbnails, &thumbnail->link);
     manager->thumbnail_count++;
@@ -212,25 +213,121 @@ bool axiom_thumbnail_render(struct axiom_thumbnail_manager *manager,
         return false;
     }
     
-    // This is where actual window content rendering would happen
-    // For now, we'll create a simple pattern based on window properties
-    
     int width = thumbnail->width;
     int height = thumbnail->height;
     uint8_t *data = thumbnail->pixel_data;
+    struct axiom_window *window = thumbnail->window;
     
-    // Create a simple gradient pattern as placeholder
-    for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-            int idx = (y * width + x) * 4;
-            data[idx + 0] = (uint8_t)(x * 255 / width);      // R
-            data[idx + 1] = (uint8_t)(y * 255 / height);     // G
-            data[idx + 2] = 128;                             // B
-            data[idx + 3] = 255;                             // A
+    // Try to get actual window content first
+    bool content_captured = false;
+    
+    if (window->surface) {
+        struct wlr_texture *wlr_tex = wlr_surface_get_texture(window->surface);
+        if (wlr_tex && wlr_tex->width > 0 && wlr_tex->height > 0) {
+            // Try to read pixels from the surface texture
+            void *pixel_buffer = malloc(wlr_tex->width * wlr_tex->height * 4);
+            if (pixel_buffer && wlr_texture_read_pixels(wlr_tex, pixel_buffer)) {
+                // Scale down the window content to thumbnail size
+                axiom_thumbnail_scale_content(pixel_buffer, wlr_tex->width, wlr_tex->height,
+                                            data, width, height);
+                content_captured = true;
+                printf("Captured actual window content for thumbnail\n");
+            }
+            if (pixel_buffer) free(pixel_buffer);
         }
     }
     
+    // If we couldn't capture real content, generate representative content
+    if (!content_captured) {
+        axiom_thumbnail_generate_representative_content(window, data, width, height);
+    }
+    
     return true;
+}
+
+// Helper function to scale window content to thumbnail size
+static void axiom_thumbnail_scale_content(const uint8_t *src, int src_width, int src_height,
+                                        uint8_t *dst, int dst_width, int dst_height) {
+    for (int y = 0; y < dst_height; y++) {
+        for (int x = 0; x < dst_width; x++) {
+            // Simple nearest neighbor scaling
+            int src_x = (x * src_width) / dst_width;
+            int src_y = (y * src_height) / dst_height;
+            
+            int src_idx = (src_y * src_width + src_x) * 4;
+            int dst_idx = (y * dst_width + x) * 4;
+            
+            dst[dst_idx + 0] = src[src_idx + 0]; // R
+            dst[dst_idx + 1] = src[src_idx + 1]; // G
+            dst[dst_idx + 2] = src[src_idx + 2]; // B
+            dst[dst_idx + 3] = src[src_idx + 3]; // A
+        }
+    }
+}
+
+// Generate representative content based on window properties
+static void axiom_thumbnail_generate_representative_content(struct axiom_window *window, 
+                                                          uint8_t *data, int width, int height) {
+    // Get window properties for content generation
+    const char *app_id = window->xdg_toplevel ? window->xdg_toplevel->app_id : NULL;
+    const char *title = window->xdg_toplevel ? window->xdg_toplevel->title : NULL;
+    bool is_focused = window->is_focused;
+    
+    // Generate color scheme based on app_id
+    uint8_t base_r = 100, base_g = 100, base_b = 100;
+    
+    if (app_id) {
+        // Create a consistent color scheme based on app_id hash
+        uint32_t hash = 0;
+        for (const char *p = app_id; *p; p++) {
+            hash = hash * 31 + *p;
+        }
+        base_r = 60 + (hash % 120);
+        base_g = 60 + ((hash >> 8) % 120);
+        base_b = 60 + ((hash >> 16) % 120);
+    }
+    
+    // Create window-like content with title bar and content area
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            int idx = (y * width + x) * 4;
+            
+            if (y < height / 8) {
+                // Title bar area - darker variant of the base color
+                data[idx + 0] = (uint8_t)(base_r * 0.7f);
+                data[idx + 1] = (uint8_t)(base_g * 0.7f);
+                data[idx + 2] = (uint8_t)(base_b * 0.7f);
+                data[idx + 3] = 255;
+                
+                // Add focus indicator
+                if (is_focused && y < 2) {
+                    data[idx + 0] = 255; // Bright red top line for focused windows
+                    data[idx + 1] = 100;
+                    data[idx + 2] = 100;
+                }
+            } else {
+                // Content area - use base color with some variation
+                float fx = (float)x / width;
+                float fy = (float)(y - height/8) / (height - height/8);
+                
+                // Create subtle gradient
+                float brightness = 0.8f + 0.2f * (1.0f - fy * 0.5f);
+                
+                data[idx + 0] = (uint8_t)(base_r * brightness);
+                data[idx + 1] = (uint8_t)(base_g * brightness);
+                data[idx + 2] = (uint8_t)(base_b * brightness);
+                data[idx + 3] = 255;
+                
+                // Add some texture based on position
+                if ((x + y) % 16 == 0) {
+                    // Add subtle grid lines
+                    data[idx + 0] = (uint8_t)(data[idx + 0] * 0.9f);
+                    data[idx + 1] = (uint8_t)(data[idx + 1] * 0.9f);
+                    data[idx + 2] = (uint8_t)(data[idx + 2] * 0.9f);
+                }
+            }
+        }
+    }
 }
 
 struct axiom_thumbnail *axiom_thumbnail_get_for_window(struct axiom_thumbnail_manager *manager,
