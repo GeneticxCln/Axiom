@@ -17,6 +17,32 @@
 #include "thumbnail_manager.h"
 void axiom_calculate_window_layout(struct axiom_server *server, int index, int *x, int *y, int *width, int *height);
 
+// Backend destroy handler for error recovery
+static void handle_backend_destroy(struct wl_listener *listener, void *data) {
+    (void)data; // Suppress unused parameter warning
+    struct axiom_server *server = wl_container_of(listener, server, backend_destroy);
+    
+    AXIOM_LOG_ERROR("Backend destroyed unexpectedly");
+    
+    // Attempt graceful shutdown
+    server->running = false;
+    
+    // Clean up resources to prevent crashes
+    if (server->effects_manager) {
+        axiom_effects_manager_destroy(server->effects_manager);
+        free(server->effects_manager);
+        server->effects_manager = NULL;
+    }
+    
+    if (server->config) {
+        axiom_config_destroy(server->config);
+        server->config = NULL;
+    }
+    
+    // Exit with failure code
+    exit(EXIT_FAILURE);
+}
+
 // Configuration reload function
 void axiom_reload_configuration(struct axiom_server *server) {
     if (!server) return;
@@ -465,6 +491,9 @@ static void server_new_output(struct wl_listener *listener, void *data) {
 int main(int argc, char *argv[]) {
     printf("Axiom Wayland Compositor v" AXIOM_VERSION "\n");
     
+    // Initialize server struct early so we can use it in argument parsing
+    struct axiom_server server = {0};
+    
     // Parse command line arguments
     bool nested = false;
     printf("Debug: argc=%d, argv:", argc);
@@ -478,18 +507,23 @@ int main(int argc, char *argv[]) {
         if (strcmp(argv[i], "--nested") == 0) {
             nested = true;
             printf("Debug: Nested mode enabled!\n");
-        } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
-            printf("Usage: %s [OPTIONS]\n", argv[0]);
-            printf("Options:\n");
-            printf("  --nested    Run in nested mode (within another compositor)\n");
-            printf("  --help, -h  Show this help message\n");
-            return EXIT_SUCCESS;
-        }
+} else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
+    printf("Usage: %s [OPTIONS]\n", argv[0]);
+    printf("Options:\n");
+    printf("  --nested      Run in nested mode (within another compositor)\n");
+    printf("  --help, -h    Show this help message\n");
+    printf("  --version, -v Show version information\n");
+    printf("  --verbose     Enable verbose logging\n");
+    return EXIT_SUCCESS;
+} else if (strcmp(argv[i], "--version") == 0 || strcmp(argv[i], "-v") == 0) {
+    printf("Axiom Version %s\n", AXIOM_VERSION);
+    return EXIT_SUCCESS;
+} else if (strcmp(argv[i], "--verbose") == 0) {
+    printf("Verbose logging enabled\n");
+}
     }
     
     printf("Debug: Final nested value: %s\n", nested ? "true" : "false");
-    
-    struct axiom_server server = {0};
     
     server.wl_display = wl_display_create();
     if (!server.wl_display) {
@@ -504,16 +538,30 @@ int main(int argc, char *argv[]) {
         // For nested mode, we need to use a different backend approach
         server.backend = wlr_backend_autocreate(server.wl_event_loop, NULL);
     } else {
-        // For main session mode, try to detect if we can get seat access first
+    // For main session mode, try to detect if we can get seat access first
         printf("Attempting to create main session backend...\n");
         
-        // Check if another compositor is already running by trying to connect
+        // Check for proper seat access
+        if (access("/dev/dri/card0", R_OK | W_OK) != 0) {
+            fprintf(stderr, "Error: No access to GPU. Add user to 'video' group:\n");
+            fprintf(stderr, "sudo usermod -a -G video $USER\n");
+            fprintf(stderr, "Then log out and log back in.\n");
+            return EXIT_FAILURE;
+        }
+        
+        // Check if running from TTY (not X11/Wayland)
         const char *wayland_display = getenv("WAYLAND_DISPLAY");
         const char *display = getenv("DISPLAY");
+        const char *xdg_session_type = getenv("XDG_SESSION_TYPE");
         
-        if (wayland_display || display) {
-            fprintf(stderr, "Error: Another display server is already running\n");
-            fprintf(stderr, "WAYLAND_DISPLAY=%s, DISPLAY=%s\n", wayland_display ?: "(none)", display ?: "(none)");
+        if (display && !wayland_display) {
+            fprintf(stderr, "Error: Cannot start from X11 session. Use TTY (Ctrl+Alt+F2)\n");
+            return EXIT_FAILURE;
+        }
+        
+        if (wayland_display && (!xdg_session_type || strcmp(xdg_session_type, "tty") != 0)) {
+            fprintf(stderr, "Error: Another Wayland compositor is running\n");
+            fprintf(stderr, "WAYLAND_DISPLAY=%s\n", wayland_display);
             fprintf(stderr, "Please log out of your current session before starting Axiom\n");
             fprintf(stderr, "Or use --nested flag to run Axiom inside the current session\n");
             return EXIT_FAILURE;
@@ -591,6 +639,10 @@ int main(int argc, char *argv[]) {
     
     server.new_output.notify = server_new_output;
     wl_signal_add(&server.backend->events.new_output, &server.new_output);
+    
+    // Add backend destroy handler for error recovery
+    server.backend_destroy.notify = handle_backend_destroy;
+    wl_signal_add(&server.backend->events.destroy, &server.backend_destroy);
     
     // Initialize configuration
     server.config = axiom_config_create();
@@ -737,9 +789,13 @@ int main(int argc, char *argv[]) {
             return EXIT_FAILURE;
         }
     } else {
-        printf("Debug: Cursor manager created: %p (theme=%s, size=%d)\n", 
-               (void*)server.cursor_mgr, server.config->cursor_theme, server.config->cursor_size);
+    printf("Debug: Cursor manager created: %p (theme=%s, size=%d)\n", 
+           (void*)server.cursor_mgr, server.config->cursor_theme, server.config->cursor_size);
     }
+    
+    // CRITICAL FIX: Do NOT attach cursor to output layout during initialization
+    // This causes assertion failures when no outputs exist yet
+    printf("Debug: Deferring cursor attachment until first output is available\n");
     
     server.cursor_mode = AXIOM_CURSOR_PASSTHROUGH;
     
@@ -753,8 +809,6 @@ int main(int argc, char *argv[]) {
     wl_signal_add(&server.cursor->events.axis, &server.cursor_axis);
     server.cursor_frame.notify = axiom_cursor_frame;
     wl_signal_add(&server.cursor->events.frame, &server.cursor_frame);
-    
-    // Note: Cursor will be attached to output layout after backend starts
     
     server.new_input.notify = axiom_new_input;
     wl_signal_add(&server.backend->events.new_input, &server.new_input);
@@ -828,6 +882,9 @@ int main(int argc, char *argv[]) {
     
     // Cleanup
     axiom_process_cleanup();
+    
+    // Remove input devices
+    axiom_remove_input_devices(&server);
     
     // Cleanup effects manager
     if (server.effects_manager) {
