@@ -1,6 +1,7 @@
 #include "renderer.h"
 #include "axiom.h"
 #include "effects.h"
+#include "logging.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -131,17 +132,17 @@ bool axiom_gpu_context_init(struct axiom_gpu_context *ctx, struct axiom_server *
     // Initialize EGL
     ctx->egl_display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
     if (ctx->egl_display == EGL_NO_DISPLAY) {
-        printf("Failed to get EGL display\n");
+        AXIOM_LOG_ERROR("Failed to get EGL display");
         return false;
     }
 
     EGLint major, minor;
     if (!eglInitialize(ctx->egl_display, &major, &minor)) {
-        printf("Failed to initialize EGL\n");
+        AXIOM_LOG_ERROR("Failed to initialize EGL");
         return false;
     }
 
-    printf("EGL initialized: %d.%d\n", major, minor);
+    AXIOM_LOG_INFO("EGL initialized: %d.%d", major, minor);
 
     // Choose EGL config
     EGLint config_attribs[] = {
@@ -157,7 +158,7 @@ bool axiom_gpu_context_init(struct axiom_gpu_context *ctx, struct axiom_server *
 
     EGLint num_configs;
     if (!eglChooseConfig(ctx->egl_display, config_attribs, &ctx->egl_config, 1, &num_configs)) {
-        printf("Failed to choose EGL config\n");
+        AXIOM_LOG_ERROR("Failed to choose EGL config");
         return false;
     }
 
@@ -170,7 +171,7 @@ bool axiom_gpu_context_init(struct axiom_gpu_context *ctx, struct axiom_server *
     ctx->egl_context = eglCreateContext(ctx->egl_display, ctx->egl_config, 
                                         EGL_NO_CONTEXT, context_attribs);
     if (ctx->egl_context == EGL_NO_CONTEXT) {
-        printf("Failed to create EGL context\n");
+        AXIOM_LOG_ERROR("Failed to create EGL context");
         return false;
     }
 
@@ -183,7 +184,7 @@ bool axiom_gpu_context_init(struct axiom_gpu_context *ctx, struct axiom_server *
 
     ctx->egl_surface = eglCreatePbufferSurface(ctx->egl_display, ctx->egl_config, pbuffer_attribs);
     if (ctx->egl_surface == EGL_NO_SURFACE) {
-        printf("Failed to create EGL surface\n");
+        AXIOM_LOG_ERROR("Failed to create EGL surface");
         return false;
     }
 
@@ -194,18 +195,18 @@ bool axiom_gpu_context_init(struct axiom_gpu_context *ctx, struct axiom_server *
 
     // Load shaders
     if (!axiom_gpu_load_shaders(ctx)) {
-        printf("Failed to load shaders\n");
+        AXIOM_LOG_ERROR("Failed to load shaders");
         return false;
     }
 
     // Setup quad geometry
     if (!axiom_gpu_setup_quad_geometry(ctx)) {
-        printf("Failed to setup quad geometry\n");
+        AXIOM_LOG_ERROR("Failed to setup quad geometry");
         return false;
     }
 
     ctx->initialized = true;
-    printf("GPU context initialized successfully\n");
+    AXIOM_LOG_INFO("GPU context initialized successfully");
     return true;
 }
 
@@ -249,7 +250,7 @@ GLuint axiom_gpu_compile_shader(GLenum type, const char *source) {
     if (!success) {
         char info_log[512];
         glGetShaderInfoLog(shader, 512, NULL, info_log);
-        printf("Shader compilation failed: %s\n", info_log);
+        AXIOM_LOG_ERROR("Shader compilation failed: %s", info_log);
         glDeleteShader(shader);
         return 0;
     }
@@ -268,7 +269,7 @@ GLuint axiom_gpu_link_program(GLuint vertex_shader, GLuint fragment_shader) {
     if (!success) {
         char info_log[512];
         glGetProgramInfoLog(program, 512, NULL, info_log);
-        printf("Program linking failed: %s\n", info_log);
+        AXIOM_LOG_ERROR("Program linking failed: %s", info_log);
         glDeleteProgram(program);
         return 0;
     }
@@ -372,7 +373,7 @@ void axiom_gpu_destroy_texture(GLuint texture) {
 bool axiom_gpu_check_error(const char *operation) {
     GLenum error = glGetError();
     if (error != GL_NO_ERROR) {
-        printf("OpenGL error in %s: %s\n", operation, axiom_gpu_get_error_string(error));
+        AXIOM_LOG_ERROR("OpenGL error in %s: %s", operation, axiom_gpu_get_error_string(error));
         return false;
     }
     return true;
