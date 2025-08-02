@@ -1,0 +1,12 @@
+[Unit]
+Description=Run Axiom Updater daily
+Requires=axiom-updater.service
+
+[Timer]
+# Run daily at 9:00 AM
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=1800
+
+[Install]
+WantedBy=timers.target

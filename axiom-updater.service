@@ -1,0 +1,25 @@
+[Unit]
+Description=Axiom Updater - Smart Project and wlroots Update Manager
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=alex
+Group=alex
+WorkingDirectory=/home/alex/Projects /Axiom
+ExecStart=/home/alex/Projects /Axiom/axiom-updater.sh --check-only
+StandardOutput=journal
+StandardError=journal
+
+# Security settings
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=false
+ReadWritePaths=/home/alex/.axiom-updater.log /home/alex/.axiom-backups /home/alex/Projects /Axiom
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=true
+MemoryDenyWriteExecute=true
