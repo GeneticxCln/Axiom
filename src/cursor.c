@@ -17,17 +17,9 @@ static void process_motion(struct axiom_server *server, uint32_t time) {
         server->cursor->x, server->cursor->y,
         &surface, &sx, &sy);
     
-    // Set cursor on first motion - attach cursor to layout and load theme if needed
-    static bool cursor_attached = false;
+    // Set cursor on first motion - load theme if needed
     static bool cursor_theme_loaded = false;
     static bool cursor_set = false;
-    
-    // Attach cursor to output layout on first motion
-    if (!cursor_attached) {
-        wlr_cursor_attach_output_layout(server->cursor, server->output_layout);
-        printf("Debug: Cursor attached to output layout during first motion\n");
-        cursor_attached = true;
-    }
     
     if (!cursor_theme_loaded && server->cursor_mgr) {
         // Try to load cursor theme now that we're in motion and output should be ready

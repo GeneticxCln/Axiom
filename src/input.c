@@ -162,6 +162,27 @@ static bool handle_keybinding(struct axiom_server *server, xkb_keysym_t sym, uin
                 return true;
             }
             break;
+        case XKB_KEY_m:
+            // Super+M to maximize/restore window (Hyprland-style)
+            if (server->focused_window) {
+                bool is_maximized = server->focused_window->is_maximized;
+                wlr_xdg_toplevel_set_maximized(server->focused_window->xdg_toplevel, !is_maximized);
+                server->focused_window->is_maximized = !is_maximized;
+                AXIOM_LOG_INFO("%s window: %s", 
+                               is_maximized ? "Restored" : "Maximized",
+                               server->focused_window->xdg_toplevel->title ?: "(no title)");
+                return true;
+            }
+            break;
+        case XKB_KEY_k:
+            // Super+K to kill focused window (Hyprland-style)
+            if (server->focused_window && server->focused_window->xdg_toplevel) {
+                wlr_xdg_toplevel_send_close(server->focused_window->xdg_toplevel);
+                AXIOM_LOG_INFO("Killed window: %s", 
+                               server->focused_window->xdg_toplevel->title ?: "(no title)");
+                return true;
+            }
+            break;
         // Phase 2: Workspace number key switching (Super + 1-9)
         case XKB_KEY_1:
         case XKB_KEY_2:
@@ -480,5 +501,22 @@ void axiom_begin_interactive(struct axiom_window *window, enum axiom_cursor_mode
             cursor_name = "default";
         }
         wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, cursor_name);
+    }
+}
+
+// Cleanup input devices
+void axiom_remove_input_devices(struct axiom_server *server) {
+    struct axiom_input_device *device, *tmp;
+    wl_list_for_each_safe(device, tmp, &server->input_devices, link) {
+        if (device->wlr_device) {
+            // Remove signal listeners before destroying
+            if (device->wlr_device->type == WLR_INPUT_DEVICE_KEYBOARD) {
+                wl_list_remove(&device->keyboard.modifiers.link);
+                wl_list_remove(&device->keyboard.key.link);
+            }
+            wl_list_remove(&device->destroy.link);
+        }
+        wl_list_remove(&device->link);
+        free(device);
     }
 }

@@ -138,7 +138,10 @@ static void trim_whitespace(char *str) {
     
     // Trim leading space
     while (isspace((unsigned char)*str)) {
-        memmove(str, str + 1, strlen(str));
+        size_t len = strlen(str);
+        if (len > 0) {
+            memmove(str, str + 1, len); // len already includes null terminator space
+        }
     }
     
     // All spaces?
@@ -176,7 +179,10 @@ bool axiom_config_load(struct axiom_config *config, const char *path) {
             if (section_len >= sizeof(section)) {
                 section_len = sizeof(section) - 1;
             }
-            memcpy(section, line + 1, section_len);
+            // Use safer copy with explicit bounds checking
+            if (section_len > 0) {
+                memcpy(section, line + 1, section_len);
+            }
             section[section_len] = '\0';
             continue;
         }

@@ -434,7 +434,25 @@ struct axiom_gap_profile *axiom_smart_gaps_select_profile(struct axiom_smart_gap
             score += 5;
         }
         
-        // TODO: Add workspace and output pattern matching
+        // Match workspace pattern if specified
+        if (profile->conditions.workspace_pattern && context->output && context->output->server) {
+            struct axiom_server *server = (struct axiom_server *)context->output->server;
+            char workspace_name[32];
+            snprintf(workspace_name, sizeof(workspace_name), "workspace_%d", server->current_workspace);
+            
+            // Simple pattern matching (could be enhanced with regex)
+            if (strstr(workspace_name, profile->conditions.workspace_pattern)) {
+                score += 3;
+            }
+        }
+        
+        // Match output pattern if specified
+        if (profile->conditions.output_pattern && context->output && context->output->wlr_output) {
+            const char *output_name = context->output->wlr_output->name;
+            if (output_name && strstr(output_name, profile->conditions.output_pattern)) {
+                score += 3;
+            }
+        }
         
         if (score > best_score) {
             best_score = score;

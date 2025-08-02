@@ -188,6 +188,7 @@ struct axiom_server {
     struct wl_listener cursor_frame;
     struct wl_listener request_cursor;
     struct wl_listener request_set_selection;
+    struct wl_listener backend_destroy;
     
     bool running;
     
@@ -250,6 +251,7 @@ void axiom_server_cleanup(struct axiom_server *server);
 void axiom_new_input(struct wl_listener *listener, void *data);
 void axiom_new_keyboard(struct axiom_server *server, struct wlr_input_device *device);
 void axiom_new_pointer(struct axiom_server *server, struct wlr_input_device *device);
+void axiom_remove_input_devices(struct axiom_server *server);
 
 // Cursor management
 void axiom_cursor_motion(struct wl_listener *listener, void *data);

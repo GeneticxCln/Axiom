@@ -137,38 +137,40 @@ void axiom_arrange_windows(struct axiom_server *server) {
     }
 }
 
-void axiom_calculate_window_layout(struct axiom_server *server, int index, int *x, int *y, int *width, int *height) {
+// Calculate window layout with clearly named parameters to prevent swapping
+void axiom_calculate_window_layout(struct axiom_server *server, int window_index, 
+                                  int *out_x, int *out_y, int *out_width, int *out_height) {
     if (server->workspace_width <= 0 || server->workspace_height <= 0) {
-        *x = *y = 0;
-        *width = 800;
-        *height = 600;
+        *out_x = *out_y = 0;
+        *out_width = 800;
+        *out_height = 600;
         return;
     }
     
     int window_count = server->window_count;
     if (window_count == 1) {
-        *x = 0;
-        *y = 0;
-        *width = server->workspace_width;
-        *height = server->workspace_height;
+        *out_x = 0;
+        *out_y = 0;
+        *out_width = server->workspace_width;
+        *out_height = server->workspace_height;
     } else if (window_count == 2) {
-        *width = server->workspace_width / 2;
-        *height = server->workspace_height;
-        *x = index * (*width);
-        *y = 0;
+        *out_width = server->workspace_width / 2;
+        *out_height = server->workspace_height;
+        *out_x = window_index * (*out_width);
+        *out_y = 0;
     } else {
         // Grid layout for more than 2 windows
         int cols = (int)ceil(sqrt(window_count));
         int rows = (int)ceil((double)window_count / cols);
         
-        *width = server->workspace_width / cols;
-        *height = server->workspace_height / rows;
+        *out_width = server->workspace_width / cols;
+        *out_height = server->workspace_height / rows;
         
-        int col = index % cols;
-        int row = index / cols;
+        int col = window_index % cols;
+        int row = window_index / cols;
         
-        *x = col * (*width);
-        *y = row * (*height);
+        *out_x = col * (*out_width);
+        *out_y = row * (*out_height);
     }
 }
 
@@ -266,8 +268,8 @@ static void server_new_xdg_toplevel(struct wl_listener *listener, void *data) {
     if (window->decoration_tree) {
         // Create rounded border effect using multiple thin rectangles
         // We'll create a layered border with slightly different colors for depth
-        float border_outer[4] = {0.3, 0.5, 0.9, 1.0}; // Darker blue outer
-        float border_inner[4] = {0.4, 0.6, 1.0, 1.0}; // Brighter blue inner
+        float border_outer[4] = {0.3f, 0.5f, 0.9f, 1.0f}; // Darker blue outer
+        float border_inner[4] = {0.4f, 0.6f, 1.0f, 1.0f}; // Brighter blue inner
         
         // Create border components for rounded effect
         // Top border
@@ -294,8 +296,8 @@ static void server_new_xdg_toplevel(struct wl_listener *listener, void *data) {
         window->corner_br2 = wlr_scene_rect_create(window->decoration_tree, 1, 1, border_inner);
         
         // Create enhanced title bar with gradient effect
-        float title_bg[4] = {0.15, 0.15, 0.15, 0.95};     // Dark background
-        float title_accent[4] = {0.25, 0.35, 0.55, 0.8};  // Subtle accent strip
+        float title_bg[4] = {0.15f, 0.15f, 0.15f, 0.95f};     // Dark background
+        float title_accent[4] = {0.25f, 0.35f, 0.55f, 0.8f};  // Subtle accent strip
         
         window->title_bar = wlr_scene_rect_create(window->decoration_tree, window->width, 24, title_bg);
         window->title_accent = wlr_scene_rect_create(window->decoration_tree, window->width, 2, title_accent);
