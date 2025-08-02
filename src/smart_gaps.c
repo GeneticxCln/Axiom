@@ -17,7 +17,7 @@ static uint32_t axiom_get_time_ms(void) {
 struct axiom_smart_gaps_manager *axiom_smart_gaps_manager_create(struct axiom_server *server) {
     struct axiom_smart_gaps_manager *manager = calloc(1, sizeof(struct axiom_smart_gaps_manager));
     if (!manager) {
-        fprintf(stderr, "Failed to allocate smart gaps manager\n");
+        axiom_log_error("Failed to allocate smart gaps manager");
         return NULL;
     }
     manager->server = server;
@@ -49,16 +49,16 @@ bool axiom_smart_gaps_manager_init(struct axiom_smart_gaps_manager *manager, str
 bool axiom_server_init_smart_gaps(struct axiom_server *server, struct axiom_smart_gaps_config *config) {
     server->smart_gaps_manager = axiom_smart_gaps_manager_create(server);
     if (!server->smart_gaps_manager) {
-        fprintf(stderr, "Failed to create smart gaps manager\n");
+        axiom_log_error("Failed to create smart gaps manager");
         return false;
     }
     if (!axiom_smart_gaps_manager_init(server->smart_gaps_manager, config)) {
-        fprintf(stderr, "Failed to initialize smart gaps manager\n");
+        axiom_log_error("Failed to initialize smart gaps manager");
         axiom_smart_gaps_manager_destroy(server->smart_gaps_manager);
         server->smart_gaps_manager = NULL;
         return false;
     }
-    printf("Smart gaps system initialized\n");
+    axiom_log_info("Smart gaps system initialized");
     return true;
 }
 
@@ -280,7 +280,7 @@ bool axiom_smart_gaps_load_defaults(struct axiom_smart_gaps_manager *manager) {
     success &= axiom_smart_gaps_add_profile(manager, &spacious_profile);
     
     if (success) {
-        printf("Loaded %d default gap profiles\n", manager->profile_count);
+        axiom_log_info("Loaded %d default gap profiles", manager->profile_count);
     }
     
     return success;
@@ -434,7 +434,25 @@ struct axiom_gap_profile *axiom_smart_gaps_select_profile(struct axiom_smart_gap
             score += 5;
         }
         
-        // TODO: Add workspace and output pattern matching
+        // Match workspace pattern if specified
+        if (profile->conditions.workspace_pattern && context->output && context->output->server) {
+            struct axiom_server *server = (struct axiom_server *)context->output->server;
+            char workspace_name[32];
+            snprintf(workspace_name, sizeof(workspace_name), "workspace_%d", server->current_workspace);
+            
+            // Simple pattern matching (could be enhanced with regex)
+            if (strstr(workspace_name, profile->conditions.workspace_pattern)) {
+                score += 3;
+            }
+        }
+        
+        // Match output pattern if specified
+        if (profile->conditions.output_pattern && context->output && context->output->wlr_output) {
+            const char *output_name = context->output->wlr_output->name;
+            if (output_name && strstr(output_name, profile->conditions.output_pattern)) {
+                score += 3;
+            }
+        }
         
         if (score > best_score) {
             best_score = score;
@@ -580,7 +598,7 @@ bool axiom_smart_gaps_start_animation(struct axiom_gap_state *state,
         state->animation.target_values[i] = target_gaps[i];
     }
     
-    printf("Started gap animation: duration %u ms\n", duration_ms);
+    axiom_log_debug("Started gap animation: duration %u ms", duration_ms);
     return true;
 }
 

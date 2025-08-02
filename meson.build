@@ -1,5 +1,5 @@
 project('axiom', 'c',
-  version: '2.0.0',
+  version: '3.5.0',
   license: 'GPL-3.0',
   meson_version: '>=0.60.0',
   default_options: ['c_std=c11', 'warning_level=2', 'werror=false', 'buildtype=release'],
@@ -15,6 +15,13 @@ wayland_client = dependency('wayland-client', version: '>=1.20.0')
 wayland_protos = dependency('wayland-protocols', version: '>=1.25')
 wlroots = dependency('wlroots-0.19')
 xkbcommon = dependency('xkbcommon')
+xkbcommon_x11 = dependency('xkbcommon-x11')
+xcb = dependency('xcb')
+xcb_composite = dependency('xcb-composite')
+xcb_icccm = dependency('xcb-icccm')
+xcb_render = dependency('xcb-render')
+xcb_res = dependency('xcb-res')
+xcb_xfixes = dependency('xcb-xfixes')
 math_lib = cc.find_library('m', required: true)
 egl = dependency('egl')
 gl = dependency('gl')
@@ -38,7 +45,11 @@ wayland_scanner_code = generator(
 
 server_protocols = [
   wl_protocol_dir / 'stable/xdg-shell/xdg-shell.xml',
-]
+  wl_protocol_dir / 'unstable/xdg-decoration/xdg-decoration-unstable-v1.xml',
+  wl_protocol_dir / 'unstable/pointer-constraints/pointer-constraints-unstable-v1.xml',
+  wl_protocol_dir / 'unstable/relative-pointer/relative-pointer-unstable-v1.xml',
+  wl_protocol_dir / 'unstable/idle-inhibit/idle-inhibit-unstable-v1.xml',
+  wl_protocol_dir / 'unstable/input-method/input-method-unstable-v1.xml']
 
 server_protos_src = []
 server_protos_headers = []
@@ -70,6 +81,11 @@ axiom_sources = files(
   'src/window_snapping.c',
   'src/pip_manager.c',
   'src/thumbnail_manager.c',
+  'src/xwayland.c',
+  # Enhanced systems
+  'src/tagging.c',
+  'src/keybindings.c',
+  'src/focus.c',
 )
 
 # Executable
@@ -77,7 +93,7 @@ proto_inc = declare_dependency(
   sources: server_protos_headers,
 )
 
-global_deps = [wayland_server, wayland_client, wlroots, xkbcommon, proto_inc, math_lib, egl, gles3]
+global_deps = [wayland_server, wlroots, xkbcommon, xkbcommon_x11, xcb, xcb_composite, xcb_icccm, xcb_render, xcb_res, xcb_xfixes, proto_inc, math_lib, egl, gles3]
 executable('axiom',
   sources: axiom_sources + server_protos_src,
   dependencies: global_deps,
@@ -93,7 +109,8 @@ install_data('axiom.desktop',
 # Thumbnail manager test
 test_thumbnail_manager_sources = files(
   'tests/test_thumbnail_manager.c',
-  'src/thumbnail_manager.c'
+  'src/thumbnail_manager.c',
+  'src/logging.c'
 )
 
 test_thumbnail_manager = executable('test_thumbnail_manager',
@@ -133,7 +150,8 @@ test_executable = executable('test_axiom',
 )
 
 test_config_sources = files(
-  'tests/test_config.c'
+  'tests/test_config.c',
+  'src/logging.c'
 )
 
 test_config_executable = executable('test_config',
@@ -161,7 +179,8 @@ test('animation_tests', test_animation_executable)
 # Animation config test
 test_animation_config_sources = files(
   'tests/test_animation_config.c',
-  'src/config.c'
+  'src/config.c',
+  'src/logging.c'
 )
 
 test_animation_config = executable('test_animation_config',
@@ -175,12 +194,14 @@ test('animation_config_tests', test_animation_config)
 # Effects test
 test_effects_sources = files(
   'tests/test_effects.c',
-  'src/effects.c'
+  'src/effects.c',
+  'src/renderer.c',
+  'src/logging.c'
 )
 
 test_effects = executable('test_effects',
     sources: test_effects_sources,
-    dependencies: [math_lib, wayland_server, wlroots, proto_inc],
+    dependencies: [math_lib, wayland_server, wlroots, proto_inc, gles3, egl, gl],
     include_directories: inc,
     install: false,
 )
@@ -202,7 +223,8 @@ test('window_rules_tests', test_window_rules)
 # PiP manager test
 test_pip_manager_sources = files(
   'tests/test_pip_manager.c',
-  'src/pip_manager.c'
+  'src/pip_manager.c',
+  'src/logging.c'
 )
 
 test_pip_manager = executable('test_pip_manager',

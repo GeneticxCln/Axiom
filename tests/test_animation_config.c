@@ -4,15 +4,6 @@
 #include "config.h"
 #include "animation.h"
 
-// Provide logging function implementation for tests
-void axiom_log(const char *level, const char *format, ...) {
-    va_list args;
-    va_start(args, format);
-    printf("[%s] ", level);
-    vprintf(format, args);
-    printf("\n");
-    va_end(args);
-}
 
 void test_animation_config_load() {
     struct axiom_config *config = axiom_config_create();

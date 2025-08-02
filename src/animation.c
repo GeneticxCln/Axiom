@@ -109,16 +109,16 @@ float axiom_easing_apply(enum axiom_easing_type easing, float t) {
             result = 1.0f - (1.0f - t) * (1.0f - t);
             break;
         case AXIOM_EASE_IN_OUT_QUAD:
-            result = t < 0.5f ? 2.0f * t * t : 1.0f - pow(-2.0f * t + 2.0f, 2) / 2.0f;
+            result = t < 0.5f ? 2.0f * t * t : 1.0f - powf(-2.0f * t + 2.0f, 2.0f) / 2.0f;
             break;
         case AXIOM_EASE_IN_CUBIC:
             result = t * t * t;
             break;
         case AXIOM_EASE_OUT_CUBIC:
-            result = 1.0f - pow(1.0f - t, 3);
+            result = 1.0f - powf(1.0f - t, 3.0f);
             break;
         case AXIOM_EASE_IN_OUT_CUBIC:
-            result = t < 0.5f ? 4.0f * t * t * t : 1.0f - pow(-2.0f * t + 2.0f, 3) / 2.0f;
+            result = t < 0.5f ? 4.0f * t * t * t : 1.0f - powf(-2.0f * t + 2.0f, 3.0f) / 2.0f;
             break;
         case AXIOM_EASE_OUT_BOUNCE: {
             const float n1 = 7.5625f;
@@ -138,7 +138,7 @@ float axiom_easing_apply(enum axiom_easing_type easing, float t) {
             break;
         }
         case AXIOM_EASE_SPRING:
-            result = sinf(t * M_PI * (0.2f + 2.5f * t * t * t)) * powf(1.0f - t, 2.2f) + t * (1.0f + (1.2f * (1.0f - t)));
+            result = sinf(t * (float)M_PI * (0.2f + 2.5f * t * t * t)) * powf(1.0f - t, 2.2f) + t * (1.0f + (1.2f * (1.0f - t)));
             break;
         default:
             result = t;
@@ -171,7 +171,35 @@ void axiom_animation_manager_update(struct axiom_animation_manager *manager, uin
                     anim->start_time_ms = time_ms;
                     if (anim->reverse) {
                         // Swap start and end values for reversing
-                        // TODO: Implement reverse logic here
+                        // Directly swap each field to avoid struct assignment issues
+                        double temp_x = anim->start_values.x;
+                        double temp_y = anim->start_values.y;
+                        double temp_width = anim->start_values.width;
+                        double temp_height = anim->start_values.height;
+                        float temp_opacity = anim->start_values.opacity;
+                        float temp_scale_x = anim->start_values.scale_x;
+                        float temp_scale_y = anim->start_values.scale_y;
+                        float temp_rotation = anim->start_values.rotation;
+                        
+                        anim->start_values.x = anim->end_values.x;
+                        anim->start_values.y = anim->end_values.y;
+                        anim->start_values.width = anim->end_values.width;
+                        anim->start_values.height = anim->end_values.height;
+                        anim->start_values.opacity = anim->end_values.opacity;
+                        anim->start_values.scale_x = anim->end_values.scale_x;
+                        anim->start_values.scale_y = anim->end_values.scale_y;
+                        anim->start_values.rotation = anim->end_values.rotation;
+                        
+                        anim->end_values.x = temp_x;
+                        anim->end_values.y = temp_y;
+                        anim->end_values.width = temp_width;
+                        anim->end_values.height = temp_height;
+                        anim->end_values.opacity = temp_opacity;
+                        anim->end_values.scale_x = temp_scale_x;
+                        anim->end_values.scale_y = temp_scale_y;
+                        anim->end_values.rotation = temp_rotation;
+                        
+                        AXIOM_LOG_DEBUG("Animation reversed: swapped start/end values");
                     }
                 }
             }

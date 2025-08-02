@@ -8,6 +8,12 @@
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/backend.h>
 
+// Forward declarations for helper functions
+static void axiom_thumbnail_scale_content(const uint8_t *src, int src_width, int src_height,
+                                        uint8_t *dst, int dst_width, int dst_height);
+static void axiom_thumbnail_generate_representative_content(struct axiom_window *window, 
+                                                          uint8_t *data, int width, int height);
+
 static int axiom_thumbnail_update_timer_handler(void *data) {
     struct axiom_thumbnail_manager *manager = data;
     if (!manager || !manager->enabled) {
@@ -51,7 +57,7 @@ struct axiom_thumbnail_manager *axiom_thumbnail_manager_create(struct axiom_serv
     // Initialize statistics
     memset(&manager->stats, 0, sizeof(manager->stats));
     
-    printf("Thumbnail manager created successfully\n");
+    axiom_log_info("Thumbnail manager created successfully");
     return manager;
 }
 
@@ -73,7 +79,7 @@ bool axiom_thumbnail_manager_init(struct axiom_thumbnail_manager *manager) {
         }
     }
     
-    printf("Thumbnail manager initialized successfully\n");
+    axiom_log_info("Thumbnail manager initialized successfully");
     return true;
 }
 
@@ -102,7 +108,7 @@ void axiom_thumbnail_manager_destroy(struct axiom_thumbnail_manager *manager) {
     }
     
     free(manager);
-    printf("Thumbnail manager destroyed\n");
+    axiom_log_info("Thumbnail manager destroyed");
 }
 
 struct axiom_thumbnail *axiom_thumbnail_create(struct axiom_thumbnail_manager *manager, 
@@ -119,7 +125,7 @@ struct axiom_thumbnail *axiom_thumbnail_create(struct axiom_thumbnail_manager *m
     
     // Check thumbnail limit
     if (manager->thumbnail_count >= AXIOM_MAX_THUMBNAILS) {
-        printf("Maximum thumbnail limit reached\n");
+        axiom_log_warn("Maximum thumbnail limit reached");
         return NULL;
     }
     
@@ -143,19 +149,14 @@ struct axiom_thumbnail *axiom_thumbnail_create(struct axiom_thumbnail_manager *m
         return NULL;
     }
     
-    // Initialize with placeholder data (solid color for now)
-    for (size_t i = 0; i < thumbnail->data_size; i += 4) {
-        thumbnail->pixel_data[i + 0] = 64;  // R
-        thumbnail->pixel_data[i + 1] = 64;  // G 
-        thumbnail->pixel_data[i + 2] = 128; // B
-        thumbnail->pixel_data[i + 3] = 255; // A
-    }
+    // Initialize with window-based content
+    axiom_thumbnail_render(manager, thumbnail);
     
     wl_list_insert(&manager->thumbnails, &thumbnail->link);
     manager->thumbnail_count++;
     manager->stats.thumbnails_created++;
     
-    printf("Created thumbnail for window (total: %d)\n", manager->thumbnail_count);
+    axiom_log_debug("Created thumbnail for window (total: %d)", manager->thumbnail_count);
     return thumbnail;
 }
 
@@ -179,7 +180,7 @@ void axiom_thumbnail_destroy(struct axiom_thumbnail *thumbnail) {
     
     wl_list_remove(&thumbnail->link);
     free(thumbnail);
-    printf("Thumbnail destroyed\n");
+    axiom_log_debug("Thumbnail destroyed");
 }
 
 bool axiom_thumbnail_update(struct axiom_thumbnail_manager *manager, 
@@ -202,7 +203,7 @@ bool axiom_thumbnail_update(struct axiom_thumbnail_manager *manager,
     thumbnail->last_update_time = current_time;
     manager->stats.thumbnails_updated++;
     
-    printf("Updated thumbnail\n");
+    axiom_log_debug("Updated thumbnail");
     return true;
 }
 
@@ -212,25 +213,121 @@ bool axiom_thumbnail_render(struct axiom_thumbnail_manager *manager,
         return false;
     }
     
-    // This is where actual window content rendering would happen
-    // For now, we'll create a simple pattern based on window properties
-    
     int width = thumbnail->width;
     int height = thumbnail->height;
     uint8_t *data = thumbnail->pixel_data;
+    struct axiom_window *window = thumbnail->window;
     
-    // Create a simple gradient pattern as placeholder
-    for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-            int idx = (y * width + x) * 4;
-            data[idx + 0] = (uint8_t)(x * 255 / width);      // R
-            data[idx + 1] = (uint8_t)(y * 255 / height);     // G
-            data[idx + 2] = 128;                             // B
-            data[idx + 3] = 255;                             // A
+    // Try to get actual window content first
+    bool content_captured = false;
+    
+    if (window->surface && wlr_surface_has_buffer(window->surface)) {
+        struct wlr_texture *wlr_tex = wlr_surface_get_texture(window->surface);
+        if (wlr_tex && wlr_tex->width > 0 && wlr_tex->height > 0) {
+            // Try to read pixels from the surface texture
+            void *pixel_buffer = malloc(wlr_tex->width * wlr_tex->height * 4);
+            if (pixel_buffer && wlr_texture_read_pixels(wlr_tex, pixel_buffer)) {
+                // Scale down the window content to thumbnail size
+                axiom_thumbnail_scale_content(pixel_buffer, wlr_tex->width, wlr_tex->height,
+                                            data, width, height);
+                content_captured = true;
+                axiom_log_debug("Captured actual window content for thumbnail");
+            }
+            if (pixel_buffer) free(pixel_buffer);
         }
     }
     
+    // If we couldn't capture real content, generate representative content
+    if (!content_captured) {
+        axiom_thumbnail_generate_representative_content(window, data, width, height);
+    }
+    
     return true;
+}
+
+// Helper function to scale window content to thumbnail size
+static void axiom_thumbnail_scale_content(const uint8_t *src, int src_width, int src_height,
+                                        uint8_t *dst, int dst_width, int dst_height) {
+    for (int y = 0; y < dst_height; y++) {
+        for (int x = 0; x < dst_width; x++) {
+            // Simple nearest neighbor scaling
+            int src_x = (x * src_width) / dst_width;
+            int src_y = (y * src_height) / dst_height;
+            
+            int src_idx = (src_y * src_width + src_x) * 4;
+            int dst_idx = (y * dst_width + x) * 4;
+            
+            dst[dst_idx + 0] = src[src_idx + 0]; // R
+            dst[dst_idx + 1] = src[src_idx + 1]; // G
+            dst[dst_idx + 2] = src[src_idx + 2]; // B
+            dst[dst_idx + 3] = src[src_idx + 3]; // A
+        }
+    }
+}
+
+// Generate representative content based on window properties
+static void axiom_thumbnail_generate_representative_content(struct axiom_window *window, 
+                                                          uint8_t *data, int width, int height) {
+    // Get window properties for content generation
+    const char *app_id = window->xdg_toplevel ? window->xdg_toplevel->app_id : NULL;
+    const char *title = window->xdg_toplevel ? window->xdg_toplevel->title : NULL;
+    bool is_focused = window->is_focused;
+    
+    // Generate color scheme based on app_id
+    uint8_t base_r = 100, base_g = 100, base_b = 100;
+    
+    if (app_id) {
+        // Create a consistent color scheme based on app_id hash
+        uint32_t hash = 0;
+        for (const char *p = app_id; *p; p++) {
+            hash = hash * 31 + *p;
+        }
+        base_r = 60 + (hash % 120);
+        base_g = 60 + ((hash >> 8) % 120);
+        base_b = 60 + ((hash >> 16) % 120);
+    }
+    
+    // Create window-like content with title bar and content area
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            int idx = (y * width + x) * 4;
+            
+            if (y < height / 8) {
+                // Title bar area - darker variant of the base color
+                data[idx + 0] = (uint8_t)(base_r * 0.7f);
+                data[idx + 1] = (uint8_t)(base_g * 0.7f);
+                data[idx + 2] = (uint8_t)(base_b * 0.7f);
+                data[idx + 3] = 255;
+                
+                // Add focus indicator
+                if (is_focused && y < 2) {
+                    data[idx + 0] = 255; // Bright red top line for focused windows
+                    data[idx + 1] = 100;
+                    data[idx + 2] = 100;
+                }
+            } else {
+                // Content area - use base color with some variation
+                float fx = (float)x / width;
+                float fy = (float)(y - height/8) / (height - height/8);
+                
+                // Create subtle gradient
+                float brightness = 0.8f + 0.2f * (1.0f - fy * 0.5f);
+                
+                data[idx + 0] = (uint8_t)(base_r * brightness);
+                data[idx + 1] = (uint8_t)(base_g * brightness);
+                data[idx + 2] = (uint8_t)(base_b * brightness);
+                data[idx + 3] = 255;
+                
+                // Add some texture based on position
+                if ((x + y) % 16 == 0) {
+                    // Add subtle grid lines
+                    data[idx + 0] = (uint8_t)(data[idx + 0] * 0.9f);
+                    data[idx + 1] = (uint8_t)(data[idx + 1] * 0.9f);
+                    data[idx + 2] = (uint8_t)(data[idx + 2] * 0.9f);
+                }
+            }
+        }
+    }
 }
 
 struct axiom_thumbnail *axiom_thumbnail_get_for_window(struct axiom_thumbnail_manager *manager,
@@ -256,7 +353,7 @@ void axiom_thumbnail_on_window_mapped(struct axiom_thumbnail_manager *manager,
     }
     
     axiom_thumbnail_create(manager, window);
-    printf("Thumbnail created for mapped window\n");
+    axiom_log_debug("Thumbnail created for mapped window");
 }
 
 void axiom_thumbnail_on_window_unmapped(struct axiom_thumbnail_manager *manager,
@@ -268,7 +365,7 @@ void axiom_thumbnail_on_window_unmapped(struct axiom_thumbnail_manager *manager,
     struct axiom_thumbnail *thumbnail = axiom_thumbnail_get_for_window(manager, window);
     if (thumbnail) {
         thumbnail->needs_update = true;
-        printf("Marked thumbnail for update on window unmap\n");
+        axiom_log_debug("Marked thumbnail for update on window unmap");
     }
 }
 
@@ -282,7 +379,7 @@ void axiom_thumbnail_on_window_destroyed(struct axiom_thumbnail_manager *manager
     if (thumbnail) {
         manager->thumbnail_count--;
         axiom_thumbnail_destroy(thumbnail);
-        printf("Destroyed thumbnail for destroyed window\n");
+        axiom_log_debug("Destroyed thumbnail for destroyed window");
     }
 }
 
@@ -298,7 +395,7 @@ void axiom_thumbnail_update_all(struct axiom_thumbnail_manager *manager) {
     }
     
     manager->stats.update_requests++;
-    printf("Updated all thumbnails (%d total)\n", manager->thumbnail_count);
+    axiom_log_debug("Updated all thumbnails (%d total)", manager->thumbnail_count);
 }
 
 void axiom_thumbnail_cleanup_stale(struct axiom_thumbnail_manager *manager) {
@@ -308,7 +405,7 @@ void axiom_thumbnail_cleanup_stale(struct axiom_thumbnail_manager *manager) {
     
     // In a real implementation, this would remove thumbnails for windows
     // that no longer exist or haven't been updated in a long time
-    printf("Cleaned up stale thumbnails\n");
+    axiom_log_debug("Cleaned up stale thumbnails");
 }
 
 void axiom_thumbnail_set_size(struct axiom_thumbnail_manager *manager, int width, int height) {
@@ -326,16 +423,24 @@ void axiom_thumbnail_set_size(struct axiom_thumbnail_manager *manager, int width
         thumbnail->height = height;
         thumbnail->needs_update = true;
         
-        // Reallocate pixel buffer
+        // Reallocate pixel buffer safely
         size_t new_size = width * height * 4;
         uint8_t *new_data = realloc(thumbnail->pixel_data, new_size);
         if (new_data) {
             thumbnail->pixel_data = new_data;
             thumbnail->data_size = new_size;
+            // Initialize new memory if size increased
+            if (new_size > thumbnail->data_size) {
+                memset(thumbnail->pixel_data + thumbnail->data_size, 0, new_size - thumbnail->data_size);
+            }
+        } else {
+            // realloc failed, keep existing data
+            axiom_log_error("Failed to reallocate thumbnail pixel buffer");
+            return;
         }
     }
     
-    printf("Set thumbnail size to %dx%d\n", width, height);
+    axiom_log_info("Set thumbnail size to %dx%d", width, height);
 }
 
 void axiom_thumbnail_set_update_interval(struct axiom_thumbnail_manager *manager, uint32_t interval_ms) {
@@ -349,7 +454,7 @@ void axiom_thumbnail_set_update_interval(struct axiom_thumbnail_manager *manager
         wl_event_source_timer_update(manager->update_timer, interval_ms);
     }
     
-    printf("Set thumbnail update interval to %u ms\n", interval_ms);
+    axiom_log_info("Set thumbnail update interval to %u ms", interval_ms);
 }
 
 void axiom_thumbnail_enable(struct axiom_thumbnail_manager *manager, bool enabled) {
@@ -358,7 +463,7 @@ void axiom_thumbnail_enable(struct axiom_thumbnail_manager *manager, bool enable
     }
     
     manager->enabled = enabled;
-    printf("Thumbnail system %s\n", enabled ? "enabled" : "disabled");
+    axiom_log_info("Thumbnail system %s", enabled ? "enabled" : "disabled");
 }
 
 const uint8_t *axiom_thumbnail_get_pixel_data(struct axiom_thumbnail *thumbnail) {
@@ -374,16 +479,16 @@ void axiom_thumbnail_print_stats(struct axiom_thumbnail_manager *manager) {
         return;
     }
     
-    printf("=== Thumbnail Manager Statistics ===\n");
-    printf("Active thumbnails: %d\n", manager->thumbnail_count);
-    printf("Thumbnails created: %u\n", manager->stats.thumbnails_created);
-    printf("Thumbnails updated: %u\n", manager->stats.thumbnails_updated);
-    printf("Update requests: %u\n", manager->stats.update_requests);
-    printf("Render errors: %u\n", manager->stats.render_errors);
-    printf("Thumbnail size: %dx%d\n", manager->thumbnail_width, manager->thumbnail_height);
-    printf("Update interval: %u ms\n", manager->update_interval_ms);
-    printf("System enabled: %s\n", manager->enabled ? "yes" : "no");
-    printf("=====================================\n");
+    axiom_log_info("=== Thumbnail Manager Statistics ===");
+    axiom_log_info("Active thumbnails: %d", manager->thumbnail_count);
+    axiom_log_info("Thumbnails created: %u", manager->stats.thumbnails_created);
+    axiom_log_info("Thumbnails updated: %u", manager->stats.thumbnails_updated);
+    axiom_log_info("Update requests: %u", manager->stats.update_requests);
+    axiom_log_info("Render errors: %u", manager->stats.render_errors);
+    axiom_log_info("Thumbnail size: %dx%d", manager->thumbnail_width, manager->thumbnail_height);
+    axiom_log_info("Update interval: %u ms", manager->update_interval_ms);
+    axiom_log_info("System enabled: %s", manager->enabled ? "yes" : "no");
+    axiom_log_info("=====================================");
 }
 
 void axiom_thumbnail_reset_stats(struct axiom_thumbnail_manager *manager) {
@@ -392,6 +497,6 @@ void axiom_thumbnail_reset_stats(struct axiom_thumbnail_manager *manager) {
     }
     
     memset(&manager->stats, 0, sizeof(manager->stats));
-    printf("Thumbnail statistics reset\n");
+    axiom_log_info("Thumbnail statistics reset");
 }
 

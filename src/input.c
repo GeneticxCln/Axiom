@@ -6,6 +6,7 @@
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
 #include "axiom.h"
+#include "keybindings.h"
 #include "config.h"
 #include "animation.h"
 #include "pip_manager.h"
@@ -40,7 +41,7 @@ static void cycle_windows(struct axiom_server *server) {
     }
     
     if (next_window) {
-        axiom_focus_window(server, next_window, next_window->xdg_toplevel->base->surface);
+        axiom_focus_window_legacy(server, next_window, next_window->xdg_toplevel->base->surface);
         AXIOM_LOG_INFO("Switched to window: %s", next_window->xdg_toplevel->title ?: "(no title)");
     }
 }
@@ -162,6 +163,27 @@ static bool handle_keybinding(struct axiom_server *server, xkb_keysym_t sym, uin
                 return true;
             }
             break;
+        case XKB_KEY_m:
+            // Super+M to maximize/restore window (Hyprland-style)
+            if (server->focused_window) {
+                bool is_maximized = server->focused_window->is_maximized;
+                wlr_xdg_toplevel_set_maximized(server->focused_window->xdg_toplevel, !is_maximized);
+                server->focused_window->is_maximized = !is_maximized;
+                AXIOM_LOG_INFO("%s window: %s", 
+                               is_maximized ? "Restored" : "Maximized",
+                               server->focused_window->xdg_toplevel->title ?: "(no title)");
+                return true;
+            }
+            break;
+        case XKB_KEY_k:
+            // Super+K to kill focused window (Hyprland-style)
+            if (server->focused_window && server->focused_window->xdg_toplevel) {
+                wlr_xdg_toplevel_send_close(server->focused_window->xdg_toplevel);
+                AXIOM_LOG_INFO("Killed window: %s", 
+                               server->focused_window->xdg_toplevel->title ?: "(no title)");
+                return true;
+            }
+            break;
         // Phase 2: Workspace number key switching (Super + 1-9)
         case XKB_KEY_1:
         case XKB_KEY_2:
@@ -205,7 +227,7 @@ static bool handle_keybinding(struct axiom_server *server, xkb_keysym_t sym, uin
         struct wl_list *next_link = server->windows.next;
         struct axiom_window *next_window;
         next_window = wl_container_of(next_link, next_window, link);
-        axiom_focus_window(server, next_window, next_window->xdg_toplevel->base->surface);
+        axiom_focus_window_legacy(server, next_window, next_window->xdg_toplevel->base->surface);
         return true;
     }
     case XKB_KEY_q:
@@ -258,6 +280,13 @@ static void keyboard_handle_key(struct wl_listener *listener, void *data) {
     
     if (event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
         for (int i = 0; i < nsyms; i++) {
+            // Try new keybinding system first
+            if (server->keybinding_manager) {
+                handled = axiom_keybinding_handle_key(server, modifiers, syms[i]);
+                if (handled) break;
+            }
+            
+            // Fall back to legacy keybinding handler
             handled = handle_keybinding(server, syms[i], modifiers);
             if (handled) break;
         }
@@ -395,39 +424,7 @@ struct axiom_window *axiom_window_at(struct axiom_server *server, double lx, dou
     return tree ? tree->node.data : NULL;
 }
 
-void axiom_focus_window(struct axiom_server *server, struct axiom_window *window,
-        struct wlr_surface *surface) {
-    if (server->focused_window == window) {
-        return;
-    }
-    
-    if (server->focused_window) {
-        server->focused_window->is_focused = false;
-        wlr_xdg_toplevel_set_activated(server->focused_window->xdg_toplevel, false);
-    }
-    
-    server->focused_window = window;
-    
-    if (window) {
-        window->is_focused = true;
-        wlr_xdg_toplevel_set_activated(window->xdg_toplevel, true);
-        
-        wl_list_remove(&window->link);
-        wl_list_insert(&server->windows, &window->link);
-        
-        // Trigger focus ring animation
-        if (server->animation_manager) {
-            axiom_animate_focus_ring(server, window);
-        }
-        
-        wlr_seat_keyboard_notify_enter(server->seat, surface,
-            server->seat->keyboard_state.keyboard->keycodes,
-            server->seat->keyboard_state.keyboard->num_keycodes,
-            &server->seat->keyboard_state.keyboard->modifiers);
-    } else {
-        wlr_seat_keyboard_clear_focus(server->seat);
-    }
-}
+// axiom_focus_window is now implemented in focus.c
 
 void axiom_begin_interactive(struct axiom_window *window, enum axiom_cursor_mode mode, uint32_t edges) {
     struct axiom_server *server = window->server;
@@ -480,5 +477,22 @@ void axiom_begin_interactive(struct axiom_window *window, enum axiom_cursor_mode
             cursor_name = "default";
         }
         wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, cursor_name);
+    }
+}
+
+// Cleanup input devices
+void axiom_remove_input_devices(struct axiom_server *server) {
+    struct axiom_input_device *device, *tmp;
+    wl_list_for_each_safe(device, tmp, &server->input_devices, link) {
+        if (device->wlr_device) {
+            // Remove signal listeners before destroying
+            if (device->wlr_device->type == WLR_INPUT_DEVICE_KEYBOARD) {
+                wl_list_remove(&device->keyboard.modifiers.link);
+                wl_list_remove(&device->keyboard.key.link);
+            }
+            wl_list_remove(&device->destroy.link);
+        }
+        wl_list_remove(&device->link);
+        free(device);
     }
 }

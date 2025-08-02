@@ -16,18 +16,48 @@
 #include "window_snapping.h"
 #include "pip_manager.h"
 #include "thumbnail_manager.h"
+#include "xwayland.h"
+#include "tagging.h"
+#include "keybindings.h"
+#include "focus.h"
 void axiom_calculate_window_layout(struct axiom_server *server, int index, int *x, int *y, int *width, int *height);
+
+// Backend destroy handler for error recovery
+static void handle_backend_destroy(struct wl_listener *listener, void *data) {
+    (void)data; // Suppress unused parameter warning
+    struct axiom_server *server = wl_container_of(listener, server, backend_destroy);
+    
+    AXIOM_LOG_ERROR("Backend destroyed unexpectedly");
+    
+    // Attempt graceful shutdown
+    server->running = false;
+    
+    // Clean up resources to prevent crashes
+    if (server->effects_manager) {
+        axiom_effects_manager_destroy(server->effects_manager);
+        free(server->effects_manager);
+        server->effects_manager = NULL;
+    }
+    
+    if (server->config) {
+        axiom_config_destroy(server->config);
+        server->config = NULL;
+    }
+    
+    // Exit with failure code
+    exit(EXIT_FAILURE);
+}
 
 // Configuration reload function
 void axiom_reload_configuration(struct axiom_server *server) {
     if (!server) return;
     
-    printf("Reloading configuration...\n");
+    axiom_log_info("Reloading configuration...");
     
     // Reload window rules
     if (server->window_rules_manager) {
         axiom_window_rules_reload_config(server->window_rules_manager);
-        printf("Window rules reloaded\n");
+        axiom_log_info("Window rules reloaded");
     }
     
     // Reload main configuration
@@ -52,7 +82,7 @@ void axiom_reload_configuration(struct axiom_server *server) {
                 // Replace old config with new one
                 axiom_config_destroy(server->config);
                 server->config = new_config;
-                printf("Main configuration reloaded\n");
+                axiom_log_info("Main configuration reloaded");
                 
                 // Update effects manager with new config
                 if (server->effects_manager && server->config->effects.shadows_enabled) {
@@ -60,12 +90,12 @@ void axiom_reload_configuration(struct axiom_server *server) {
                     server->effects_manager = calloc(1, sizeof(struct axiom_effects_manager));
                     if (server->effects_manager) {
                         axiom_effects_manager_init(server->effects_manager, &server->config->effects);
-                        printf("Effects configuration reloaded\n");
+                        axiom_log_info("Effects configuration reloaded");
                     }
                 }
             } else {
                 axiom_config_destroy(new_config);
-                printf("Failed to reload main configuration, keeping existing\n");
+                axiom_log_warn("Failed to reload main configuration, keeping existing");
             }
         }
     }
@@ -78,10 +108,15 @@ void axiom_reload_configuration(struct axiom_server *server) {
         }
     }
     
-    printf("Configuration reload complete\n");
+    axiom_log_info("Configuration reload complete");
 }
 
 void axiom_arrange_windows(struct axiom_server *server) {
+    if (!server) {
+        axiom_log_error("axiom_arrange_windows called with NULL server");
+        return;
+    }
+    
     if (!server->tiling_enabled || server->window_count == 0) {
         return;
     }
@@ -90,67 +125,81 @@ void axiom_arrange_windows(struct axiom_server *server) {
     int index = 0;
     
     wl_list_for_each(window, &server->windows, link) {
-        if (!window->is_tiled) {
+        if (!window || !window->is_tiled) {
             continue;
         }
         
-        axiom_calculate_window_layout_advanced(server, index, &window->x, &window->y, &window->width, &window->height);
+        // Use the defined function instead of undefined one
+        axiom_calculate_window_layout(server, index, &window->x, &window->y, &window->width, &window->height);
         
-        // Position the window using scene tree
-        wlr_scene_node_set_position(&window->scene_tree->node, window->x, window->y);
+        // Validate window dimensions
+        if (window->width <= 0) window->width = 400;
+        if (window->height <= 0) window->height = 300;
+        
+        // Position the window using scene tree with NULL check
+        if (window->scene_tree) {
+            wlr_scene_node_set_position(&window->scene_tree->node, window->x, window->y);
+        }
         
         // Update window decorations to match new position and size
-        axiom_update_window_decorations(window);
-                
-        uint32_t configure_serial = wlr_xdg_toplevel_set_size(
-            window->xdg_toplevel, window->width, window->height);
+        if (window->decoration_tree) {
+            axiom_update_window_decorations(window);
+        }
         
-        printf("Tiled window %d: x=%d, y=%d, w=%d, h=%d (serial=%u)\n", 
-               index, window->x, window->y, window->width, window->height, configure_serial);
+        // Configure XDG toplevel with NULL check
+        if (window->xdg_toplevel) {
+            uint32_t configure_serial = wlr_xdg_toplevel_set_size(
+                window->xdg_toplevel, window->width, window->height);
+            
+            axiom_log_debug("Tiled window %d: x=%d, y=%d, w=%d, h=%d (serial=%u)", 
+                   index, window->x, window->y, window->width, window->height, configure_serial);
+        }
         
         index++;
     }
 }
 
-void axiom_calculate_window_layout(struct axiom_server *server, int index, int *x, int *y, int *width, int *height) {
+// Calculate window layout with clearly named parameters to prevent swapping
+void axiom_calculate_window_layout(struct axiom_server *server, int window_index, 
+                                  int *out_x, int *out_y, int *out_width, int *out_height) {
     if (server->workspace_width <= 0 || server->workspace_height <= 0) {
-        *x = *y = 0;
-        *width = 800;
-        *height = 600;
+        *out_x = *out_y = 0;
+        *out_width = 800;
+        *out_height = 600;
         return;
     }
     
     int window_count = server->window_count;
     if (window_count == 1) {
-        *x = 0;
-        *y = 0;
-        *width = server->workspace_width;
-        *height = server->workspace_height;
+        *out_x = 0;
+        *out_y = 0;
+        *out_width = server->workspace_width;
+        *out_height = server->workspace_height;
     } else if (window_count == 2) {
-        *width = server->workspace_width / 2;
-        *height = server->workspace_height;
-        *x = index * (*width);
-        *y = 0;
+        *out_width = server->workspace_width / 2;
+        *out_height = server->workspace_height;
+        *out_x = window_index * (*out_width);
+        *out_y = 0;
     } else {
         // Grid layout for more than 2 windows
         int cols = (int)ceil(sqrt(window_count));
         int rows = (int)ceil((double)window_count / cols);
         
-        *width = server->workspace_width / cols;
-        *height = server->workspace_height / rows;
+        *out_width = server->workspace_width / cols;
+        *out_height = server->workspace_height / rows;
         
-        int col = index % cols;
-        int row = index / cols;
+        int col = window_index % cols;
+        int row = window_index / cols;
         
-        *x = col * (*width);
-        *y = row * (*height);
+        *out_x = col * (*out_width);
+        *out_y = row * (*out_height);
     }
 }
 
 static void window_map(struct wl_listener *listener, void *data) {
     (void)data; // Suppress unused parameter warning
     struct axiom_window *window = wl_container_of(listener, window, map);
-    printf("Window mapped: %s\n", window->xdg_toplevel->title ?: "(no title)");
+    axiom_log_info("Window mapped: %s", window->xdg_toplevel->title ?: "(no title)");
     
     // Trigger window appear animation
     if (window->server && window->server->animation_manager) {
@@ -166,7 +215,7 @@ static void window_map(struct wl_listener *listener, void *data) {
 static void window_unmap(struct wl_listener *listener, void *data) {
     (void)data; // Suppress unused parameter warning
     struct axiom_window *window = wl_container_of(listener, window, unmap);
-    printf("Window unmapped\n");
+    axiom_log_info("Window unmapped");
 }
 
 static void window_destroy(struct wl_listener *listener, void *data) {
@@ -174,7 +223,7 @@ static void window_destroy(struct wl_listener *listener, void *data) {
     struct axiom_window *window = wl_container_of(listener, window, destroy);
     struct axiom_server *server = window->server;
     
-    printf("Window destroyed\n");
+    axiom_log_debug("Window destroyed");
     
     // Cleanup window effects
     if (window->effects) {
@@ -184,7 +233,7 @@ static void window_destroy(struct wl_listener *listener, void *data) {
     // Update the window count properly
     if (window->is_tiled && server->window_count > 0) {
         server->window_count--;
-        printf("Tiled window destroyed, remaining: %d\n", server->window_count);
+        axiom_log_info("Tiled window destroyed, remaining: %d", server->window_count);
         
         // Rearrange remaining windows if tiling is enabled
         if (server->tiling_enabled) {
@@ -211,7 +260,7 @@ static void server_new_xdg_toplevel(struct wl_listener *listener, void *data) {
     struct axiom_server *server = wl_container_of(listener, server, new_xdg_toplevel);
     struct wlr_xdg_toplevel *xdg_toplevel = data;
     
-    printf("New XDG toplevel: %s\n", xdg_toplevel->title ?: "(no title)");
+    axiom_log_info("New XDG toplevel: %s", xdg_toplevel->title ?: "(no title)");
     
     struct axiom_window *window = calloc(1, sizeof(struct axiom_window));
     if (!window) {
@@ -241,8 +290,8 @@ static void server_new_xdg_toplevel(struct wl_listener *listener, void *data) {
     if (window->decoration_tree) {
         // Create rounded border effect using multiple thin rectangles
         // We'll create a layered border with slightly different colors for depth
-        float border_outer[4] = {0.3, 0.5, 0.9, 1.0}; // Darker blue outer
-        float border_inner[4] = {0.4, 0.6, 1.0, 1.0}; // Brighter blue inner
+        float border_outer[4] = {0.3f, 0.5f, 0.9f, 1.0f}; // Darker blue outer
+        float border_inner[4] = {0.4f, 0.6f, 1.0f, 1.0f}; // Brighter blue inner
         
         // Create border components for rounded effect
         // Top border
@@ -269,8 +318,8 @@ static void server_new_xdg_toplevel(struct wl_listener *listener, void *data) {
         window->corner_br2 = wlr_scene_rect_create(window->decoration_tree, 1, 1, border_inner);
         
         // Create enhanced title bar with gradient effect
-        float title_bg[4] = {0.15, 0.15, 0.15, 0.95};     // Dark background
-        float title_accent[4] = {0.25, 0.35, 0.55, 0.8};  // Subtle accent strip
+        float title_bg[4] = {0.15f, 0.15f, 0.15f, 0.95f};     // Dark background
+        float title_accent[4] = {0.25f, 0.35f, 0.55f, 0.8f};  // Subtle accent strip
         
         window->title_bar = wlr_scene_rect_create(window->decoration_tree, window->width, 24, title_bg);
         window->title_accent = wlr_scene_rect_create(window->decoration_tree, window->width, 2, title_accent);
@@ -357,12 +406,20 @@ static void server_new_xdg_toplevel(struct wl_listener *listener, void *data) {
     // Store surface reference for effects
     window->surface = xdg_toplevel->base->surface;
     
+    // Initialize enhanced window properties
+    window->window_tags = calloc(1, sizeof(struct axiom_window_tags));
+    if (window->window_tags) {
+        window->window_tags->tags = 1; // Default to tag 1
+        window->window_tags->is_sticky = false;
+        window->window_tags->is_urgent = false;
+    }
+    
     // Initialize window effects if real-time effects are enabled
     if (server->effects_manager && server->effects_manager->realtime_enabled) {
         if (!axiom_window_effects_init(window)) {
-            fprintf(stderr, "Failed to initialize effects for window\n");
+            axiom_log_error("Failed to initialize effects for window");
         } else {
-            printf("Window effects initialized successfully\n");
+            axiom_log_debug("Window effects initialized successfully");
         }
     }
     
@@ -373,7 +430,7 @@ static void server_new_xdg_toplevel(struct wl_listener *listener, void *data) {
         
         // Apply matching rules
         if (!axiom_window_rules_apply_to_window(server->window_rules_manager, window)) {
-            printf("No window rules applied to this window\n");
+            axiom_log_debug("No window rules applied to this window");
         }
     }
     
@@ -388,15 +445,15 @@ static void server_new_xdg_toplevel(struct wl_listener *listener, void *data) {
     
     wl_list_insert(&server->windows, &window->link);
     
-    printf("Window added, total tiled windows: %d\n", server->window_count);
+    axiom_log_info("Window added, total tiled windows: %d", server->window_count);
 }
 
 static void server_new_output(struct wl_listener *listener, void *data) {
     struct axiom_server *server = wl_container_of(listener, server, new_output);
     struct wlr_output *wlr_output = data;
     
-    printf("New output: %s\n", wlr_output->name);
-    printf("Debug: renderer=%p, cursor_mgr=%p, cursor=%p\n", 
+    axiom_log_info("New output: %s", wlr_output->name);
+    axiom_log_debug("renderer=%p, cursor_mgr=%p, cursor=%p", 
            (void*)server->renderer, (void*)server->cursor_mgr, (void*)server->cursor);
     
     // Set preferred mode
@@ -409,7 +466,7 @@ static void server_new_output(struct wl_listener *listener, void *data) {
     }
     
     if (!wlr_output_commit_state(wlr_output, &state)) {
-        fprintf(stderr, "Failed to commit output state for %s\n", wlr_output->name);
+        axiom_log_error("Failed to commit output state for %s", wlr_output->name);
     }
     wlr_output_state_finish(&state);
     wlr_output_layout_add_auto(server->output_layout, wlr_output);
@@ -422,39 +479,39 @@ static void server_new_output(struct wl_listener *listener, void *data) {
     output->server = server;
     output->wlr_output = wlr_output;
     
-    printf("Debug: Creating scene output with scene=%p, wlr_output=%p\n", 
+    axiom_log_debug("Creating scene output with scene=%p, wlr_output=%p", 
            (void*)server->scene, (void*)wlr_output);
     
     output->scene_output = wlr_scene_output_create(server->scene, wlr_output);
     if (!output->scene_output) {
-        printf("Error: Failed to create scene output\n");
+        axiom_log_error("Failed to create scene output");
         free(output);
         wlr_output_state_finish(&state);
         return;
     }
     
-    printf("Debug: Scene output created: %p\n", (void*)output->scene_output);
+    axiom_log_debug("Scene output created: %p", (void*)output->scene_output);
     
     // Lock software cursors to avoid hardware cursor renderer issues in nested mode
     wlr_output_lock_software_cursors(wlr_output, true);
-    printf("Debug: Locked software cursors for output %s\n", wlr_output->name);
+    axiom_log_debug("Locked software cursors for output %s", wlr_output->name);
     
     wl_list_insert(&server->outputs, &output->link);
     
     // Defer cursor theme loading completely to avoid renderer assertion during setup
-    printf("Debug: Deferring cursor theme loading for output %s to avoid renderer assertion\n", 
+    axiom_log_debug("Deferring cursor theme loading for output %s to avoid renderer assertion", 
            wlr_output->name);
-    printf("Debug: cursor_mgr=%p, renderer=%p - will load theme during cursor motion\n", 
+    axiom_log_debug("cursor_mgr=%p, renderer=%p - will load theme during cursor motion", 
            (void*)server->cursor_mgr, (void*)server->renderer);
     
     // Defer cursor attachment completely to avoid triggering cursor setup
-    printf("Debug: Deferring cursor attachment to output layout until cursor motion\n");
+    axiom_log_debug("Deferring cursor attachment to output layout until cursor motion");
     
     // Update workspace dimensions based on output size
     if (wlr_output->current_mode) {
         server->workspace_width = wlr_output->current_mode->width;
         server->workspace_height = wlr_output->current_mode->height;
-        printf("Workspace dimensions set to: %dx%d\n", server->workspace_width, server->workspace_height);
+        axiom_log_info("Workspace dimensions set to: %dx%d", server->workspace_width, server->workspace_height);
         
         // Rearrange existing windows if tiling is enabled
         if (server->tiling_enabled) {
@@ -464,62 +521,86 @@ static void server_new_output(struct wl_listener *listener, void *data) {
 }
 
 int main(int argc, char *argv[]) {
-    printf("Axiom Wayland Compositor v" AXIOM_VERSION "\n");
+    // Initialize logging early
+    axiom_log_set_level(AXIOM_LOG_INFO);
+    axiom_log_set_enabled(true);
+    
+    axiom_log_info("Axiom Wayland Compositor v%s", AXIOM_VERSION);
+    
+    // Initialize server struct early so we can use it in argument parsing
+    struct axiom_server server = {0};
     
     // Parse command line arguments
     bool nested = false;
-    printf("Debug: argc=%d, argv:", argc);
+    axiom_log_debug("argc=%d", argc);
     for (int i = 0; i < argc; i++) {
-        printf(" '%s'", argv[i]);
+        axiom_log_debug("argv[%d]: '%s'", i, argv[i]);
     }
-    printf("\n");
     
     for (int i = 1; i < argc; i++) {
-        printf("Debug: Processing argument %d: '%s'\n", i, argv[i]);
+        axiom_log_debug("Processing argument %d: '%s'", i, argv[i]);
         if (strcmp(argv[i], "--nested") == 0) {
             nested = true;
-            printf("Debug: Nested mode enabled!\n");
+            axiom_log_info("Nested mode enabled");
         } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
             printf("Usage: %s [OPTIONS]\n", argv[0]);
             printf("Options:\n");
-            printf("  --nested    Run in nested mode (within another compositor)\n");
-            printf("  --help, -h  Show this help message\n");
+            printf("  --nested      Run in nested mode (within another compositor)\n");
+            printf("  --help, -h    Show this help message\n");
+            printf("  --version, -v Show version information\n");
+            printf("  --verbose     Enable verbose logging\n");
             return EXIT_SUCCESS;
+        } else if (strcmp(argv[i], "--version") == 0 || strcmp(argv[i], "-v") == 0) {
+            printf("Axiom Version %s\n", AXIOM_VERSION);
+            return EXIT_SUCCESS;
+        } else if (strcmp(argv[i], "--verbose") == 0) {
+            axiom_log_set_level(AXIOM_LOG_DEBUG);
+            axiom_log_info("Verbose logging enabled");
         }
     }
     
-    printf("Debug: Final nested value: %s\n", nested ? "true" : "false");
-    
-    struct axiom_server server = {0};
+    axiom_log_debug("Final nested value: %s", nested ? "true" : "false");
     
     server.wl_display = wl_display_create();
     if (!server.wl_display) {
-        fprintf(stderr, "Failed to create Wayland display\n");
+        axiom_log_error("Failed to create Wayland display");
         return EXIT_FAILURE;
     }
     
     server.wl_event_loop = wl_display_get_event_loop(server.wl_display);
     // Create backend with session handling for better compatibility
     if (nested) {
-        printf("Running in nested mode\n");
+        axiom_log_info("Running in nested mode");
         // For nested mode, we need to use a different backend approach
         server.backend = wlr_backend_autocreate(server.wl_event_loop, NULL);
     } else {
-        // For main session mode, trust the login manager and let wlroots handle seat management
-        printf("Starting main session backend...\n");
+    // For main session mode, try to detect if we can get seat access first
+        axiom_log_info("Attempting to create main session backend...");
         
-        // Clear any inherited environment variables that might confuse applications
-        // Login managers sometimes leave these set from the login screen
+        // Check for proper seat access
+        if (access("/dev/dri/card0", R_OK | W_OK) != 0) {
+            axiom_log_error("No access to GPU. Add user to 'video' group");
+            axiom_log_error("Run: sudo usermod -a -G video $USER");
+            axiom_log_error("Then log out and log back in");
+            return EXIT_FAILURE;
+        }
+        
+        // Check if running from TTY (not X11/Wayland)
         const char *wayland_display = getenv("WAYLAND_DISPLAY");
         const char *display = getenv("DISPLAY");
+        const char *xdg_session_type = getenv("XDG_SESSION_TYPE");
         
-        if (wayland_display) {
-            printf("Debug: Clearing inherited WAYLAND_DISPLAY=%s\n", wayland_display);
-            unsetenv("WAYLAND_DISPLAY");
+        if (display && !wayland_display) {
+            axiom_log_error("Cannot start from X11 session. Use TTY (Ctrl+Alt+F2)");
+            return EXIT_FAILURE;
         }
-        if (display) {
-            printf("Debug: Clearing inherited DISPLAY=%s\n", display);
-            unsetenv("DISPLAY");
+
+        if (wayland_display && (!xdg_session_type || strcmp(xdg_session_type, "tty") != 0)) {
+            axiom_log_error("Another Wayland compositor is running");
+            axiom_log_error("WAYLAND_DISPLAY=%s", wayland_display);
+            axiom_log_error("Please log out of your current session before starting Axiom");
+            axiom_log_error("Or use --nested flag to run Axiom inside the current session");
+            return EXIT_FAILURE;
         }
         
         // Create backend - wlroots will handle all seat management, DRM access, etc.
@@ -528,36 +609,36 @@ int main(int argc, char *argv[]) {
     
     if (!server.backend) {
         if (nested) {
-            fprintf(stderr, "Failed to create nested backend\n");
-            fprintf(stderr, "Make sure you're running inside a Wayland compositor\n");
+            axiom_log_error("Failed to create nested backend");
+            axiom_log_error("Make sure you're running inside a Wayland compositor");
         } else {
-            fprintf(stderr, "Failed to create backend\n");
-            fprintf(stderr, "This usually means:\n");
-            fprintf(stderr, "  1. Another session is already active on this seat\n");
-            fprintf(stderr, "  2. You don't have permission to access DRM devices\n");
-            fprintf(stderr, "  3. No suitable display hardware was found\n");
-            fprintf(stderr, "\nTry:\n");
-            fprintf(stderr, "  - Logging out of all other sessions\n");
-            fprintf(stderr, "  - Running with --nested flag for testing\n");
-            fprintf(stderr, "  - Checking if you're in the 'video' group: groups $USER\n");
+            axiom_log_error("Failed to create backend");
+            axiom_log_error("This usually means:");
+            axiom_log_error("  1. Another session is already active on this seat");
+            axiom_log_error("  2. You don't have permission to access DRM devices");
+            axiom_log_error("  3. No suitable display hardware was found");
+            axiom_log_error("\nTry:");
+            axiom_log_error("  - Logging out of all other sessions");
+            axiom_log_error("  - Running with --nested flag for testing");
+            axiom_log_error("  - Checking if you're in the 'video' group: groups $USER");
         }
         return EXIT_FAILURE;
     }
     
     server.renderer = wlr_renderer_autocreate(server.backend);
     if (!server.renderer) {
-        fprintf(stderr, "Failed to create renderer\n");
+        axiom_log_error("Failed to create renderer");
         return EXIT_FAILURE;
     }
     
-    printf("Debug: Renderer created successfully: %p\n", (void*)server.renderer);
+    axiom_log_debug("Renderer created successfully: %p", (void*)server.renderer);
     
     if (!wlr_renderer_init_wl_display(server.renderer, server.wl_display)) {
-        fprintf(stderr, "Failed to initialize renderer with Wayland display\n");
+        axiom_log_error("Failed to initialize renderer with Wayland display");
         return EXIT_FAILURE;
     }
     
-    printf("Debug: Renderer initialized with Wayland display\n");
+    axiom_log_debug("Renderer initialized with Wayland display");
     
     server.allocator = wlr_allocator_autocreate(server.backend, server.renderer);
     server.compositor = wlr_compositor_create(server.wl_display, 5, server.renderer);
@@ -566,7 +647,7 @@ int main(int argc, char *argv[]) {
     server.scene_layout = wlr_scene_attach_output_layout(server.scene, server.output_layout);
     
     // Ensure the scene is properly initialized with the renderer
-    printf("Debug: Scene created: %p, scene_layout: %p\n", (void*)server.scene, (void*)server.scene_layout);
+    axiom_log_debug("Scene created: %p, scene_layout: %p", (void*)server.scene, (void*)server.scene_layout);
     
     // Initialize lists
     wl_list_init(&server.windows);
@@ -582,7 +663,7 @@ int main(int argc, char *argv[]) {
     axiom_init_workspaces(&server);
     server.xdg_shell = wlr_xdg_shell_create(server.wl_display, 3);
     if (!server.xdg_shell) {
-        fprintf(stderr, "Failed to create XDG shell\n");
+        axiom_log_error("Failed to create XDG shell");
         return EXIT_FAILURE;
     }
     
@@ -596,10 +677,14 @@ int main(int argc, char *argv[]) {
     server.new_output.notify = server_new_output;
     wl_signal_add(&server.backend->events.new_output, &server.new_output);
     
+    // Add backend destroy handler for error recovery
+    server.backend_destroy.notify = handle_backend_destroy;
+    wl_signal_add(&server.backend->events.destroy, &server.backend_destroy);
+    
     // Initialize configuration
     server.config = axiom_config_create();
     if (!server.config) {
-        fprintf(stderr, "Failed to create configuration\n");
+        axiom_log_error("Failed to create configuration");
         return EXIT_FAILURE;
     }
     
@@ -623,7 +708,7 @@ int main(int argc, char *argv[]) {
     // Initialize window snapping system
     server.window_snapping_manager = axiom_window_snapping_manager_create(&server);
     if (!server.window_snapping_manager) {
-        fprintf(stderr, "Failed to initialize window snapping manager\n");
+        axiom_log_error("Failed to initialize window snapping manager");
     } else {
         // Convert configuration structure and initialize snapping
         struct axiom_snapping_config snapping_config = {
@@ -638,9 +723,9 @@ int main(int argc, char *argv[]) {
         };
         
         if (!axiom_window_snapping_manager_init(server.window_snapping_manager, &snapping_config)) {
-            fprintf(stderr, "Failed to initialize window snapping configuration\n");
+            axiom_log_error("Failed to initialize window snapping configuration");
         } else {
-            printf("Window snapping system initialized successfully\n");
+            axiom_log_info("Window snapping system initialized successfully");
         }
     }
 
@@ -653,32 +738,32 @@ int main(int argc, char *argv[]) {
     // Initialize visual effects system
     server.effects_manager = calloc(1, sizeof(struct axiom_effects_manager));
     if (server.effects_manager && !axiom_effects_manager_init(server.effects_manager, &server.config->effects)) {
-        fprintf(stderr, "Failed to initialize effects manager\n");
+        axiom_log_error("Failed to initialize effects manager");
         free(server.effects_manager);
         server.effects_manager = NULL;
     } else {
-        printf("Effects manager initialized successfully\n");
+        axiom_log_info("Effects manager initialized successfully");
         
         // Initialize GPU acceleration for effects
         if (server.effects_manager && axiom_effects_gpu_init(server.effects_manager, &server)) {
-            printf("GPU acceleration enabled for visual effects\n");
+            axiom_log_info("GPU acceleration enabled for visual effects");
             
             // Initialize real-time effects system
             if (!axiom_realtime_effects_init(server.effects_manager)) {
-                fprintf(stderr, "Failed to initialize real-time effects\n");
+                axiom_log_error("Failed to initialize real-time effects");
             } else {
-                printf("Real-time effects system initialized\n");
+                axiom_log_info("Real-time effects system initialized");
             }
         } else {
-            printf("GPU acceleration not available, using software fallback\n");
+            axiom_log_info("GPU acceleration not available, using software fallback");
         }
     }
     
     // Initialize window rules system (Phase 3.1)
     if (!axiom_server_init_window_rules(&server)) {
-        fprintf(stderr, "Failed to initialize window rules system\n");
+        axiom_log_error("Failed to initialize window rules system");
     } else {
-        printf("Window rules system initialized successfully\n");
+        axiom_log_info("Window rules system initialized successfully");
         
         // Print loaded rules for debugging
         if (server.window_rules_manager) {
@@ -688,14 +773,14 @@ int main(int argc, char *argv[]) {
     
     // Initialize smart gaps system (Phase 3.2)
     if (!axiom_server_init_smart_gaps(&server, &server.config->smart_gaps)) {
-        fprintf(stderr, "Failed to initialize smart gaps system\n");
+        axiom_log_error("Failed to initialize smart gaps system");
     } else {
-        printf("Smart gaps system initialized successfully\n");
+        axiom_log_info("Smart gaps system initialized successfully");
         
         // Load default gap profiles
         if (server.smart_gaps_manager) {
             if (!axiom_smart_gaps_load_defaults(server.smart_gaps_manager)) {
-                fprintf(stderr, "Failed to load default gap profiles\n");
+                axiom_log_error("Failed to load default gap profiles");
             }
         }
     }
@@ -703,16 +788,16 @@ int main(int argc, char *argv[]) {
     // Initialize thumbnail manager
     server.thumbnail_manager = axiom_thumbnail_manager_create(&server);
     if (!server.thumbnail_manager) {
-        fprintf(stderr, "Failed to initialize thumbnail manager\n");
+        axiom_log_error("Failed to initialize thumbnail manager");
     } else {
-        printf("Thumbnail manager initialized successfully\n");
+        axiom_log_info("Thumbnail manager initialized successfully");
     }
     
     // Initialize Picture-in-Picture system (Phase 3.1)
     if (!axiom_server_init_pip_manager(&server, &server.config->picture_in_picture)) {
-        fprintf(stderr, "Failed to initialize PiP manager\n");
+        axiom_log_error("Failed to initialize PiP manager");
     } else {
-        printf("Picture-in-Picture system initialized successfully\n");
+        axiom_log_info("Picture-in-Picture system initialized successfully");
         
         // Print PiP statistics for debugging
         if (server.pip_manager) {
@@ -720,30 +805,92 @@ int main(int argc, char *argv[]) {
         }
     }
     
+    // Initialize XWayland support
+    if (server.config->xwayland.enabled) {
+        server.xwayland_manager = axiom_xwayland_manager_create(&server);
+        if (!server.xwayland_manager) {
+            axiom_log_error("Failed to create XWayland manager");
+        } else {
+            // Configure XWayland settings from config
+            server.xwayland_manager->enabled = server.config->xwayland.enabled;
+            server.xwayland_manager->lazy = server.config->xwayland.lazy;
+            server.xwayland_manager->force_zero_scaling = server.config->xwayland.force_zero_scaling;
+            
+            if (!axiom_xwayland_manager_init(server.xwayland_manager)) {
+                axiom_log_error("Failed to initialize XWayland manager");
+                axiom_xwayland_manager_destroy(server.xwayland_manager);
+                server.xwayland_manager = NULL;
+            } else {
+                axiom_log_info("XWayland support initialized successfully");
+                if (server.config->xwayland.lazy) {
+                    axiom_log_info("XWayland will start on demand (lazy mode)");
+                }
+                if (server.config->xwayland.force_zero_scaling) {
+                    axiom_log_info("XWayland will force 1.0 scaling for X11 apps");
+                }
+            }
+        }
+    } else {
+        axiom_log_info("XWayland support disabled in configuration");
+    }
+    
+    // Initialize enhanced systems
+    axiom_log_info("Initializing enhanced systems...");
+    
+    // Initialize tagging system
+    server.tag_manager = calloc(1, sizeof(struct axiom_tag_manager));
+    if (!server.tag_manager) {
+        axiom_log_error("Failed to allocate tag manager");
+        return EXIT_FAILURE;
+    }
+    axiom_tag_manager_init(server.tag_manager);
+    axiom_log_info("Tagging system initialized successfully");
+    
+    // Initialize keybinding system
+    server.keybinding_manager = calloc(1, sizeof(struct axiom_keybinding_manager));
+    if (!server.keybinding_manager) {
+        axiom_log_error("Failed to allocate keybinding manager");
+        return EXIT_FAILURE;
+    }
+    axiom_keybinding_manager_init(server.keybinding_manager);
+    axiom_log_info("Keybinding system initialized successfully");
+    
+    // Initialize focus and stacking system
+    server.focus_manager = calloc(1, sizeof(struct axiom_focus_manager));
+    if (!server.focus_manager) {
+        axiom_log_error("Failed to allocate focus manager");
+        return EXIT_FAILURE;
+    }
+    axiom_focus_manager_init(server.focus_manager);
+    axiom_log_info("Focus and stacking system initialized successfully");
+    
     // Set up input management
     wl_list_init(&server.input_devices);
     
     server.cursor = wlr_cursor_create();
     if (!server.cursor) {
-        fprintf(stderr, "Failed to create cursor\n");
+        axiom_log_error("Failed to create cursor");
         return EXIT_FAILURE;
     }
     
-    printf("Debug: Cursor created: %p\n", (void*)server.cursor);
+    axiom_log_debug("Cursor created: %p", (void*)server.cursor);
     
     // Try to create cursor manager even in nested mode, but with special handling
     server.cursor_mgr = wlr_xcursor_manager_create(server.config->cursor_theme, server.config->cursor_size);
     if (!server.cursor_mgr) {
         if (nested) {
-            printf("Debug: Failed to create cursor manager in nested mode (expected)\n");
+            axiom_log_debug("Failed to create cursor manager in nested mode (expected)");
         } else {
-            fprintf(stderr, "Failed to create cursor manager\n");
+            axiom_log_error("Failed to create cursor manager");
             return EXIT_FAILURE;
         }
     } else {
-        printf("Debug: Cursor manager created: %p (theme=%s, size=%d)\n", 
-               (void*)server.cursor_mgr, server.config->cursor_theme, server.config->cursor_size);
+    axiom_log_debug("Cursor manager created: %p (theme=%s, size=%d)", (void*)server.cursor_mgr, server.config->cursor_theme, server.config->cursor_size);
     }
+    
+    // CRITICAL FIX: Do NOT attach cursor to output layout during initialization
+    // This causes assertion failures when no outputs exist yet
+    axiom_log_debug("Deferring cursor attachment until first output is available");
     
     server.cursor_mode = AXIOM_CURSOR_PASSTHROUGH;
     
@@ -758,33 +905,31 @@ int main(int argc, char *argv[]) {
     server.cursor_frame.notify = axiom_cursor_frame;
     wl_signal_add(&server.cursor->events.frame, &server.cursor_frame);
     
-    // Note: Cursor will be attached to output layout after backend starts
-    
     server.new_input.notify = axiom_new_input;
     wl_signal_add(&server.backend->events.new_input, &server.new_input);
     
     const char *socket = wl_display_add_socket_auto(server.wl_display);
     if (!socket) {
-        fprintf(stderr, "Failed to add socket\n");
+        axiom_log_error("Failed to add socket");
         return EXIT_FAILURE;
     }
     
-    printf("Starting backend...\n");
+    axiom_log_info("Starting backend...");
     if (!wlr_backend_start(server.backend)) {
         if (nested) {
-            fprintf(stderr, "Failed to start nested backend\n");
-            fprintf(stderr, "Make sure you're running inside a Wayland compositor\n");
+            axiom_log_error("Failed to start nested backend");
+            axiom_log_error("Make sure you're running inside a Wayland compositor");
         } else {
-            fprintf(stderr, "Failed to start backend\n");
-            fprintf(stderr, "This usually indicates:\n");
-            fprintf(stderr, "  1. Another session is controlling the display\n");
-            fprintf(stderr, "  2. Permission denied accessing hardware\n");
-            fprintf(stderr, "  3. Display manager conflict\n");
-            fprintf(stderr, "\nTo fix this:\n");
-            fprintf(stderr, "  - Log out completely from other desktop sessions\n");
-            fprintf(stderr, "  - Make sure no other compositor is running\n");
-            fprintf(stderr, "  - Try: sudo loginctl terminate-session \u003csession-id\u003e\n");
-            fprintf(stderr, "  - Or use --nested flag for development/testing\n");
+            axiom_log_error("Failed to start backend");
+            axiom_log_error("This usually indicates:");
+            axiom_log_error("  1. Another session is controlling the display");
+            axiom_log_error("  2. Permission denied accessing hardware");
+            axiom_log_error("  3. Display manager conflict");
+            axiom_log_error("\nTo fix this:");
+            axiom_log_error("  - Log out completely from other desktop sessions");
+            axiom_log_error("  - Make sure no other compositor is running");
+            axiom_log_error("  - Try: sudo loginctl terminate-session <session-id>");
+            axiom_log_error("  - Or use --nested flag for development/testing");
         }
         
         // Clean exit instead of allowing potential abort()
@@ -796,7 +941,7 @@ int main(int argc, char *argv[]) {
     setenv("WAYLAND_DISPLAY", socket, true);
     server.running = true;
     
-    printf("Axiom running on WAYLAND_DISPLAY=%s\n", socket);
+    axiom_log_info("Axiom running on WAYLAND_DISPLAY=%s", socket);
     
     while (server.running) {
         wl_display_flush_clients(server.wl_display);
@@ -833,6 +978,9 @@ int main(int argc, char *argv[]) {
     // Cleanup
     axiom_process_cleanup();
     
+    // Remove input devices
+    axiom_remove_input_devices(&server);
+    
     // Cleanup effects manager
     if (server.effects_manager) {
         axiom_effects_manager_destroy(server.effects_manager);
@@ -862,6 +1010,27 @@ int main(int argc, char *argv[]) {
     // Cleanup thumbnail manager
     if (server.thumbnail_manager) {
         axiom_thumbnail_manager_destroy(server.thumbnail_manager);
+    }
+    
+    // Cleanup XWayland manager
+    if (server.xwayland_manager) {
+        axiom_xwayland_manager_destroy(server.xwayland_manager);
+    }
+    
+    // Cleanup enhanced systems
+    if (server.tag_manager) {
+        axiom_tag_manager_cleanup(server.tag_manager);
+        free(server.tag_manager);
+    }
+    
+    if (server.keybinding_manager) {
+        axiom_keybinding_manager_cleanup(server.keybinding_manager);
+        free(server.keybinding_manager);
+    }
+    
+    if (server.focus_manager) {
+        axiom_focus_manager_cleanup(server.focus_manager);
+        free(server.focus_manager);
     }
     
     axiom_config_destroy(server.config);

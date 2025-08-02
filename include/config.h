@@ -1,5 +1,6 @@
 #ifndef AXIOM_CONFIG_H
 #define AXIOM_CONFIG_H
+#define AXIOM_VERSION "3.5.0"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -92,6 +93,13 @@ struct axiom_workspaces_config {
     bool persistent_layouts;
 };
 
+/* XWayland configuration */
+struct axiom_xwayland_config {
+    bool enabled;
+    bool lazy;                  // Start XWayland on demand
+    bool force_zero_scaling;    // Force scaling to 1.0 for X11 apps
+};
+
 /* Main configuration structure */
 struct axiom_config {
     // Input settings
@@ -135,6 +143,7 @@ struct axiom_config {
     struct axiom_window_snapping_config window_snapping;
     struct axiom_pip_config picture_in_picture;
     struct axiom_workspaces_config workspaces;
+    struct axiom_xwayland_config xwayland;
 };
 
 
@@ -148,11 +157,6 @@ bool axiom_config_load(struct axiom_config *config, const char *path);
 bool axiom_config_validate(struct axiom_config *config);
 
 
-// Logging function (needs to be provided)
-void axiom_log(const char *level, const char *format, ...);
-
-#define AXIOM_LOG_INFO(fmt, ...) axiom_log("INFO", fmt, ##__VA_ARGS__)
-#define AXIOM_LOG_ERROR(fmt, ...) axiom_log("ERROR", fmt, ##__VA_ARGS__)
-#define AXIOM_LOG_DEBUG(fmt, ...) axiom_log("DEBUG", fmt, ##__VA_ARGS__)
+// Logging functions are now defined in axiom.h
 
 #endif /* AXIOM_CONFIG_H */

@@ -39,6 +39,11 @@ struct axiom_gpu_context {
     // Vertex buffer for quad rendering
     GLuint quad_vbo;
     GLuint quad_vao;
+    GLuint quad_ebo;
+    
+    // Framebuffer dimensions
+    int framebuffer_width;
+    int framebuffer_height;
     
     // Shader uniform locations
     struct {
@@ -107,6 +112,7 @@ bool axiom_gpu_upload_texture_data(GLuint texture, int width, int height,
 // Rendering utilities
 void axiom_gpu_render_quad(struct axiom_gpu_context *ctx);
 bool axiom_gpu_setup_quad_geometry(struct axiom_gpu_context *ctx);
+bool axiom_gpu_create_buffers(struct axiom_gpu_context *ctx);
 void axiom_gpu_set_viewport(int width, int height);
 
 // Error handling

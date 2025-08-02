@@ -1,0 +1,58 @@
+#!/bin/bash
+# Axiom Desktop Session Wrapper
+# This ensures proper environment setup for Axiom desktop sessions
+
+# Set up logging (but also show errors on stderr)
+{
+    echo "=== Axiom Session Startup $(date) ==="
+    echo "PWD: $PWD"
+    echo "USER: $USER"
+    echo "HOME: $HOME"
+    echo "SHELL: $SHELL"
+    echo "XDG_RUNTIME_DIR: $XDG_RUNTIME_DIR"
+    echo "Arguments: $@"
+} | tee -a /tmp/axiom-session.log
+
+# Change to user's home directory
+cd "$HOME" || cd /
+
+# Store original display variables to check if we're in nested mode
+ORIG_WAYLAND_DISPLAY="$WAYLAND_DISPLAY"
+ORIG_DISPLAY="$DISPLAY"
+
+# Check if we're already in a session (need nested mode)
+if [ -n "$ORIG_WAYLAND_DISPLAY" ] || [ -n "$ORIG_DISPLAY" ]; then
+    echo "Detected existing display session, running in nested mode" | tee -a /tmp/axiom-session.log
+    NESTED_MODE=true
+    # Don't clear display variables in nested mode
+else
+    echo "Running as primary session" | tee -a /tmp/axiom-session.log
+    NESTED_MODE=false
+    # Clear any conflicting display variables for primary session
+    unset WAYLAND_DISPLAY
+    unset DISPLAY
+fi
+
+# Ensure proper environment for primary sessions
+if [ "$NESTED_MODE" = false ]; then
+    export XDG_SESSION_TYPE=wayland
+    export XDG_SESSION_DESKTOP=Axiom
+    export XDG_CURRENT_DESKTOP=Axiom
+fi
+
+# Add some additional environment variables that might be needed
+export MOZ_ENABLE_WAYLAND=1
+export QT_QPA_PLATFORM=wayland
+export GDK_BACKEND=wayland
+
+# Start Axiom
+echo "=== Starting Axiom ===" | tee -a /tmp/axiom-session.log
+
+# Execute axiom with appropriate mode
+if [ "$NESTED_MODE" = true ]; then
+    echo "Running: /usr/local/bin/axiom --nested $@" | tee -a /tmp/axiom-session.log
+    /usr/local/bin/axiom --nested "$@" 2>&1 | tee -a /tmp/axiom-session.log
+else
+    echo "Running: /usr/local/bin/axiom $@" | tee -a /tmp/axiom-session.log
+    /usr/local/bin/axiom "$@" 2>&1 | tee -a /tmp/axiom-session.log
+fi

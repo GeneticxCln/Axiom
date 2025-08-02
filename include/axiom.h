@@ -26,15 +26,39 @@ struct axiom_input_device;
 struct axiom_config;
 struct axiom_animation_manager;
 struct axiom_effects_manager;
+struct axiom_xwayland_manager;
+struct axiom_tag_manager;
+struct axiom_keybinding_manager;
+struct axiom_focus_manager;
+
+// Enhanced window properties
+struct axiom_window_tags {
+    uint32_t tags;          // Bitmask for multiple tags
+    bool is_sticky;         // Visible on all workspaces
+    bool is_urgent;         // Window needs attention
+    bool is_floating;       // Force floating mode
+    bool is_private;        // Hide from switchers
+    bool is_scratchpad;     // Hide/show toggle
+    uint32_t workspace;     // Workspace assignment
+};
 
 /* Configuration structure - defined in config.h */
 
 /* Forward declarations */
 struct axiom_window {
     struct wl_list link;
-    struct wlr_xdg_toplevel *xdg_toplevel;
+    struct wlr_xdg_toplevel *xdg_toplevel;  // NULL for XWayland windows
     struct wlr_scene_tree *scene_tree;
     struct axiom_server *server;
+    
+    // Window type - either XDG or XWayland
+    enum {
+        AXIOM_WINDOW_XDG,
+        AXIOM_WINDOW_XWAYLAND
+    } type;
+    
+    // XWayland-specific data (NULL for XDG windows)
+    struct axiom_xwayland_surface *xwayland_surface;
     
     struct wl_listener map;
     struct wl_listener unmap;
@@ -87,6 +111,9 @@ struct axiom_window {
     
     // Real-time effects support
     struct axiom_window_effects *effects; // Per-window effects state
+    
+    // Enhanced window properties
+    struct axiom_window_tags *window_tags; // Tagging and urgency
 };
 
 struct axiom_workspace {
@@ -188,6 +215,7 @@ struct axiom_server {
     struct wl_listener cursor_frame;
     struct wl_listener request_cursor;
     struct wl_listener request_set_selection;
+    struct wl_listener backend_destroy;
     
     bool running;
     
@@ -221,6 +249,14 @@ struct axiom_server {
     
     // Thumbnail system (Phase 3.4)
     struct axiom_thumbnail_manager *thumbnail_manager;
+    
+    // XWayland system
+    struct axiom_xwayland_manager *xwayland_manager;
+    
+    // Enhanced systems
+    struct axiom_tag_manager *tag_manager;             // Tagging system
+    struct axiom_keybinding_manager *keybinding_manager; // Key bindings
+    struct axiom_focus_manager *focus_manager;           // Focus and stacking
 };
 
 /* Function declarations */
@@ -250,6 +286,7 @@ void axiom_server_cleanup(struct axiom_server *server);
 void axiom_new_input(struct wl_listener *listener, void *data);
 void axiom_new_keyboard(struct axiom_server *server, struct wlr_input_device *device);
 void axiom_new_pointer(struct axiom_server *server, struct wlr_input_device *device);
+void axiom_remove_input_devices(struct axiom_server *server);
 
 // Cursor management
 void axiom_cursor_motion(struct wl_listener *listener, void *data);
@@ -264,8 +301,8 @@ void axiom_process_cursor_move(struct axiom_server *server, uint32_t time);
 // Window management
 struct axiom_window *axiom_window_at(struct axiom_server *server, double lx, double ly, 
                                      struct wlr_surface **surface, double *sx, double *sy);
-void axiom_focus_window(struct axiom_server *server, struct axiom_window *window, 
-                        struct wlr_surface *surface);
+void axiom_focus_window_legacy(struct axiom_server *server, struct axiom_window *window, 
+                                struct wlr_surface *surface);
 void axiom_begin_interactive(struct axiom_window *window, enum axiom_cursor_mode mode, 
                              uint32_t edges);
 
@@ -302,10 +339,33 @@ bool axiom_process_exists(const char *name);
 void axiom_reload_configuration(struct axiom_server *server);
 
 // Logging
-void axiom_log(const char *level, const char *format, ...);
+typedef enum {
+    AXIOM_LOG_DEBUG = 0,
+    AXIOM_LOG_INFO = 1,
+    AXIOM_LOG_WARN = 2,
+    AXIOM_LOG_ERROR = 3
+} axiom_log_level_t;
 
-#define AXIOM_LOG_INFO(fmt, ...) axiom_log("INFO", fmt, ##__VA_ARGS__)
-#define AXIOM_LOG_ERROR(fmt, ...) axiom_log("ERROR", fmt, ##__VA_ARGS__)
-#define AXIOM_LOG_DEBUG(fmt, ...) axiom_log("DEBUG", fmt, ##__VA_ARGS__)
+// Core logging functions
+void axiom_log(const char *level, const char *format, ...);
+void axiom_log_impl(axiom_log_level_t level, const char *format, ...);
+
+// Configuration functions
+void axiom_log_set_level(axiom_log_level_t level);
+void axiom_log_set_enabled(bool enabled);
+void axiom_log_set_file(const char *filename);
+void axiom_log_cleanup(void);
+
+// Convenience functions
+void axiom_log_debug(const char *format, ...);
+void axiom_log_info(const char *format, ...);
+void axiom_log_warn(const char *format, ...);
+void axiom_log_error(const char *format, ...);
+
+// Legacy macros for compatibility
+#define AXIOM_LOG_INFO(fmt, ...) axiom_log_info(fmt, ##__VA_ARGS__)
+#define AXIOM_LOG_ERROR(fmt, ...) axiom_log_error(fmt, ##__VA_ARGS__)
+#define AXIOM_LOG_DEBUG(fmt, ...) axiom_log_debug(fmt, ##__VA_ARGS__)
+#define AXIOM_LOG_WARN(fmt, ...) axiom_log_warn(fmt, ##__VA_ARGS__)
 
 #endif /* AXIOM_H */
