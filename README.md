@@ -17,9 +17,9 @@
 
 ---
 
-## 🎉 **NEW in v2.0.0 - PHASE 3 COMPLETE!** 🚀
+## 🎉 **NEW in v3.0.0 - DWM-INSPIRED PROFESSIONAL ENHANCEMENTS!** 🚀
 
-### 🏆 **MAJOR RELEASE: Professional Window Management Complete**
+### 🏆 **MAJOR RELEASE: Advanced Window Management with DWM-Style Workflow**
 
 **✅ PHASE 3 OBJECTIVES ACHIEVED**
 - **ALL** advanced window management features implemented
