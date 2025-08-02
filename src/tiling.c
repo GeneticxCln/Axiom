@@ -127,7 +127,8 @@ static void calculate_spiral_layout(struct axiom_server *server, int index,
         *height = server->workspace_height - (2 * gap) - title_height;
     } else {
         // Secondary windows spiral around
-        int remaining_width = server->workspace_width - *width - (3 * gap);
+        int main_width = (server->workspace_width - (3 * gap)) * 0.7f;
+        int remaining_width = server->workspace_width - main_width - (3 * gap);
         int window_height = (server->workspace_height - ((server->window_count) * gap) - title_height) / (server->window_count - 1);
         
         *x = server->workspace_width - remaining_width - gap;

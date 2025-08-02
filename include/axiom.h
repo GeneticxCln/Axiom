@@ -183,6 +183,7 @@ struct axiom_server {
     struct wlr_scene *scene;
     struct wlr_scene_output_layout *scene_layout;
     struct wlr_output_layout *output_layout;
+    struct wlr_scene_rect *background;  // Background to prevent black screen
     
     // Input management
     struct wlr_cursor *cursor;

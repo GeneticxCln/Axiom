@@ -465,9 +465,7 @@ bool axiom_window_snapping_load_config(struct axiom_window_snapping_manager *man
     }
     
     // Load the config file using the existing parser
-    bool config_loaded = false;
     if (config_path && axiom_config_load(temp_config, config_path)) {
-        config_loaded = true;
         wlr_log(WLR_INFO, "Loading snapping config from file: %s", config_path);
     } else {
         wlr_log(WLR_INFO, "Using default snapping configuration");

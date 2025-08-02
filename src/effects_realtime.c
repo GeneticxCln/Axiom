@@ -523,8 +523,13 @@ void axiom_effects_create_shadow_node(struct axiom_window *window) {
     
     struct axiom_window_effects *effects = window->effects;
     
-    // Create effects tree as child of window scene tree
-    effects->effects_tree = wlr_scene_tree_create(window->scene_tree);
+    // Create effects tree as sibling of window scene tree (same parent)
+    if (window->scene_tree->node.parent) {
+        effects->effects_tree = wlr_scene_tree_create(window->scene_tree->node.parent);
+    } else {
+        // Fallback: create as child if no parent
+        effects->effects_tree = wlr_scene_tree_create(window->scene_tree);
+    }
     
     // Create shadow rectangle node
     effects->shadow_rect = wlr_scene_rect_create(effects->effects_tree,
@@ -532,8 +537,10 @@ void axiom_effects_create_shadow_node(struct axiom_window *window) {
                                                   effects->shadow.height,
                                                   (float[4]){0.0f, 0.0f, 0.0f, 0.3f});
     
-    // Position shadow behind the window
-    wlr_scene_node_place_below(&effects->shadow_rect->node, &window->scene_tree->node);
+    // Position shadow behind the window (now they have the same parent)
+    if (window->scene_tree->node.parent) {
+        wlr_scene_node_place_below(&effects->effects_tree->node, &window->scene_tree->node);
+    }
     
     axiom_log_debug("Shadow scene node created for window %p", (void*)window);
 }
