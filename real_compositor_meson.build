@@ -1,0 +1,163 @@
+project('axiom-real-compositor', 'c',
+  version: '1.0.0',
+  license: 'GPL-3.0-or-later',
+  meson_version: '>=0.60.0',
+  default_options: [
+    'c_std=c11',
+    'warning_level=2',
+    'werror=false',
+  ],
+)
+
+add_project_arguments('-DWLR_USE_UNSTABLE', language: 'c')
+
+# Dependencies for a real Wayland compositor
+wayland_server = dependency('wayland-server', version: '>=1.22')
+wayland_protocols = dependency('wayland-protocols', version: '>=1.31')
+wlroots = dependency('wlroots-0.19', version: '>=0.19.0')
+xkbcommon = dependency('xkbcommon')
+pixman = dependency('pixman-1')
+libdrm = dependency('libdrm')
+gbm = dependency('gbm', required: false)
+libinput = dependency('libinput')
+math = meson.get_compiler('c').find_library('m')
+
+# Optional dependencies
+glesv2 = dependency('glesv2', required: false)
+egl = dependency('egl', required: false)
+libseat = dependency('libseat', required: false)
+
+protocol_deps = [
+  wayland_server,
+  wayland_protocols,
+]
+
+# All our generated protocol source files
+protocol_sources = [
+  'protocols/wayland-server-protocol.c',
+  'protocols/xdg-shell-protocol.c',
+  'protocols/linux-dmabuf-v1-protocol.c',
+  'protocols/presentation-time-protocol.c',
+  'protocols/viewporter-protocol.c',
+  'protocols/tablet-v2-protocol.c',
+  'protocols/xdg-activation-v1-protocol.c',
+  'protocols/fractional-scale-v1-protocol.c',
+  'protocols/single-pixel-buffer-v1-protocol.c',
+  'protocols/cursor-shape-v1-protocol.c',
+  'protocols/tearing-control-v1-protocol.c',
+  'protocols/security-context-v1-protocol.c',
+  'protocols/ext-session-lock-v1-protocol.c',
+  'protocols/ext-foreign-toplevel-list-v1-protocol.c',
+  'protocols/ext-image-copy-capture-v1-protocol.c',
+  'protocols/ext-idle-notify-v1-protocol.c',
+  'protocols/ext-data-control-v1-protocol.c',
+  'protocols/xdg-dialog-v1-protocol.c',
+  'protocols/xdg-toplevel-drag-v1-protocol.c',
+  'protocols/content-type-v1-protocol.c',
+  'protocols/xdg-output-unstable-v1-protocol.c',
+  'protocols/xdg-decoration-unstable-v1-protocol.c',
+  'protocols/wlr-layer-shell-unstable-v1-protocol.c',
+  'protocols/input-method-unstable-v1-protocol.c',
+  'protocols/text-input-unstable-v3-protocol.c',
+  'protocols/primary-selection-unstable-v1-protocol.c',
+  'protocols/idle-inhibit-unstable-v1-protocol.c',
+  'protocols/pointer-constraints-unstable-v1-protocol.c',
+  'protocols/relative-pointer-unstable-v1-protocol.c',
+  'protocols/pointer-gestures-unstable-v1-protocol.c',
+  'protocols/keyboard-shortcuts-inhibit-unstable-v1-protocol.c',
+  'protocols/xdg-foreign-unstable-v2-protocol.c',
+  'protocols/input-timestamps-unstable-v1-protocol.c',
+  'protocols/fullscreen-shell-unstable-v1-protocol.c',
+  'protocols/linux-explicit-synchronization-unstable-v1-protocol.c',
+  'protocols/xwayland-keyboard-grab-unstable-v1-protocol.c',
+  'protocols/xwayland-shell-v1-protocol.c',
+  'protocols/wlr-export-dmabuf-unstable-v1-protocol.c',
+  'protocols/wlr-screencopy-unstable-v1-protocol.c',
+  'protocols/wlr-gamma-control-unstable-v1-protocol.c',
+  'protocols/wlr-output-power-management-unstable-v1-protocol.c',
+  'protocols/wlr-virtual-pointer-unstable-v1-protocol.c',
+]
+
+# Real compositor source files
+real_compositor_sources = [
+  'real_compositor/main.c',
+  'real_compositor/server.c',
+  'real_compositor/output.c',
+  'real_compositor/surface.c',
+  'real_compositor/xdg_shell.c',
+  'real_compositor/input.c',
+  'real_compositor/keyboard.c',
+  'real_compositor/pointer.c',
+  'real_compositor/seat.c',
+  'real_compositor/renderer.c',
+  'real_compositor/layer_shell.c',
+  'real_compositor/xwayland.c',
+  'real_compositor/desktop.c',
+] + protocol_sources
+
+# Include directories
+real_compositor_inc = include_directories([
+  'real_compositor',
+  'protocols',
+])
+
+# Main real compositor executable
+executable('axiom-real',
+  real_compositor_sources,
+  dependencies: [
+    wayland_server,
+    wlroots,
+    xkbcommon,
+    pixman, 
+    libdrm,
+    libinput,
+    math,
+    glesv2,
+    egl,
+    libseat,
+  ],
+  include_directories: real_compositor_inc,
+  install: true,
+  install_dir: get_option('bindir')
+)
+
+# Create protocols library for reuse
+protocols_lib = static_library(
+  'axiom-protocols',
+  protocol_sources,
+  dependencies: protocol_deps,
+  include_directories: include_directories('protocols'),
+)
+
+protocols_dep = declare_dependency(
+  link_with: protocols_lib,
+  include_directories: include_directories('protocols'),
+  dependencies: protocol_deps,
+)
+
+# Configuration data
+conf_data = configuration_data()
+conf_data.set('VERSION', meson.project_version())
+conf_data.set('HAVE_GLES2', glesv2.found())
+conf_data.set('HAVE_EGL', egl.found())
+conf_data.set('HAVE_LIBSEAT', libseat.found())
+conf_data.set('HAVE_GBM', gbm.found())
+
+configure_file(
+  input: 'real_compositor/config.h.in',
+  output: 'config.h',
+  configuration: conf_data,
+)
+
+# Summary
+summary({
+    'Version': meson.project_version(),
+    'wlroots version': wlroots.version(),
+    'OpenGL ES 2': glesv2.found() ? 'yes' : 'no',
+    'EGL': egl.found() ? 'yes' : 'no',
+    'libseat': libseat.found() ? 'yes' : 'no',
+    'GBM': gbm.found() ? 'yes' : 'no',
+    'Protocols generated': protocol_sources.length(),
+  }, 
+  section: 'Axiom Real Compositor'
+)
