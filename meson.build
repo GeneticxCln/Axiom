@@ -111,6 +111,7 @@ inc = include_directories('include', 'protocols')
 # Source Code
 axiom_sources = files(
   'src/main.c',
+  'src/compositor.c',    # Core compositor module
   'src/logging.c',
   'src/errors.c',        # New comprehensive error handling
   'src/memory.c',        # Advanced memory management system
