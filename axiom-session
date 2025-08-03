@@ -147,21 +147,29 @@ cleanup() {
     fi
     export AXIOM_CLEANUP_DONE="true"
     
-    log_info "Cleaning up Axiom session"
+    # Remove trap to prevent recursive calls
+    trap - EXIT INT TERM
+    
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] INFO: Cleaning up Axiom session" >> "${AXIOM_LOG_DIR}/session.log" 2>/dev/null || true
+    
+    # Clean up AI daemon if it exists
+    if command -v cleanup_ai_daemon >/dev/null 2>&1; then
+        cleanup_ai_daemon
+    fi
     
     # Kill any remaining Axiom processes
     pkill -f "axiom" 2>/dev/null || true
     
     # Clean up runtime directory
     if [[ -d "${AXIOM_RUNTIME_DIR}" ]]; then
-        rm -rf "${AXIOM_RUNTIME_DIR}"
+        rm -rf "${AXIOM_RUNTIME_DIR}" 2>/dev/null || true
     fi
     
     # Reset environment variables
-    unset WAYLAND_DISPLAY
-    unset DISPLAY
+    unset WAYLAND_DISPLAY 2>/dev/null || true
+    unset DISPLAY 2>/dev/null || true
     
-    log_info "Axiom session cleanup complete"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] INFO: Axiom session cleanup complete" >> "${AXIOM_LOG_DIR}/session.log" 2>/dev/null || true
 }
 
 # Set up signal handlers
@@ -235,11 +243,11 @@ EOF
         # Add AI daemon cleanup to main cleanup function
         cleanup_ai_daemon() {
             if [[ -n "${AI_DAEMON_PID}" ]]; then
-                log_info "Stopping AI monitoring daemon (PID ${AI_DAEMON_PID})"
+                echo "[$(date '+%Y-%m-%d %H:%M:%S')] INFO: Stopping AI monitoring daemon (PID ${AI_DAEMON_PID})" >> "${AXIOM_LOG_DIR}/session.log" 2>/dev/null || true
                 kill "${AI_DAEMON_PID}" 2>/dev/null || true
             fi
         }
-        trap 'cleanup_ai_daemon; cleanup' EXIT INT TERM
+        # Note: Don't override the main trap, AI daemon cleanup will be called by the main cleanup function
     else
         log_info "AI monitoring daemon disabled (set AXIOM_ENABLE_AI_DAEMON=true to enable)"
     fi

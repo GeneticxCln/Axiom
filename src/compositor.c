@@ -390,6 +390,7 @@ void axiom_request_set_selection(struct wl_listener *listener, void *data) {
 }
 
 void axiom_backend_destroy(struct wl_listener *listener, void *data) {
+    (void)data; // Unused parameter
     struct axiom_server *server = wl_container_of(listener, server, backend_destroy);
     AXIOM_LOG_INFO("Backend destroyed, shutting down compositor");
     server->running = false;
