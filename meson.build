@@ -355,8 +355,8 @@ if get_option('build_dev_tools')
   )
   
   simple_animation_demo = executable('simple-animation-demo',
-      'simple_animation_demo.c',
-      dependencies: [math_lib],
+      ['simple_animation_demo.c', 'src/animation.c', 'src/logging.c'],
+      dependencies: [math_lib, wayland_server],
       include_directories: inc,
       install: false,
   )
@@ -373,6 +373,7 @@ if get_option('build_dev_tools')
       ['test_rendering_pipeline.c', 'test_shaders.c'],
       dependencies: global_deps,
       include_directories: inc,
+      c_args: ['-DSHADER_LIBRARY_MODE'],
       install: false,
   )
   
@@ -383,17 +384,17 @@ if get_option('build_dev_tools')
       install: false,
   )
   
-  # Window snapping tests
+  # Window snapping tests (with required source dependencies)
   test_snapping = executable('test-snapping',
-      'test_snapping.c',
+      ['test_snapping.c', 'src/window_snapping.c', 'src/logging.c'],
       dependencies: global_deps,
       include_directories: inc,
       install: false,
   )
   
   test_snapping_simple = executable('test-snapping-simple',
-      'test_snapping_simple.c',
-      dependencies: [math_lib, wayland_server],
+      ['test_snapping_simple.c', 'src/window_snapping.c', 'src/logging.c'],
+      dependencies: [math_lib, wayland_server, wlroots],
       include_directories: inc,
       install: false,
   )

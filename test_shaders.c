@@ -123,6 +123,7 @@ const char *axiom_gpu_get_error_string(unsigned int error) {
 #include <stdio.h>
 #include <string.h>
 
+#ifndef SHADER_LIBRARY_MODE
 int main() {
     printf("🎮 Axiom Shader System Test\n");
     printf("============================\n\n");
@@ -162,3 +163,4 @@ int main() {
     printf("\n🎉 Shader System Test: ✅ PASSED\n");
     return 0;
 }
+#endif // SHADER_LIBRARY_MODE
