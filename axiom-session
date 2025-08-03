@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # Axiom Wayland Compositor Session Starter
-# Version: 4.1.0 - AI-Powered wlroots Monitoring System
+# Version: 4.3.2 - AI-Powered wlroots Monitoring System with Multi-Session Support
 # This script properly initializes the environment and starts Axiom with AI monitoring
 
 set -e
 
 # Define version and directories
-AXIOM_VERSION="4.1.0"
+AXIOM_VERSION="4.3.2"
 AXIOM_HOME="${HOME}/.local/share/axiom"
 AXIOM_CONFIG_DIR="${HOME}/.config/axiom"
 AXIOM_CACHE_DIR="${HOME}/.cache/axiom"
@@ -177,7 +177,7 @@ if [[ ! -f "${AXIOM_CONFIG_DIR}/axiom.conf" ]]; then
     fi
 fi
 
-# Initialize AI monitoring system (v4.1.0 feature)
+# Initialize AI monitoring system (v4.3.2 feature with multi-session support)
 setup_ai_monitoring() {
     log_info "Setting up AI-powered wlroots monitoring system..."
     
@@ -199,7 +199,7 @@ setup_ai_monitoring() {
         log_info "Creating default AI monitoring configuration..."
         cat > "${HOME}/.config/axiom-wlroots-monitor.conf" <<EOF
 # Axiom AI-Powered wlroots Monitoring Configuration
-# Version: 4.1.0
+# Version: 4.3.2
 
 [monitoring]
 CHECK_INTERVAL_HOURS=6
@@ -240,7 +240,7 @@ EOF
     log_info "AI monitoring system setup complete"
 }
 
-# Initialize AI monitoring system (v4.1.0)
+# Initialize AI monitoring system (v4.3.2)
 log_info "Initializing AI monitoring system..."
 setup_ai_monitoring
 

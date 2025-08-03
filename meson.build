@@ -1,5 +1,5 @@
 project('axiom', 'c',
-version: '4.3.1',
+version: '4.3.2',
   license: 'GPL-3.0',
   meson_version: '>=0.60.0',
   default_options: ['c_std=c11', 'warning_level=2', 'werror=false', 'buildtype=release'],
@@ -140,6 +140,7 @@ axiom_sources = files(
   'src/layer_shell.c',
   'src/screenshot.c',
   'src/session.c',
+  'src/multi_session.c',
   'src/performance.c',
 )
 
@@ -332,6 +333,22 @@ test_protocols = executable('test_protocols',
     install: false,
 )
 test('protocol_tests', test_protocols)
+
+# Multi-session test
+test_multi_session_sources = files(
+  'tests/test_multi_session.c',
+  'src/multi_session.c',
+  'src/logging.c',
+  'src/memory.c'
+)
+
+test_multi_session = executable('test_multi_session',
+    sources: test_multi_session_sources,
+    dependencies: [math_lib, wayland_server],
+    include_directories: inc,
+    install: false,
+)
+test('multi_session_tests', test_multi_session)
 
 # ==============================================
 # DEVELOPER TOOLS & STANDALONE TESTS

@@ -1,6 +1,6 @@
 [Desktop Entry]
 Name=Axiom
-Comment=AI-powered Wayland compositor with intelligent wlroots monitoring and XWayland support (v4.1.0)
+Comment=AI-powered Wayland compositor with intelligent wlroots monitoring and XWayland support (v4.3.2)
 Exec=axiom-session
 TryExec=axiom-session
 Type=Application
@@ -8,6 +8,6 @@ Categories=System;WindowManager;
 X-DesktopNames=Axiom
 Keywords=wayland;compositor;ai;monitoring;tiling;window-manager;secure;xwayland;session;intelligent;
 Icon=axiom
-Version=4.1.0
+Version=4.3.2
 StartupNotify=false
 NoDisplay=false

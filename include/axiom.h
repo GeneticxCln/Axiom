@@ -31,6 +31,7 @@ struct axiom_tag_manager;
 struct axiom_keybinding_manager;
 struct axiom_focus_manager;
 struct axiom_window_manager;
+struct axiom_multi_session_manager;
 
 // Enhanced window properties
 struct axiom_window_tags {
@@ -288,6 +289,9 @@ struct axiom_server {
     struct axiom_layer_shell_manager *layer_shell_manager;   // Layer shell for panels/bars
     struct axiom_screenshot_manager *screenshot_manager;      // Screenshot functionality
     struct axiom_session_manager *session_manager;            // Session management
+    
+    // Multi-session support
+    struct axiom_multi_session_manager *multi_session_manager; // Multi-user session management
     
     // Performance monitoring
     struct axiom_performance_monitor *performance_monitor;   // Performance monitoring and optimization
