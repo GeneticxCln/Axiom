@@ -203,6 +203,11 @@ static void window_unmap(struct wl_listener *listener, void *data) {
     (void)data; // Suppress unused parameter warning
     struct axiom_window *window = wl_container_of(listener, window, unmap);
     AXIOM_LOG_INFO("WINDOW", "Window unmapped");
+    
+    // Trigger window disappear animation
+    if (window->server && window->server->animation_manager) {
+        axiom_animate_window_disappear(window->server, window);
+    }
 }
 
 static void window_destroy(struct wl_listener *listener, void *data) {
@@ -437,6 +442,11 @@ static void server_new_xdg_toplevel(struct wl_listener *listener, void *data) {
     
     // Also add to global window list for iteration
     wl_list_insert(&server->windows, &window->link);
+    
+    // Add to window manager for proper initialization
+    if (server->window_manager) {
+        axiom_window_manager_add_window(server->window_manager, window);
+    }
     
     AXIOM_LOG_INFO("Window added, total tiled windows: %d", server->window_count);
 }

@@ -96,8 +96,19 @@ bool axiom_window_effects_init(struct axiom_window *window) {
     // Initialize shadow system using configuration
     struct axiom_effects_manager *effects_manager = window->server->effects_manager;
     int shadow_blur_radius = effects_manager ? effects_manager->shadow.blur_radius : SHADOW_BLUR_RADIUS;
-    int shadow_width = (window->geometry->width > 0 ? window->geometry->width : window->width) + shadow_blur_radius * 2;
-    int shadow_height = (window->geometry->height > 0 ? window->geometry->height : window->height) + shadow_blur_radius * 2;
+    
+    // Use window dimensions, handling NULL geometry gracefully
+    int window_width = window->width;
+    int window_height = window->height;
+    if (window->geometry && window->geometry->width > 0) {
+        window_width = window->geometry->width;
+    }
+    if (window->geometry && window->geometry->height > 0) {
+        window_height = window->geometry->height;
+    }
+    
+    int shadow_width = window_width + shadow_blur_radius * 2;
+    int shadow_height = window_height + shadow_blur_radius * 2;
     if (!axiom_realtime_shadow_create(&effects->shadow, shadow_width, shadow_height)) {
         axiom_log_error("Failed to create shadow for window");
         free(window->effects);
@@ -106,8 +117,8 @@ bool axiom_window_effects_init(struct axiom_window *window) {
     }
     
     // Initialize blur system
-    int blur_width = window->geometry->width > 0 ? window->geometry->width : window->width;
-    int blur_height = window->geometry->height > 0 ? window->geometry->height : window->height;
+    int blur_width = window_width;
+    int blur_height = window_height;
     if (!axiom_realtime_blur_create(&effects->blur, blur_width, blur_height)) {
         axiom_log_error("Failed to create blur for window");
         axiom_realtime_shadow_destroy(&effects->shadow);
@@ -160,8 +171,19 @@ void axiom_window_effects_update(struct axiom_window *window, uint32_t time_ms) 
     // Mark effects for update if window geometry changed
     struct axiom_effects_manager *effects_manager = window->server->effects_manager;
     int shadow_blur_radius = effects_manager ? effects_manager->shadow.blur_radius : SHADOW_BLUR_RADIUS;
-    if (effects->shadow.width != window->geometry->width + shadow_blur_radius * 2 ||
-        effects->shadow.height != window->geometry->height + shadow_blur_radius * 2) {
+    
+    // Get current window dimensions, handling NULL geometry gracefully
+    int current_width = window->width;
+    int current_height = window->height;
+    if (window->geometry && window->geometry->width > 0) {
+        current_width = window->geometry->width;
+    }
+    if (window->geometry && window->geometry->height > 0) {
+        current_height = window->geometry->height;
+    }
+    
+    if (effects->shadow.width != current_width + shadow_blur_radius * 2 ||
+        effects->shadow.height != current_height + shadow_blur_radius * 2) {
         effects->shadow.needs_update = true;
         effects->blur.needs_update = true;
     }
@@ -274,8 +296,17 @@ void axiom_realtime_shadow_update_scene(struct axiom_window *window) {
                    effects_manager->shadow.offset_x : SHADOW_OFFSET_X;
     int offset_y = effects_manager && effects_manager->shadow.offset_y > 0 ? 
                    effects_manager->shadow.offset_y : SHADOW_OFFSET_Y;
-    int shadow_x = window->geometry->x + offset_x;
-    int shadow_y = window->geometry->y + offset_y;
+    
+    // Get window position, handling NULL geometry gracefully
+    int window_x = window->x;
+    int window_y = window->y;
+    if (window->geometry) {
+        window_x = window->geometry->x;
+        window_y = window->geometry->y;
+    }
+    
+    int shadow_x = window_x + offset_x;
+    int shadow_y = window_y + offset_y;
     
     wlr_scene_node_set_position(&window->effects->shadow_rect->node, shadow_x, shadow_y);
 }
@@ -502,7 +533,6 @@ bool axiom_upload_window_content(struct axiom_window *window, GLuint texture) {
     if (!pixel_data) {
         axiom_log_error("Failed to allocate pixel data buffer (%d bytes)", width * height * 4);
         glBindTexture(GL_TEXTURE_2D, 0);
-        return false;
         return false;
     }
     
