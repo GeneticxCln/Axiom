@@ -17,31 +17,40 @@
 
 ---
 
-## 🚨 **CRITICAL: v4.3.3 - SEGFAULT BUG FIX** 🐛
+## 🚨 **LATEST: v4.3.4 - SESSION STABILITY RELEASE** 🔧
 
-### 🛠️ **CRITICAL BUG FIX RELEASE**
+### 🛠️ **CRITICAL SESSION MANAGEMENT FIXES**
 
-**🚨 IMMEDIATE UPDATE RECOMMENDED**
-- **Fixed**: Critical segmentation fault during compositor startup
-- **Impact**: Compositor would crash immediately when starting in nested mode
-- **Root Cause**: Uninitialized `input_devices` linked list in server structure
-- **Solution**: Added proper list initialization in compositor setup
+**🚨 SDDM COMPATIBILITY RESTORED**
+- **Fixed**: Infinite cleanup loop causing immediate session crashes
+- **Fixed**: Black screen with white line when starting from SDDM
+- **Fixed**: Session kickback to login screen
+- **Fixed**: GPU access permission issues
 
-**✅ STABILITY IMPROVEMENTS**
-- Compositor now starts successfully without crashes
-- Keyboard input devices initialize properly
-- All existing functionality preserved
-- Clean startup in both nested and native modes
+**✅ SESSION IMPROVEMENTS**
+- Sessions now start properly from SDDM and other display managers
+- Added comprehensive debug tools (`axiom-session-debug`)
+- Enhanced error handling prevents crashes on non-critical errors
+- Automatic user group management for proper GPU access
+- Smart session detection (nested vs primary display server)
 
-**📋 FOR USERS EXPERIENCING CRASHES:**
-If you're experiencing startup crashes with previous versions, upgrade to v4.3.3 immediately:
+**📋 FOR USERS EXPERIENCING SESSION ISSUES:**
+If you're experiencing SDDM login issues or session crashes, upgrade to v4.3.4:
 ```bash
 git pull origin main
-git checkout v4.3.3
-ninja -C builddir
+git checkout v4.3.4
+ninja -C build
+sudo ninja -C build install
+# IMPORTANT: Log out and back in for render group membership
 ```
 
-**[🔗 Download v4.3.3](https://github.com/GeneticxCln/Axiom/releases/tag/v4.3.3)** | **[🐛 Bug Fix Details](RELEASE_NOTES_v4.3.3.md)**
+**🔧 NEW DEBUGGING TOOLS**
+- `axiom-session-debug` - Comprehensive system diagnostics
+- `test-primary-mode` - Primary display server testing
+- Enhanced session logging with error categorization
+- Strace integration for advanced troubleshooting
+
+**[🔗 Download v4.3.4](https://github.com/GeneticxCln/Axiom/releases/tag/v4.3.4)** | **[🔧 Session Fix Details](RELEASE_NOTES_v4.3.4.md)**
 
 ---
 
