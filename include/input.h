@@ -69,7 +69,6 @@ struct axiom_keyboard_state {
     // Event listeners
     struct wl_listener key;
     struct wl_listener modifiers;
-    struct wl_listener keymap;
     struct wl_listener repeat_info;
 };
 
@@ -243,8 +242,8 @@ struct axiom_accessibility_state {
     double focus_delay;
 };
 
-// Main input device structure (enhanced)
-struct axiom_input_device {
+// Enhanced input device structure (replaces the one in axiom.h)
+struct axiom_enhanced_input_device {
     struct wl_list link;
     struct axiom_server *server;
     struct wlr_input_device *wlr_device;

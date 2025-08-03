@@ -101,12 +101,11 @@ axiom_sources = files(
   'src/errors.c',        # New comprehensive error handling
   'src/memory.c',        # Advanced memory management system
   'src/environment.c',   # Environment management system
-  'src/input_enhanced.c',
+  'src/input.c',
   'src/cursor.c',
   'src/config.c',
   'src/process.c',
-  'src/tiling.c',
-  'src/workspace.c',
+  'src/workspace.c',     # Using workspace.c instead of tiling.c
   'src/animation.c',
   'src/effects.c',
   'src/effects_realtime.c',
@@ -121,7 +120,6 @@ axiom_sources = files(
   'src/tagging.c',
   'src/keybindings.c',
   'src/focus.c',
-  'src/title_buttons.c',
   'src/window_manager.c',
   # Desktop integration protocols
   'src/layer_shell.c',

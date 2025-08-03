@@ -1,3 +1,5 @@
+#include <stdbool.h>
+#include <stddef.h>
 #include "axiom.h"
 #include "focus.h"
 #include "window_snapping.h"
@@ -5,6 +7,68 @@
 #include <wlr/types/wlr_pointer.h>
 #include <wlr/util/log.h>
 #include <linux/input-event-codes.h>
+#include "logging.h"
+
+bool axiom_handle_title_bar_click(struct axiom_window *window, double x, double y) {
+    if (!window) return false;
+
+    const int button_size = 18;  // Same size used when creating the buttons
+    const int close_x = window->width - 6 - button_size;  // Calculating position from layout function
+    const int minimize_x = close_x - button_size - 2;
+    const int maximize_x = minimize_x - button_size - 2;
+
+    // Check if click is within close button bounds
+    if (x >= close_x && x <= (close_x + button_size) && y >= 6 && y <= (6 + button_size)) {
+        // Close the window
+        wlr_xdg_toplevel_send_close(window->xdg_toplevel);
+        AXIOM_LOG_INFO("Window close button clicked: %s", window->xdg_toplevel ? window->xdg_toplevel->title : "(no title)");
+        return true;
+    }
+
+    // Check if click is within minimize button bounds
+    if (x >= minimize_x && x <= (minimize_x + button_size) && y >= 6 && y <= (6 + button_size)) {
+        // Minimize behavior (if implemented)
+        AXIOM_LOG_INFO("Minimize button clicked (not implemented): %s", window->xdg_toplevel ? window->xdg_toplevel->title : "(no title)");
+        return true;
+    }
+
+    // Check if click is within maximize button bounds
+    if (x >= maximize_x && x <= (maximize_x + button_size) && y >= 6 && y <= (6 + button_size)) {
+        // Maximize or restore behavior (if implemented)
+        AXIOM_LOG_INFO("Maximize button clicked (not implemented): %s", window->xdg_toplevel ? window->xdg_toplevel->title : "(no title)");
+        return true;
+    }
+
+    // Click not on any button
+    return false;
+}
+
+void axiom_update_button_hover_states(struct axiom_window *window, double x, double y) {
+    if (!window) {
+        return;
+    }
+
+    const int button_size = 18;
+    const int button_margin = 6;
+    const int button_spacing = 2;
+
+    // Calculate button positions
+    int close_x = window->width - button_margin - button_size;
+    int minimize_x = close_x - button_size - button_spacing;
+    int maximize_x = minimize_x - button_size - button_spacing;
+
+    // Determine hover state
+    window->close_button_hovered = (x >= close_x && x <= (close_x + button_size) &&
+                                    y >= button_margin && y <= (button_margin + button_size));
+    window->minimize_button_hovered = (x >= minimize_x && x <= (minimize_x + button_size) &&
+                                       y >= button_margin && y <= (button_margin + button_size));
+    window->maximize_button_hovered = (x >= maximize_x && x <= (maximize_x + button_size) &&
+                                       y >= button_margin && y <= (button_margin + button_size));
+
+    // Update button colors based on hover state
+    axiom_update_title_bar_buttons(window);
+}
+
 
 static void process_motion(struct axiom_server *server, uint32_t time) {
     if (server->cursor_mode != AXIOM_CURSOR_PASSTHROUGH) {

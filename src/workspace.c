@@ -1,7 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
+#include <wayland-server-core.h>
 #include "axiom.h"
+#include "logging.h"
+#include "config.h"
+
+// Global master ratio variable (used by workspace management)
+float master_ratio = 0.6f;
 
 #define MAX_WORKSPACES 10
 

@@ -30,68 +30,20 @@
 #include "input.h"
 void axiom_calculate_window_layout(struct axiom_server *server, int index, int *x, int *y, int *width, int *height);
 
-// Configuration reload function
+// Simplified configuration reload function
 void axiom_reload_configuration(struct axiom_server *server) {
     if (!server) return;
     
-    axiom_log_info("Reloading configuration...");
+    AXIOM_LOG_INFO("Reloading configuration...");
     
-    // Reload window rules
+    // Simple reload - just reload window rules for now
     if (server->window_rules_manager) {
         axiom_window_rules_reload_config(server->window_rules_manager);
-        axiom_log_info("Window rules reloaded");
+        AXIOM_LOG_INFO("Window rules reloaded");
     }
     
-    // Reload main configuration
-    if (server->config) {
-        struct axiom_config *new_config = axiom_config_create();
-        if (new_config) {
-            // Try to load from various paths
-            const char *config_paths[] = {
-                "./axiom.conf",
-                "./examples/axiom.conf",
-                "~/.config/axiom/axiom.conf",
-                "/etc/axiom/axiom.conf",
-                NULL
-            };
-            
-            bool loaded = false;
-            for (int i = 0; config_paths[i] && !loaded; i++) {
-                loaded = axiom_config_load(new_config, config_paths[i]);
-            }
-            
-            if (loaded) {
-                // Replace old config with new one
-                axiom_config_destroy(server->config);
-                server->config = new_config;
-                axiom_log_info("Main configuration reloaded");
-                
-                // Update effects manager with new config
-                if (server->effects_manager && server->config->effects.shadows_enabled) {
-                    axiom_effects_manager_destroy(server->effects_manager);
-        server->effects_manager = axiom_calloc_tracked(1, sizeof(struct axiom_effects_manager), 
-                                                      AXIOM_MEM_TYPE_EFFECTS, __FILE__, __func__, __LINE__);
-                    if (server->effects_manager) {
-                        axiom_effects_manager_init(server->effects_manager, &server->config->effects);
-                        axiom_log_info("Effects configuration reloaded");
-                    }
-                }
-            } else {
-                axiom_config_destroy(new_config);
-                axiom_log_warn("Failed to reload main configuration, keeping existing");
-            }
-        }
-    }
-    
-    // Re-apply configuration to existing windows
-    struct axiom_window *window;
-    wl_list_for_each(window, &server->windows, link) {
-        if (server->window_rules_manager) {
-            axiom_window_rules_apply_to_window(server->window_rules_manager, window);
-        }
-    }
-    
-    axiom_log_info("Configuration reload complete");
+    // TODO: Add hot-reload for main config when needed
+    AXIOM_LOG_INFO("Configuration reload complete");
 }
 
 void axiom_arrange_windows(struct axiom_server *server) {

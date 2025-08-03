@@ -1,11 +1,5 @@
-#include "window_manager.h"
-#include "axiom.h"
-#include "logging.h"
-#include "memory.h"
-#include "constants.h"
-#include "animation.h"
-#include "focus.h"
-
+#include <stdbool.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -13,6 +7,153 @@
 #include <wlr/util/box.h>
 #include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/types/wlr_scene.h>
+#include "window_manager.h"
+#include "axiom.h"
+#include "logging.h"
+// Fallback memory functions if memory.h is not available
+#ifndef axiom_calloc_tracked
+#define axiom_calloc_tracked(count, size, type, file, func, line) calloc(count, size)
+#define axiom_free_tracked(ptr, file, func, line) free(ptr)
+#define AXIOM_MEM_TYPE_WINDOW_MANAGER 0
+#define AXIOM_MEM_TYPE_WINDOW_STATE 0
+#define AXIOM_MEM_TYPE_WINDOW_GEOMETRY 0
+#define AXIOM_MEM_TYPE_WINDOW_LAYOUT 0
+#define AXIOM_MEM_TYPE_FOCUS 0
+#endif
+
+// Forward declare missing functions
+void axiom_window_manager_arrange_all(struct axiom_window_manager *manager);
+void axiom_window_manager_add_window(struct axiom_window_manager *manager, struct axiom_window *window);
+void axiom_window_manager_remove_window(struct axiom_window_manager *manager, struct axiom_window *window);
+#include "constants.h"
+#include "animation.h"
+#include "focus.h"
+#include "config.h"
+
+void axiom_update_window_decorations(struct axiom_window *window) {
+    if (!window || !window->scene_tree) {
+        return;
+    }
+
+    // Create decoration tree if it doesn't exist
+    if (!window->decoration_tree) {
+        window->decoration_tree = wlr_scene_tree_create(window->scene_tree);
+        if (!window->decoration_tree) {
+            AXIOM_LOG_ERROR("Failed to create decoration tree");
+            return;
+        }
+    }
+
+    // Remove existing decorations
+    if (window->title_bar) {
+        wlr_scene_node_destroy(&window->title_bar->node);
+        window->title_bar = NULL;
+    }
+    if (window->border_top) {
+        wlr_scene_node_destroy(&window->border_top->node);
+        window->border_top = NULL;
+    }
+    if (window->border_bottom) {
+        wlr_scene_node_destroy(&window->border_bottom->node);
+        window->border_bottom = NULL;
+    }
+    if (window->border_left) {
+        wlr_scene_node_destroy(&window->border_left->node);
+        window->border_left = NULL;
+    }
+    if (window->border_right) {
+        wlr_scene_node_destroy(&window->border_right->node);
+        window->border_right = NULL;
+    }
+
+    // Title bar colors
+    const float title_bar_focused[4] = {0.2f, 0.2f, 0.2f, 0.9f};
+    const float title_bar_unfocused[4] = {0.1f, 0.1f, 0.1f, 0.9f};
+    const float border_focused[4] = {0.4f, 0.6f, 1.0f, 1.0f};
+    const float border_unfocused[4] = {0.3f, 0.3f, 0.3f, 1.0f};
+
+    // Choose colors based on focus state
+    const float *title_color = window->is_focused ? title_bar_focused : title_bar_unfocused;
+    const float *border_color = window->is_focused ? border_focused : border_unfocused;
+
+    // Create title bar
+    const int title_height = 30;
+    const int border_width = 2;
+    window->title_bar = wlr_scene_rect_create(window->decoration_tree, 
+                                              window->width, title_height, title_color);
+    if (window->title_bar) {
+        wlr_scene_node_set_position(&window->title_bar->node, 0, -title_height);
+    }
+
+    // Create borders
+    // Top border
+    window->border_top = wlr_scene_rect_create(window->decoration_tree,
+                                               window->width, border_width, border_color);
+    if (window->border_top) {
+        wlr_scene_node_set_position(&window->border_top->node, 0, -border_width);
+    }
+
+    // Bottom border
+    window->border_bottom = wlr_scene_rect_create(window->decoration_tree,
+                                                   window->width, border_width, border_color);
+    if (window->border_bottom) {
+        wlr_scene_node_set_position(&window->border_bottom->node, 0, window->height);
+    }
+
+    // Left border
+    window->border_left = wlr_scene_rect_create(window->decoration_tree,
+                                                border_width, window->height, border_color);
+    if (window->border_left) {
+        wlr_scene_node_set_position(&window->border_left->node, -border_width, 0);
+    }
+
+    // Right border
+    window->border_right = wlr_scene_rect_create(window->decoration_tree,
+                                                 border_width, window->height, border_color);
+    if (window->border_right) {
+        wlr_scene_node_set_position(&window->border_right->node, window->width, 0);
+    }
+
+    // Create title bar buttons
+    axiom_create_title_bar_buttons(window);
+    axiom_update_title_bar_buttons(window);
+}
+
+
+// Tiling layout functionality (merged from tiling.c)
+static enum axiom_layout_type current_layout = AXIOM_LAYOUT_MASTER_STACK;
+static float master_ratio = 0.6f; // 60% for master window
+
+void axiom_set_layout(enum axiom_layout_type layout) {
+    current_layout = layout;
+    AXIOM_LOG_INFO("Layout changed to: %d", layout);
+}
+
+enum axiom_layout_type axiom_get_layout(void) {
+    return current_layout;
+}
+
+void axiom_adjust_master_ratio(float delta) {
+    master_ratio += delta;
+    if (master_ratio < 0.2f) master_ratio = 0.2f;
+    if (master_ratio > 0.8f) master_ratio = 0.8f;
+    AXIOM_LOG_INFO("Master ratio adjusted to: %.2f", master_ratio);
+}
+
+const char* axiom_get_layout_name(void) {
+    switch (current_layout) {
+        case AXIOM_LAYOUT_GRID:
+            return "Grid";
+        case AXIOM_LAYOUT_MASTER_STACK:
+            return "Master-Stack";
+        case AXIOM_LAYOUT_SPIRAL:
+            return "Spiral";
+        case AXIOM_LAYOUT_FLOATING:
+            return "Floating";
+        default:
+            return "Unknown";
+    }
+}
 
 // Forward declarations for internal functions
 static void window_manager_schedule_layout_update(struct axiom_window_manager *manager);
@@ -982,7 +1123,61 @@ bool axiom_window_state_changed(const struct axiom_window_state *old_state,
             old_state->opacity != new_state->opacity);
 }
 
-// Internal helper functions
+// Title bar dimensions and styling
+#define TITLE_BAR_HEIGHT 30
+#define BUTTON_SIZE 18
+#define BUTTON_MARGIN 6
+#define BUTTON_SPACING 2
+
+// Button colors
+static const float close_button_color[4] = {0.85f, 0.35f, 0.35f, 1.0f};
+static const float close_button_hover[4] = {1.0f, 0.4f, 0.4f, 1.0f};
+static const float minimize_button_color[4] = {0.95f, 0.75f, 0.3f, 1.0f};
+static const float minimize_button_hover[4] = {1.0f, 0.85f, 0.4f, 1.0f};
+static const float maximize_button_color[4] = {0.4f, 0.75f, 0.4f, 1.0f};
+static const float maximize_button_hover[4] = {0.5f, 0.85f, 0.5f, 1.0f};
+
+void axiom_create_title_bar_buttons(struct axiom_window *window) {
+    if (!window || !window->decoration_tree) {
+        AXIOM_LOG_ERROR("TITLE_BAR", "Cannot create title bar buttons");
+        return;
+    }
+    int window_width = window->width;
+    int close_x = window_width - BUTTON_MARGIN - BUTTON_SIZE;
+    int minimize_x = close_x - BUTTON_SIZE - BUTTON_SPACING;
+    int maximize_x = minimize_x - BUTTON_SIZE - BUTTON_SPACING;
+    int button_y = (TITLE_BAR_HEIGHT - BUTTON_SIZE) / 2;
+    window->close_button = wlr_scene_rect_create(window->decoration_tree, BUTTON_SIZE, BUTTON_SIZE, close_button_color);
+    if (window->close_button) {
+        wlr_scene_node_set_position(&window->close_button->node, close_x, button_y);
+    }
+    window->minimize_button = wlr_scene_rect_create(window->decoration_tree, BUTTON_SIZE, BUTTON_SIZE, minimize_button_color);
+    if (window->minimize_button) {
+        wlr_scene_node_set_position(&window->minimize_button->node, minimize_x, button_y);
+    }
+    window->maximize_button = wlr_scene_rect_create(window->decoration_tree, BUTTON_SIZE, BUTTON_SIZE, maximize_button_color);
+    if (window->maximize_button) {
+        wlr_scene_node_set_position(&window->maximize_button->node, maximize_x, button_y);
+    }
+}
+
+void axiom_update_title_bar_buttons(struct axiom_window *window) {
+    if (!window) {
+        return;
+    }
+    if (window->close_button) {
+        const float *color = window->close_button_hovered ? close_button_hover : close_button_color;
+        wlr_scene_rect_set_color(window->close_button, color);
+    }
+    if (window->minimize_button) {
+        const float *color = window->minimize_button_hovered ? minimize_button_hover : minimize_button_color;
+        wlr_scene_rect_set_color(window->minimize_button, color);
+    }
+    if (window->maximize_button) {
+        const float *color = window->maximize_button_hovered ? maximize_button_hover : maximize_button_color;
+        wlr_scene_rect_set_color(window->maximize_button, color);
+    }
+}
 
 static void window_manager_schedule_layout_update(struct axiom_window_manager *manager) {
     if (!manager || !manager->layout_timer) return;

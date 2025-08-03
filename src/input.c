@@ -1,15 +1,117 @@
+#include <stdbool.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <wlr/types/wlr_keyboard.h>
 #include <wlr/types/wlr_pointer.h>
+#include <wlr/types/wlr_touch.h>
+#include <wlr/types/wlr_tablet_tool.h>
+#include <wlr/types/wlr_tablet_pad.h>
+#include <wlr/types/wlr_switch.h>
+#include <wlr/types/wlr_text_input_v3.h>
+#include <wlr/types/wlr_input_method_v2.h>
+#include <wlr/types/wlr_pointer_gestures_v1.h>
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
+#include <linux/input-event-codes.h>
+#include <math.h>
 #include "axiom.h"
+#include "input.h"
 #include "keybindings.h"
 #include "config.h"
 #include "animation.h"
 #include "pip_manager.h"
+#include "logging.h"
+
+// Forward declare window manager functions
+void axiom_window_manager_arrange_all(struct axiom_window_manager *manager);
+void axiom_window_manager_add_window(struct axiom_window_manager *manager, struct axiom_window *window);
+void axiom_window_manager_remove_window(struct axiom_window_manager *manager, struct axiom_window *window);
+
+void axiom_cycle_layout(struct axiom_server *server) {
+    if (!server || !server->window_manager) {
+        AXIOM_LOG_ERROR("Failed to cycle layout, server or window_manager is NULL");
+        return;
+    }
+
+    // Cycle through layouts: Master-Stack -> Grid -> Spiral -> Floating -> Master-Stack
+    enum axiom_layout_type current = axiom_get_layout();
+    enum axiom_layout_type next;
+    switch (current) {
+        case AXIOM_LAYOUT_MASTER_STACK:
+            next = AXIOM_LAYOUT_GRID;
+            break;
+        case AXIOM_LAYOUT_GRID:
+            next = AXIOM_LAYOUT_SPIRAL;
+            break;
+        case AXIOM_LAYOUT_SPIRAL:
+            next = AXIOM_LAYOUT_FLOATING;
+            break;
+        default:
+            next = AXIOM_LAYOUT_MASTER_STACK;
+            break;
+    }
+
+    axiom_set_layout(next);
+    AXIOM_LOG_INFO("Layout cycled to: %s", axiom_get_layout_name());
+
+    // Rearrange windows to apply new layout
+    axiom_window_manager_arrange_all(server->window_manager);
+}
+
+void axiom_toggle_window_floating(struct axiom_server *server, struct axiom_window *window) {
+    if (!server || !window) {
+        AXIOM_LOG_ERROR("Cannot toggle floating state, server or window is NULL");
+        return;
+    }
+
+    // Switch between floating and tiled layouts
+    if (window->is_tiled) {
+        window->is_tiled = false;
+        axiom_window_manager_remove_window(server->window_manager, window);
+        axiom_window_manager_add_window(server->window_manager, window);
+        axiom_update_window_decorations(window); // Remove decorations for floating
+        AXIOM_LOG_INFO("Window set to floating: %s", window->xdg_toplevel ? window->xdg_toplevel->title : "(no title)");
+    } else {
+        window->is_tiled = true;
+        axiom_window_manager_remove_window(server->window_manager, window);
+        axiom_window_manager_add_window(server->window_manager, window);
+        axiom_update_window_decorations(window); // Add decorations for tiled
+        AXIOM_LOG_INFO("Window set to tiled: %s", window->xdg_toplevel ? window->xdg_toplevel->title : "(no title)");
+    }
+    
+    // Rearrange windows after toggling
+    axiom_window_manager_arrange_all(server->window_manager);
+}
+
+
+// Enhanced input manager (merged from input_enhanced.c)
+struct axiom_input_manager *axiom_input_manager_create(struct axiom_server *server) {
+    struct axiom_input_manager *manager = calloc(1, sizeof(struct axiom_input_manager));
+    if (!manager) {
+        AXIOM_LOG_ERROR("Failed to allocate input manager");
+        return NULL;
+    }
+    manager->server = server;
+    wl_list_init(&manager->keyboards);
+    wl_list_init(&manager->pointers);
+    wl_list_init(&manager->touch_devices);
+    wl_list_init(&manager->tablet_tools);
+    wl_list_init(&manager->tablet_pads);
+    wl_list_init(&manager->switches);
+    manager->natural_scroll_default = false;
+    manager->tap_to_click_default = true;
+    manager->pointer_accel_default = 0.0;
+    AXIOM_LOG_INFO("Enhanced input manager created");
+    return manager;
+}
+
+void axiom_input_manager_destroy(struct axiom_input_manager *manager) {
+    if (!manager) return;
+    free(manager);
+    AXIOM_LOG_INFO("Input manager destroyed");
+}
 
 static void keyboard_handle_modifiers(struct wl_listener *listener, void *data) {
     (void)data; // Suppress unused parameter warning
