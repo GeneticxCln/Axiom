@@ -18,6 +18,10 @@
 #include "thumbnail_manager.h"
 #include "keybindings.h"
 #include "focus.h"
+#include "layer_shell.h"
+#include "screenshot.h"
+#include "session.h"
+#include "xwayland.h"
 #include "logging.h"
 #include "memory.h"
 #include "constants.h"
@@ -832,6 +836,56 @@ int main(int argc, char *argv[]) {
         AXIOM_LOG_INFO("Focus manager initialized for window switching and focus management");
     }
     
+    // Initialize desktop integration protocols
+    
+    // Initialize layer shell manager for panels/bars
+    server.layer_shell_manager = axiom_layer_shell_manager_create(&server);
+    if (!server.layer_shell_manager) {
+        AXIOM_LOG_ERROR("Failed to create layer shell manager");
+    } else if (!axiom_layer_shell_manager_init(server.layer_shell_manager)) {
+        AXIOM_LOG_ERROR("Failed to initialize layer shell manager");
+        axiom_layer_shell_manager_destroy(server.layer_shell_manager);
+        server.layer_shell_manager = NULL;
+    } else {
+        AXIOM_LOG_INFO("Layer shell protocol initialized - panels and bars can now connect");
+    }
+    
+    // Initialize screenshot manager
+    server.screenshot_manager = axiom_screenshot_manager_create(&server);
+    if (!server.screenshot_manager) {
+        AXIOM_LOG_ERROR("Failed to create screenshot manager");
+    } else if (!axiom_screenshot_manager_init(server.screenshot_manager)) {
+        AXIOM_LOG_ERROR("Failed to initialize screenshot manager");
+        axiom_screenshot_manager_destroy(server.screenshot_manager);
+        server.screenshot_manager = NULL;
+    } else {
+        AXIOM_LOG_INFO("Screenshot protocols initialized - screen capture available");
+    }
+    
+    // Initialize session manager
+    server.session_manager = axiom_session_manager_create(&server);
+    if (!server.session_manager) {
+        AXIOM_LOG_ERROR("Failed to create session manager");
+    } else if (!axiom_session_manager_init(server.session_manager)) {
+        AXIOM_LOG_ERROR("Failed to initialize session manager");
+        axiom_session_manager_destroy(server.session_manager);
+        server.session_manager = NULL;
+    } else {
+        AXIOM_LOG_INFO("Session management protocols initialized - locking and idle control available");
+    }
+    
+    // Initialize XWayland support
+    server.xwayland_manager = axiom_xwayland_manager_create(&server);
+    if (!server.xwayland_manager) {
+        AXIOM_LOG_ERROR("Failed to create XWayland manager");
+    } else if (!axiom_xwayland_manager_init(server.xwayland_manager)) {
+        AXIOM_LOG_ERROR("Failed to initialize XWayland manager");
+        axiom_xwayland_manager_destroy(server.xwayland_manager);
+        server.xwayland_manager = NULL;
+    } else {
+        AXIOM_LOG_INFO("XWayland support initialized - X11 applications can now run");
+    }
+    
     // Set up input management
     wl_list_init(&server.input_devices);
     
@@ -987,6 +1041,23 @@ int main(int argc, char *argv[]) {
     if (server.focus_manager) {
         axiom_focus_manager_cleanup(server.focus_manager);
         axiom_free_tracked(server.focus_manager, __FILE__, __func__, __LINE__);
+    }
+    
+    // Cleanup desktop integration protocols
+    if (server.layer_shell_manager) {
+        axiom_layer_shell_manager_destroy(server.layer_shell_manager);
+    }
+    
+    if (server.screenshot_manager) {
+        axiom_screenshot_manager_destroy(server.screenshot_manager);
+    }
+    
+    if (server.session_manager) {
+        axiom_session_manager_destroy(server.session_manager);
+    }
+    
+    if (server.xwayland_manager) {
+        axiom_xwayland_manager_destroy(server.xwayland_manager);
     }
     
     axiom_config_destroy(server.config);
