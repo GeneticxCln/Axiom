@@ -6,12 +6,13 @@
 set -euo pipefail
 
 # Configuration
-AXIOM_DIR="/home/alex/Projects /Axiom"
+AXIOM_DIR="/home/alex/Projects/Axiom"
 LOG_FILE="$HOME/.axiom-updater.log"
 BACKUP_DIR="$HOME/.axiom-backups"
 PERFORMANCE_LOG="$HOME/.axiom-performance.log"
 RISK_ASSESSMENT_LOG="$HOME/.axiom-risk-assessment.log"
 CONFIG_FILE="$HOME/.config/axiom-smart-updater.conf"
+AI_MONITOR_SCRIPT="$AXIOM_DIR/axiom-wlroots-ai-monitor.sh"
 
 # Colors
 RED='\033[0;31m'
@@ -388,6 +389,57 @@ create_backup() {
     # Keep only last 10 backups (increased from 5)
     cd "$BACKUP_DIR"
     ls -1t axiom-backup-* | tail -n +11 | xargs -r rm -rf
+}
+
+# AI Monitor Integration Functions
+integrate_with_ai_monitor() {
+    if [ -f "$AI_MONITOR_SCRIPT" ] && [ "${AI_MONITOR_MODE:-false}" = "true" ]; then
+        log "INFO" "AI" "🤖 AI Monitor integration active"
+        
+        # Get AI-provided compatibility data
+        local target_version="${WLROOTS_TARGET_VERSION:-}"
+        local compatibility_score="${COMPATIBILITY_SCORE:-50}"
+        
+        if [ -n "$target_version" ]; then
+            log "INFO" "AI" "AI Monitor suggests wlroots $target_version (compatibility: $compatibility_score/100)"
+            
+            # Adjust risk assessment based on AI analysis
+            if [ "$compatibility_score" -ge 90 ]; then
+                log "INFO" "AI" "✅ AI confirms high compatibility - reducing risk"
+                return 0  # Low additional risk
+            elif [ "$compatibility_score" -ge 70 ]; then
+                log "WARN" "AI" "⚠️  AI indicates moderate compatibility"
+                return 10  # Moderate additional risk
+            else
+                log "ERROR" "AI" "🔴 AI warns of low compatibility"
+                return 30  # High additional risk
+            fi
+        fi
+    fi
+    return 0
+}
+
+trigger_ai_wlroots_check() {
+    if [ -f "$AI_MONITOR_SCRIPT" ]; then
+        log "INFO" "AI" "🔍 Triggering AI wlroots compatibility check"
+        "$AI_MONITOR_SCRIPT" check
+        return $?
+    fi
+    return 0
+}
+
+update_ai_compatibility_database() {
+    local wlroots_version=$1
+    local axiom_version=$2
+    local test_result=$3
+    local performance_score=${4:-50}
+    
+    if [ -f "$AI_MONITOR_SCRIPT" ]; then
+        log "INFO" "AI" "📊 Updating AI compatibility database"
+        # This would call the AI monitor's database update function
+        # For now, we'll log the data that would be sent
+        log "INFO" "AI" "Would update: $wlroots_version:$axiom_version:$performance_score:$(date +%Y-%m-%d):Smart updater tested"
+    fi
 }
 
 # Enhanced main update process
