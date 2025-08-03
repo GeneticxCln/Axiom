@@ -235,6 +235,15 @@ Axiom v3.6.0+ includes a revolutionary **AI-powered update system** that provide
 
 **See [Smart Updater Demo](SMART_UPDATER_DEMO.md) for complete documentation and examples.**
 
+## 🔍 Missing Core Wayland Compositor Features
+
+Compared to actual production compositors like Hyprland or Sway:
+- No XWayland support (can't run X11 apps)
+- No layer shell protocol (can't run panels/bars)
+- Missing 50+ essential Wayland protocols
+- No real window management beyond basic tiling
+- No desktop integration (no screenshots, no proper session management)
+
 ---
 
 ## ⌨️ **Keyboard Shortcuts**
