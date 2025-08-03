@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # Axiom Wayland Compositor Session Starter
-# Version: 3.9.0
-# This script properly initializes the environment and starts Axiom
+# Version: 4.1.0 - AI-Powered wlroots Monitoring System
+# This script properly initializes the environment and starts Axiom with AI monitoring
 
 set -e
 
 # Define version and directories
-AXIOM_VERSION="3.9.0"
+AXIOM_VERSION="4.1.0"
 AXIOM_HOME="${HOME}/.local/share/axiom"
 AXIOM_CONFIG_DIR="${HOME}/.config/axiom"
 AXIOM_CACHE_DIR="${HOME}/.cache/axiom"
@@ -176,6 +176,73 @@ if [[ ! -f "${AXIOM_CONFIG_DIR}/axiom.conf" ]]; then
         log_info "Copied default configuration to ${AXIOM_CONFIG_DIR}/axiom.conf"
     fi
 fi
+
+# Initialize AI monitoring system (v4.1.0 feature)
+setup_ai_monitoring() {
+    log_info "Setting up AI-powered wlroots monitoring system..."
+    
+    # Create AI monitoring config directory
+    mkdir -p "${HOME}/.config"
+    
+    # Check if AI monitor script exists
+    if [[ -x "./axiom-wlroots-ai-monitor.sh" ]]; then
+        AI_MONITOR_SCRIPT="./axiom-wlroots-ai-monitor.sh"
+    elif [[ -x "/usr/local/bin/axiom-wlroots-ai-monitor.sh" ]]; then
+        AI_MONITOR_SCRIPT="/usr/local/bin/axiom-wlroots-ai-monitor.sh"
+    else
+        log_info "AI monitoring script not found - continuing without AI monitoring"
+        return 0
+    fi
+    
+    # Create default AI monitoring configuration
+    if [[ ! -f "${HOME}/.config/axiom-wlroots-monitor.conf" ]]; then
+        log_info "Creating default AI monitoring configuration..."
+        cat > "${HOME}/.config/axiom-wlroots-monitor.conf" <<EOF
+# Axiom AI-Powered wlroots Monitoring Configuration
+# Version: 4.1.0
+
+[monitoring]
+CHECK_INTERVAL_HOURS=6
+ENABLE_NOTIFICATIONS=true
+LOG_LEVEL=INFO
+
+[compatibility]
+COMPATIBILITY_THRESHOLD=80
+ENABLE_PREDICTIVE_ANALYSIS=true
+USE_HISTORICAL_DATA=true
+
+[integration]
+INTEGRATE_WITH_SMART_UPDATER=true
+AUTO_UPDATE_ON_HIGH_COMPATIBILITY=false
+EOF
+        log_info "Created AI monitoring configuration at ~/.config/axiom-wlroots-monitor.conf"
+    fi
+    
+    # Start AI monitoring daemon in background (optional)
+    if [[ "${AXIOM_ENABLE_AI_DAEMON:-false}" == "true" ]]; then
+        log_info "Starting AI monitoring daemon..."
+        nohup "${AI_MONITOR_SCRIPT}" daemon >"${AXIOM_LOG_DIR}/ai-monitor.log" 2>&1 &
+        AI_DAEMON_PID=$!
+        log_info "AI monitoring daemon started with PID ${AI_DAEMON_PID}"
+        
+        # Add AI daemon cleanup to main cleanup function
+        cleanup_ai_daemon() {
+            if [[ -n "${AI_DAEMON_PID}" ]]; then
+                log_info "Stopping AI monitoring daemon (PID ${AI_DAEMON_PID})"
+                kill "${AI_DAEMON_PID}" 2>/dev/null || true
+            fi
+        }
+        trap 'cleanup_ai_daemon; cleanup' EXIT INT TERM
+    else
+        log_info "AI monitoring daemon disabled (set AXIOM_ENABLE_AI_DAEMON=true to enable)"
+    fi
+    
+    log_info "AI monitoring system setup complete"
+}
+
+# Initialize AI monitoring system (v4.1.0)
+log_info "Initializing AI monitoring system..."
+setup_ai_monitoring
 
 # Set up session logging
 SESSION_LOG="${AXIOM_LOG_DIR}/axiom-$(date '+%Y%m%d-%H%M%S').log"

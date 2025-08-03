@@ -1,7 +1,7 @@
 [Session]
 Name=Axiom
-Comment=Axiom Wayland Compositor - Production XWayland and Session Management (v3.9.0)
+Comment=Axiom Wayland Compositor - AI-Powered wlroots Monitoring with XWayland and Session Management (v4.1.0)
 Exec=axiom-session
 Type=wayland
 DesktopName=Axiom
-Version=3.9.0
+Version=4.1.0
