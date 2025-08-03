@@ -2,6 +2,11 @@
 #include "axiom.h"
 #include "animation.h"
 #include "window_rules.h"
+#include "memory.h"
+#include "logging.h"
+#include <wlr/xwayland.h>
+#include <wlr/types/wlr_scene.h>
+#include <wlr/util/log.h>
 
 /**
  * Create and initialize the XWayland manager.
@@ -9,12 +14,19 @@
  * @return Pointer to the initialized manager.
  */
 struct axiom_xwayland_manager *axiom_xwayland_manager_create(struct axiom_server *server) {
-    struct axiom_xwayland_manager *manager = calloc(1, sizeof(struct axiom_xwayland_manager));
+    struct axiom_xwayland_manager *manager = axiom_calloc_tracked(1, 
+        sizeof(struct axiom_xwayland_manager), AXIOM_MEM_TYPE_XWAYLAND,
+        __FILE__, __func__, __LINE__);
     if (!manager) {
-        AXIOM_LOG_ERROR("Failed to allocate XWayland manager");
+        AXIOM_LOG_ERROR("XWAYLAND", "Failed to allocate XWayland manager");
         return NULL;
     }
     manager->server = server;
+    manager->enabled = true;  // Enable XWayland by default
+    manager->lazy = false;    // Start immediately, not on demand
+    manager->force_zero_scaling = false;
+    
+    AXIOM_LOG_DEBUG("XWAYLAND", "XWayland manager created");
     return manager;
 }
 
@@ -54,10 +66,19 @@ void axiom_xwayland_manager_destroy(struct axiom_xwayland_manager *manager) {
         return;
     }
 
+    AXIOM_LOG_DEBUG("XWAYLAND", "Destroying XWayland manager");
+    
+    // Remove event listeners
+    wl_list_remove(&manager->new_surface.link);
+    wl_list_remove(&manager->ready.link);
+    
     if (manager->wlr_xwayland) {
         wlr_xwayland_destroy(manager->wlr_xwayland);
+        manager->wlr_xwayland = NULL;
     }
-    free(manager);
+    
+    axiom_free_tracked(manager, __FILE__, __func__, __LINE__);
+    AXIOM_LOG_DEBUG("XWAYLAND", "XWayland manager destroyed");
 }
 
 /**
@@ -242,13 +263,13 @@ void axiom_xwayland_handle_ready(struct wl_listener *listener, void *data) {
     struct axiom_xwayland_manager *manager = wl_container_of(listener, manager, ready);
     (void)data; // Suppress unused parameter warning
     
-    AXIOM_LOG_INFO("XWayland server is ready and can accept X11 connections");
+    AXIOM_LOG_INFO("XWAYLAND", "XWayland server is ready and can accept X11 connections");
     
-    // Set DISPLAY environment variable for X11 applications
+    // Set DISPLAY environment variable for X11 applications using environment helper
     if (manager->wlr_xwayland->display_name) {
-        setenv("DISPLAY", manager->wlr_xwayland->display_name, true);
-        AXIOM_LOG_INFO("X11 applications can connect to DISPLAY=%s", 
-                       manager->wlr_xwayland->display_name);
+        axiom_environment_set_display(manager->wlr_xwayland->display_name);
+    } else {
+        AXIOM_LOG_WARN("XWAYLAND", "XWayland ready but no display name available");
     }
 }
 

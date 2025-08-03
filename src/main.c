@@ -25,6 +25,7 @@
 #include "logging.h"
 #include "memory.h"
 #include "constants.h"
+#include "environment.h"
 void axiom_calculate_window_layout(struct axiom_server *server, int index, int *x, int *y, int *width, int *height);
 
 // Configuration reload function
@@ -558,6 +559,14 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
     
+    // Set up proper environment for Wayland compositor operation
+    if (!axiom_environment_setup()) {
+        AXIOM_LOG_WARN("Environment setup completed with warnings, continuing...");
+    }
+    
+    // Print environment information for debugging
+    axiom_environment_print_info();
+    
     // Parse command line arguments
     bool nested = false;
     AXIOM_LOG_DEBUG("Parsing %d command line arguments", argc);
@@ -960,7 +969,7 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
     
-    setenv("WAYLAND_DISPLAY", socket, true);
+    axiom_environment_set_wayland_display(socket);
     server.running = true;
     
     AXIOM_LOG_INFO("Axiom running on WAYLAND_DISPLAY=%s", socket);

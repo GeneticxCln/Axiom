@@ -1,8 +1,7 @@
-[Desktop Entry]
+[Session]
 Name=Axiom
-Comment=Axiom Wayland Compositor Session - Secure v3.5.1 Release
-Exec=axiom
-Type=Application
-DesktopNames=Axiom
-Version=3.5.1
-Keywords=wayland;compositor;secure;session
+Comment=Axiom Wayland Compositor - Professional Window Management with XWayland (v3.8.0)
+Exec=axiom-session
+Type=wayland
+DesktopName=Axiom
+Version=3.8.0

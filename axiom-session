@@ -1,0 +1,189 @@
+#!/bin/bash
+
+# Axiom Wayland Compositor Session Starter
+# Version: 3.8.0
+# This script properly initializes the environment and starts Axiom
+
+set -e
+
+# Define version and directories
+AXIOM_VERSION="3.8.0"
+AXIOM_HOME="${HOME}/.local/share/axiom"
+AXIOM_CONFIG_DIR="${HOME}/.config/axiom"
+AXIOM_CACHE_DIR="${HOME}/.cache/axiom"
+AXIOM_LOG_DIR="${AXIOM_CACHE_DIR}/logs"
+AXIOM_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp}/axiom-${USER}"
+
+# Create necessary directories
+mkdir -p "${AXIOM_HOME}" "${AXIOM_CONFIG_DIR}" "${AXIOM_CACHE_DIR}" "${AXIOM_LOG_DIR}" "${AXIOM_RUNTIME_DIR}"
+
+# Function to log messages
+log_info() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] INFO: $*" | tee -a "${AXIOM_LOG_DIR}/session.log"
+}
+
+log_error() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $*" | tee -a "${AXIOM_LOG_DIR}/session.log" >&2
+}
+
+log_info "Starting Axiom Wayland Compositor v${AXIOM_VERSION}"
+
+# Check if we're already in a Wayland or X11 session
+if [[ -n "${WAYLAND_DISPLAY}" ]]; then
+    log_info "Running inside existing Wayland session (${WAYLAND_DISPLAY})"
+    NESTED_MODE="--nested"
+elif [[ -n "${DISPLAY}" ]]; then
+    log_info "Running inside existing X11 session (${DISPLAY})"
+    NESTED_MODE="--nested"
+else
+    log_info "Starting as primary display server"
+    NESTED_MODE=""
+fi
+
+# Set up essential environment variables
+export XDG_SESSION_TYPE="wayland"
+export XDG_SESSION_DESKTOP="axiom"
+export XDG_CURRENT_DESKTOP="Axiom"
+
+# Wayland specific environment
+export MOZ_ENABLE_WAYLAND=1
+export QT_QPA_PLATFORM="wayland;xcb"
+export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
+export CLUTTER_BACKEND=wayland
+export SDL_VIDEODRIVER=wayland
+export _JAVA_AWT_WM_NONREPARENTING=1
+
+# GNOME/GTK compatibility
+export GDK_BACKEND="wayland,x11"
+export DESKTOP_SESSION="axiom"
+
+# Qt scaling and theme
+export QT_AUTO_SCREEN_SCALE_FACTOR=1
+export QT_SCALE_FACTOR=1
+export QT_FONT_DPI=96
+
+# Hardware acceleration
+export LIBVA_DRIVER_NAME=auto
+export VDPAU_DRIVER=auto
+
+# Cursor theme fallback
+export XCURSOR_THEME="${XCURSOR_THEME:-default}"
+export XCURSOR_SIZE="${XCURSOR_SIZE:-24}"
+
+# Runtime directories
+export AXIOM_RUNTIME_DIR
+export AXIOM_CONFIG_DIR
+export AXIOM_CACHE_DIR
+
+# Add Axiom's bin directory to PATH if it exists
+if [[ -d "/usr/local/bin" ]] && [[ ":$PATH:" != *":/usr/local/bin:"* ]]; then
+    export PATH="/usr/local/bin:$PATH"
+fi
+
+# Source user environment if available
+if [[ -f "${HOME}/.axiomrc" ]]; then
+    log_info "Sourcing user configuration from ~/.axiomrc"
+    source "${HOME}/.axiomrc"
+fi
+
+# Check for required dependencies
+check_dependencies() {
+    local missing_deps=()
+    
+    # Check for essential libraries
+    if ! ldconfig -p | grep -q libwayland-server; then
+        missing_deps+=("libwayland-server")
+    fi
+    
+    if ! ldconfig -p | grep -q libwlroots; then
+        missing_deps+=("libwlroots")
+    fi
+    
+    # Check for Axiom binary
+    if ! command -v axiom >/dev/null 2>&1; then
+        if [[ -x "./build/axiom" ]]; then
+            AXIOM_BINARY="./build/axiom"
+        elif [[ -x "/usr/local/bin/axiom" ]]; then
+            AXIOM_BINARY="/usr/local/bin/axiom"
+        else
+            missing_deps+=("axiom binary")
+        fi
+    else
+        AXIOM_BINARY="axiom"
+    fi
+    
+    if [[ ${#missing_deps[@]} -gt 0 ]]; then
+        log_error "Missing dependencies: ${missing_deps[*]}"
+        log_error "Please install missing dependencies and try again"
+        exit 1
+    fi
+}
+
+# Set up XWayland environment
+setup_xwayland_env() {
+    # XWayland will set DISPLAY automatically when ready
+    # But we need to ensure X11 apps can find necessary resources
+    
+    # X11 compatibility
+    export XAUTHORITY="${XAUTHORITY:-${HOME}/.Xauthority}"
+    
+    # Font configuration for X11 apps
+    export FONTCONFIG_PATH="/etc/fonts:/usr/share/fonts"
+    
+    # X11 resource database
+    if command -v xrdb >/dev/null 2>&1 && [[ -f "${HOME}/.Xresources" ]]; then
+        log_info "Loading X11 resources from ~/.Xresources"
+    fi
+    
+    log_info "XWayland environment configured"
+}
+
+# Clean up function
+cleanup() {
+    log_info "Cleaning up Axiom session"
+    
+    # Kill any remaining Axiom processes
+    pkill -f "axiom" 2>/dev/null || true
+    
+    # Clean up runtime directory
+    if [[ -d "${AXIOM_RUNTIME_DIR}" ]]; then
+        rm -rf "${AXIOM_RUNTIME_DIR}"
+    fi
+    
+    # Reset environment variables
+    unset WAYLAND_DISPLAY
+    unset DISPLAY
+    
+    log_info "Axiom session cleanup complete"
+}
+
+# Set up signal handlers
+trap cleanup EXIT INT TERM
+
+# Perform dependency check
+log_info "Checking dependencies..."
+check_dependencies
+
+# Set up XWayland environment
+log_info "Setting up XWayland environment..."
+setup_xwayland_env
+
+# Create default configuration if it doesn't exist
+if [[ ! -f "${AXIOM_CONFIG_DIR}/axiom.conf" ]]; then
+    log_info "Creating default configuration..."
+    if [[ -f "./examples/axiom.conf" ]]; then
+        cp "./examples/axiom.conf" "${AXIOM_CONFIG_DIR}/axiom.conf"
+        log_info "Copied default configuration to ${AXIOM_CONFIG_DIR}/axiom.conf"
+    fi
+fi
+
+# Set up session logging
+SESSION_LOG="${AXIOM_LOG_DIR}/axiom-$(date '+%Y%m%d-%H%M%S').log"
+log_info "Session log: ${SESSION_LOG}"
+
+# Start Axiom compositor
+log_info "Starting Axiom compositor..."
+log_info "Command: ${AXIOM_BINARY} ${NESTED_MODE}"
+
+# Execute Axiom with proper logging
+exec "${AXIOM_BINARY}" ${NESTED_MODE} 2>&1 | tee "${SESSION_LOG}"
