@@ -17,7 +17,35 @@
 
 ---
 
-## 🚀 **NEW in v4.3.2 - MULTI-SESSION SUPPORT!** 👥
+## 🚨 **CRITICAL: v4.3.3 - SEGFAULT BUG FIX** 🐛
+
+### 🛠️ **CRITICAL BUG FIX RELEASE**
+
+**🚨 IMMEDIATE UPDATE RECOMMENDED**
+- **Fixed**: Critical segmentation fault during compositor startup
+- **Impact**: Compositor would crash immediately when starting in nested mode
+- **Root Cause**: Uninitialized `input_devices` linked list in server structure
+- **Solution**: Added proper list initialization in compositor setup
+
+**✅ STABILITY IMPROVEMENTS**
+- Compositor now starts successfully without crashes
+- Keyboard input devices initialize properly
+- All existing functionality preserved
+- Clean startup in both nested and native modes
+
+**📋 FOR USERS EXPERIENCING CRASHES:**
+If you're experiencing startup crashes with previous versions, upgrade to v4.3.3 immediately:
+```bash
+git pull origin main
+git checkout v4.3.3
+ninja -C builddir
+```
+
+**[🔗 Download v4.3.3](https://github.com/GeneticxCln/Axiom/releases/tag/v4.3.3)** | **[🐛 Bug Fix Details](RELEASE_NOTES_v4.3.3.md)**
+
+---
+
+## 🚀 **PREVIOUS: v4.3.2 - MULTI-SESSION SUPPORT!** 👥
 
 ### 🏢 **ENTERPRISE-GRADE MULTI-USER SESSIONS**
 

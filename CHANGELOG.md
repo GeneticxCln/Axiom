@@ -5,6 +5,24 @@ All notable changes to Axiom Wayland Compositor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.3.3] - 2025-08-03 🔧 CRITICAL BUG FIX RELEASE
+
+### 🐛 Fixed
+- **Critical Segmentation Fault**: Resolved critical segmentation fault during compositor startup
+  - **Root Cause**: Uninitialized `input_devices` linked list in server structure
+  - **Solution**: Proper list initialization in compositor setup
+  - **Impact**: Prevented compositor from starting in nested mode, fixed for stable operation
+
+### 🔧 Stability Improvements
+- Compositor starts successfully in both nested and native modes
+- Ensured proper initialization for all input devices
+
+### 📋 Additional Information
+- **Files Changed**: `src/compositor.c`
+
+- **GitHub Release**: [v4.3.3](https://github.com/GeneticxCln/Axiom/releases/tag/v4.3.3)
+- **Bug Details**: [RELEASE_NOTES_v4.3.3.md](RELEASE_NOTES_v4.3.3.md)
+
 ## [Unreleased]
 
 ## [4.3.1] - 2025-08-03 🛠️ BUG FIXES AND STABILITY RELEASE
