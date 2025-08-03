@@ -30,6 +30,7 @@ struct axiom_xwayland_manager;
 struct axiom_tag_manager;
 struct axiom_keybinding_manager;
 struct axiom_focus_manager;
+struct axiom_window_manager;
 
 // Enhanced window properties
 struct axiom_window_tags {
@@ -60,6 +61,16 @@ struct axiom_window {
     // XWayland-specific data (NULL for XDG windows)
     struct axiom_xwayland_surface *xwayland_surface;
     
+    // New window manager fields
+    struct axiom_window_manager *manager;
+    struct axiom_window_state *state;
+    struct axiom_window_geometry *geometry;
+    struct axiom_window_layout *layout;
+    
+    struct wl_list mapped_link;    // Link in manager's mapped windows list
+    struct wl_list tiled_link;     // Link in manager's tiled windows list
+    struct wl_list floating_link;  // Link in manager's floating windows list
+    
     struct wl_listener map;
     struct wl_listener unmap;
     struct wl_listener destroy;
@@ -71,9 +82,6 @@ struct axiom_window {
     // Surface for effects
     struct wlr_surface *surface;
     
-    // Geometry convenience access
-    struct wlr_box geometry;
-
     // Tiling properties
     bool is_tiled;
     bool is_focused;
@@ -205,7 +213,8 @@ struct axiom_server {
     struct wlr_xcursor_manager *cursor_mgr;
     struct wlr_seat *seat;
     struct wlr_data_device_manager *data_device_manager;
-    struct wl_list input_devices;
+    struct axiom_input_manager *input_manager; // Enhanced input manager
+    struct wl_list input_devices; // Legacy compatibility
     
     // Window management
     struct wlr_xdg_shell *xdg_shell;
@@ -270,6 +279,7 @@ struct axiom_server {
     struct axiom_xwayland_manager *xwayland_manager;
     
     // Enhanced systems
+    struct axiom_window_manager *window_manager;         // Professional window management
     struct axiom_tag_manager *tag_manager;             // Tagging system
     struct axiom_keybinding_manager *keybinding_manager; // Key bindings
     struct axiom_focus_manager *focus_manager;           // Focus and stacking

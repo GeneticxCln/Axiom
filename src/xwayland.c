@@ -4,6 +4,7 @@
 #include "window_rules.h"
 #include "memory.h"
 #include "logging.h"
+#include "environment.h"
 #include <wlr/xwayland.h>
 #include <wlr/types/wlr_scene.h>
 #include <wlr/util/log.h>

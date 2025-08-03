@@ -345,6 +345,20 @@ bool axiom_gpu_setup_quad_geometry(struct axiom_gpu_context *ctx) {
     return axiom_gpu_check_error("setup quad geometry");
 }
 
+void axiom_gpu_composite_layers(struct axiom_gpu_context *ctx, GLuint *textures, int layer_count) {
+    if (!ctx || !textures || layer_count <= 0) return;
+
+    glUseProgram(ctx->composite_program);
+    for (int i = 0; i < layer_count; ++i) {
+        glActiveTexture(GL_TEXTURE0 + i);
+        glBindTexture(GL_TEXTURE_2D, textures[i]);
+        glUniform1i(glGetUniformLocation(ctx->composite_program, "u_texture"), i);
+
+        axiom_gpu_render_quad(ctx);
+    }
+    glUseProgram(0);
+}
+
 void axiom_gpu_render_quad(struct axiom_gpu_context *ctx) {
     glBindVertexArray(ctx->quad_vao);
     glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
@@ -500,16 +514,36 @@ bool axiom_gpu_render_blur(struct axiom_gpu_context *ctx,
 
 // Framebuffer management
 bool axiom_gpu_create_framebuffers(struct axiom_gpu_context *ctx, int width, int height) {
-    (void)ctx; (void)width; (void)height; // Suppress unused parameter warnings
-    // Create framebuffers for effects rendering
-    // Placeholder implementation
-    return true;
+    if (!ctx) return false;
+    
+    ctx->framebuffer_width = width;
+    ctx->framebuffer_height = height;
+    
+    glGenFramebuffers(1, &ctx->shadow_fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, ctx->shadow_fbo);
+    ctx->shadow_texture = axiom_gpu_create_texture(width, height, GL_RGBA8);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ctx->shadow_texture, 0);
+    
+    glGenFramebuffers(1, &ctx->blur_fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, ctx->blur_fbo);
+    ctx->blur_texture = axiom_gpu_create_texture(width, height, GL_RGBA8);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ctx->blur_texture, 0);
+    
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    return axiom_gpu_check_error("creating framebuffers");
 }
 
 void axiom_gpu_destroy_framebuffers(struct axiom_gpu_context *ctx) {
-    (void)ctx; // Suppress unused parameter warning
-    // Destroy framebuffers
-    // Placeholder implementation
+    if (!ctx) return;
+    
+    if (ctx->shadow_fbo) {
+        glDeleteFramebuffers(1, &ctx->shadow_fbo);
+        axiom_gpu_destroy_texture(ctx->shadow_texture);
+    }
+    if (ctx->blur_fbo) {
+        glDeleteFramebuffers(1, &ctx->blur_fbo);
+        axiom_gpu_destroy_texture(ctx->blur_texture);
+    }
 }
 
 bool axiom_gpu_resize_framebuffers(struct axiom_gpu_context *ctx, int width, int height) {
@@ -521,10 +555,13 @@ bool axiom_gpu_resize_framebuffers(struct axiom_gpu_context *ctx, int width, int
 
 bool axiom_gpu_upload_texture_data(GLuint texture, int width, int height, 
                                    const void *data, GLenum format) {
-    (void)texture; (void)width; (void)height; (void)data; (void)format; // Suppress unused parameter warnings
-    // Upload texture data
-    // Placeholder implementation
-    return true;
+    if (!data) return false;
+
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, format, GL_UNSIGNED_BYTE, data);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    return axiom_gpu_check_error("uploading texture data");
 }
 
 void axiom_gpu_set_viewport(int width, int height) {
@@ -571,4 +608,64 @@ void axiom_effects_gpu_render_window_blur(struct axiom_effects_manager *manager,
     
     // This would render blur effects for the specific window
     // Integration with wlroots scene graph would happen here
+}
+
+// Hardware cursor support
+bool axiom_gpu_render_cursor(struct axiom_gpu_context *ctx, GLuint cursor_texture, 
+                             int x, int y, int width, int height) {
+    if (!ctx || !cursor_texture) return false;
+    
+    // Save current state
+    GLint prev_viewport[4];
+    glGetIntegerv(GL_VIEWPORT, prev_viewport);
+    
+    glUseProgram(ctx->composite_program);
+    
+    // Set up cursor rendering viewport
+    glViewport(x, y, width, height);
+    
+    // Bind cursor texture
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, cursor_texture);
+    glUniform1i(glGetUniformLocation(ctx->composite_program, "u_texture"), 0);
+    
+    // Enable blending for cursor transparency
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    
+    // Render cursor quad
+    axiom_gpu_render_quad(ctx);
+    
+    // Restore state
+    glDisable(GL_BLEND);
+    glViewport(prev_viewport[0], prev_viewport[1], prev_viewport[2], prev_viewport[3]);
+    glUseProgram(0);
+    
+    return axiom_gpu_check_error("cursor rendering");
+}
+
+GLuint axiom_gpu_upload_cursor_texture(const void *cursor_data, int width, int height) {
+    if (!cursor_data) return 0;
+    
+    GLuint texture = axiom_gpu_create_texture(width, height, GL_RGBA8);
+    if (texture) {
+        axiom_gpu_upload_texture_data(texture, width, height, cursor_data, GL_RGBA);
+    }
+    
+    return texture;
+}
+
+// VSync and presentation timing
+bool axiom_gpu_enable_vsync(struct axiom_gpu_context *ctx, bool enable) {
+    if (!ctx) return false;
+    
+    // Configure EGL swap interval for VSync
+    return eglSwapInterval(ctx->egl_display, enable ? 1 : 0);
+}
+
+bool axiom_gpu_present_frame(struct axiom_gpu_context *ctx) {
+    if (!ctx) return false;
+    
+    // Present the rendered frame with VSync
+    return eglSwapBuffers(ctx->egl_display, ctx->egl_surface);
 }

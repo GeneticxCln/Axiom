@@ -1,6 +1,7 @@
 #include "effects.h"
 #include "axiom.h"
 #include "renderer.h"
+#include "window_manager.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -168,8 +169,8 @@ void axiom_shadow_render_for_window(struct axiom_effects_manager *manager,
     if (!ctx) return;
 
     // Get window dimensions
-    int width = window->geometry.width > 0 ? window->geometry.width : window->width;
-    int height = window->geometry.height > 0 ? window->geometry.height : window->height;
+    int width = window->geometry->width > 0 ? window->geometry->width : window->width;
+    int height = window->geometry->height > 0 ? window->geometry->height : window->height;
     
     if (width <= 0 || height <= 0) return;
 
@@ -359,8 +360,8 @@ void axiom_blur_apply_to_window(struct axiom_effects_manager *manager, struct ax
     if (!ctx) return;
 
     // Get window dimensions
-    int width = window->geometry.width > 0 ? window->geometry.width : window->width;
-    int height = window->geometry.height > 0 ? window->geometry.height : window->height;
+    int width = window->geometry->width > 0 ? window->geometry->width : window->width;
+    int height = window->geometry->height > 0 ? window->geometry->height : window->height;
     
     if (width <= 0 || height <= 0) return;
 

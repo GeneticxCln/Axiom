@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # Axiom Wayland Compositor Session Starter
-# Version: 3.8.0
+# Version: 3.9.0
 # This script properly initializes the environment and starts Axiom
 
 set -e
 
 # Define version and directories
-AXIOM_VERSION="3.8.0"
+AXIOM_VERSION="3.9.0"
 AXIOM_HOME="${HOME}/.local/share/axiom"
 AXIOM_CONFIG_DIR="${HOME}/.config/axiom"
 AXIOM_CACHE_DIR="${HOME}/.cache/axiom"

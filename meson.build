@@ -100,7 +100,8 @@ axiom_sources = files(
   'src/logging.c',
   'src/errors.c',        # New comprehensive error handling
   'src/memory.c',        # Advanced memory management system
-  'src/input.c',
+  'src/environment.c',   # Environment management system
+  'src/input_enhanced.c',
   'src/cursor.c',
   'src/config.c',
   'src/process.c',
@@ -121,6 +122,7 @@ axiom_sources = files(
   'src/keybindings.c',
   'src/focus.c',
   'src/title_buttons.c',
+  'src/window_manager.c',
   # Desktop integration protocols
   'src/layer_shell.c',
   'src/screenshot.c',

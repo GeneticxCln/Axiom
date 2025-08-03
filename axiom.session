@@ -1,7 +1,7 @@
 [Session]
 Name=Axiom
-Comment=Axiom Wayland Compositor - Professional Window Management with XWayland (v3.8.0)
+Comment=Axiom Wayland Compositor - Production XWayland and Session Management (v3.9.0)
 Exec=axiom-session
 Type=wayland
 DesktopName=Axiom
-Version=3.8.0
+Version=3.9.0

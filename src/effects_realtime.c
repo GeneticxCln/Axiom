@@ -3,6 +3,7 @@
 #include "renderer.h"
 #include "axiom.h"
 #include "animation.h"
+#include "window_manager.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -95,8 +96,8 @@ bool axiom_window_effects_init(struct axiom_window *window) {
     // Initialize shadow system using configuration
     struct axiom_effects_manager *effects_manager = window->server->effects_manager;
     int shadow_blur_radius = effects_manager ? effects_manager->shadow.blur_radius : SHADOW_BLUR_RADIUS;
-    int shadow_width = (window->geometry.width > 0 ? window->geometry.width : window->width) + shadow_blur_radius * 2;
-    int shadow_height = (window->geometry.height > 0 ? window->geometry.height : window->height) + shadow_blur_radius * 2;
+    int shadow_width = (window->geometry->width > 0 ? window->geometry->width : window->width) + shadow_blur_radius * 2;
+    int shadow_height = (window->geometry->height > 0 ? window->geometry->height : window->height) + shadow_blur_radius * 2;
     if (!axiom_realtime_shadow_create(&effects->shadow, shadow_width, shadow_height)) {
         axiom_log_error("Failed to create shadow for window");
         free(window->effects);
@@ -105,8 +106,8 @@ bool axiom_window_effects_init(struct axiom_window *window) {
     }
     
     // Initialize blur system
-    int blur_width = window->geometry.width > 0 ? window->geometry.width : window->width;
-    int blur_height = window->geometry.height > 0 ? window->geometry.height : window->height;
+    int blur_width = window->geometry->width > 0 ? window->geometry->width : window->width;
+    int blur_height = window->geometry->height > 0 ? window->geometry->height : window->height;
     if (!axiom_realtime_blur_create(&effects->blur, blur_width, blur_height)) {
         axiom_log_error("Failed to create blur for window");
         axiom_realtime_shadow_destroy(&effects->shadow);
@@ -159,8 +160,8 @@ void axiom_window_effects_update(struct axiom_window *window, uint32_t time_ms) 
     // Mark effects for update if window geometry changed
     struct axiom_effects_manager *effects_manager = window->server->effects_manager;
     int shadow_blur_radius = effects_manager ? effects_manager->shadow.blur_radius : SHADOW_BLUR_RADIUS;
-    if (effects->shadow.width != window->geometry.width + shadow_blur_radius * 2 ||
-        effects->shadow.height != window->geometry.height + shadow_blur_radius * 2) {
+    if (effects->shadow.width != window->geometry->width + shadow_blur_radius * 2 ||
+        effects->shadow.height != window->geometry->height + shadow_blur_radius * 2) {
         effects->shadow.needs_update = true;
         effects->blur.needs_update = true;
     }
@@ -273,8 +274,8 @@ void axiom_realtime_shadow_update_scene(struct axiom_window *window) {
                    effects_manager->shadow.offset_x : SHADOW_OFFSET_X;
     int offset_y = effects_manager && effects_manager->shadow.offset_y > 0 ? 
                    effects_manager->shadow.offset_y : SHADOW_OFFSET_Y;
-    int shadow_x = window->geometry.x + offset_x;
-    int shadow_y = window->geometry.y + offset_y;
+    int shadow_x = window->geometry->x + offset_x;
+    int shadow_y = window->geometry->y + offset_y;
     
     wlr_scene_node_set_position(&window->effects->shadow_rect->node, shadow_x, shadow_y);
 }
@@ -765,8 +766,8 @@ void axiom_effects_animate_blur_strength(struct axiom_window *window,
 GLuint axiom_create_placeholder_texture(struct axiom_window *window) {
     if (!window) return 0;
     
-    int width = window->geometry.width > 0 ? window->geometry.width : window->width;
-    int height = window->geometry.height > 0 ? window->geometry.height : window->height;
+    int width = window->geometry->width > 0 ? window->geometry->width : window->width;
+    int height = window->geometry->height > 0 ? window->geometry->height : window->height;
     
     if (width <= 0) width = 400;
     if (height <= 0) height = 300;

@@ -128,6 +128,16 @@ void axiom_effects_gpu_render_window_shadow(struct axiom_effects_manager *manage
 void axiom_effects_gpu_render_window_blur(struct axiom_effects_manager *manager,
                                            struct axiom_window *window);
 
+// Hardware cursor support
+bool axiom_gpu_render_cursor(struct axiom_gpu_context *ctx, GLuint cursor_texture, 
+                             int x, int y, int width, int height);
+GLuint axiom_gpu_upload_cursor_texture(const void *cursor_data, int width, int height);
+
+// VSync and presentation timing
+bool axiom_gpu_enable_vsync(struct axiom_gpu_context *ctx, bool enable);
+bool axiom_gpu_present_frame(struct axiom_gpu_context *ctx);
+void axiom_gpu_composite_layers(struct axiom_gpu_context *ctx, GLuint *textures, int layer_count);
+
 // Shader source constants
 extern const char *axiom_shadow_vertex_shader;
 extern const char *axiom_shadow_fragment_shader;

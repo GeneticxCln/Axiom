@@ -1,5 +1,6 @@
 #include "axiom.h"
 #include "logging.h"
+#include "window_manager.h"
 #include <wlr/util/log.h>
 
 // Title bar dimensions and styling
@@ -338,10 +339,10 @@ void axiom_window_toggle_maximize(struct axiom_window *window) {
         window->is_maximized = false;
 
         // Update geometry
-        window->geometry.x = window->x;
-        window->geometry.y = window->y;
-        window->geometry.width = window->width;
-        window->geometry.height = window->height;
+        window->geometry->x = window->x;
+        window->geometry->y = window->y;
+        window->geometry->width = window->width;
+        window->geometry->height = window->height;
 
         // Send configure to XDG toplevel
         if (window->type == AXIOM_WINDOW_XDG && window->xdg_toplevel) {
@@ -371,10 +372,10 @@ void axiom_window_toggle_maximize(struct axiom_window *window) {
                 window->height = output_height;
                 
                 // Update geometry
-                window->geometry.x = window->x;
-                window->geometry.y = window->y;
-                window->geometry.width = window->width;
-                window->geometry.height = window->height;
+                window->geometry->x = window->x;
+                window->geometry->y = window->y;
+                window->geometry->width = window->width;
+                window->geometry->height = window->height;
                 
                 // Send configure to XDG toplevel
                 if (window->type == AXIOM_WINDOW_XDG && window->xdg_toplevel) {

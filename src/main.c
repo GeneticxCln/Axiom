@@ -26,6 +26,8 @@
 #include "memory.h"
 #include "constants.h"
 #include "environment.h"
+#include "window_manager.h"
+#include "input.h"
 void axiom_calculate_window_layout(struct axiom_server *server, int index, int *x, int *y, int *width, int *height);
 
 // Configuration reload function
@@ -319,6 +321,14 @@ static void server_new_xdg_toplevel(struct wl_listener *listener, void *data) {
     window->height = AXIOM_DEFAULT_WINDOW_HEIGHT;
     window->x = AXIOM_DEFAULT_WINDOW_X;
     window->y = AXIOM_DEFAULT_WINDOW_Y;
+    
+    // Set up window manager reference
+    window->manager = server->window_manager;
+    
+    // Initialize list links for window manager
+    wl_list_init(&window->mapped_link);
+    wl_list_init(&window->tiled_link);
+    wl_list_init(&window->floating_link);
     
     // Create decoration tree
     window->decoration_tree = wlr_scene_tree_create(&server->scene->tree);
@@ -845,6 +855,17 @@ int main(int argc, char *argv[]) {
         AXIOM_LOG_INFO("Focus manager initialized for window switching and focus management");
     }
     
+    // Initialize professional window manager (New window management system)
+    server.window_manager = axiom_window_manager_create(&server);
+    if (!server.window_manager) {
+        AXIOM_LOG_ERROR("Failed to create window manager");
+    } else {
+        // Set workspace geometry from current output dimensions
+        axiom_window_manager_set_workspace_geometry(server.window_manager, 
+                                                    server.workspace_width, server.workspace_height);
+        AXIOM_LOG_INFO("Professional window manager initialized successfully");
+    }
+    
     // Initialize desktop integration protocols
     
     // Initialize layer shell manager for panels/bars
@@ -895,7 +916,15 @@ int main(int argc, char *argv[]) {
         AXIOM_LOG_INFO("XWayland support initialized - X11 applications can now run");
     }
     
-    // Set up input management
+    // Initialize enhanced input management system
+    server.input_manager = axiom_input_manager_create(&server);
+    if (!server.input_manager) {
+        AXIOM_LOG_ERROR("Failed to create enhanced input manager");
+        return EXIT_FAILURE;
+    }
+    AXIOM_LOG_INFO("Enhanced input manager initialized with touch, tablet, IME, and accessibility support");
+    
+    // Initialize legacy compatibility list
     wl_list_init(&server.input_devices);
     
     server.cursor = wlr_cursor_create();
@@ -1009,6 +1038,11 @@ int main(int argc, char *argv[]) {
     // Cleanup
     axiom_process_cleanup();
     
+    // Cleanup enhanced input manager
+    if (server.input_manager) {
+        axiom_input_manager_destroy(server.input_manager);
+    }
+    
     // Cleanup effects manager
     if (server.effects_manager) {
         axiom_effects_manager_destroy(server.effects_manager);
@@ -1050,6 +1084,11 @@ int main(int argc, char *argv[]) {
     if (server.focus_manager) {
         axiom_focus_manager_cleanup(server.focus_manager);
         axiom_free_tracked(server.focus_manager, __FILE__, __func__, __LINE__);
+    }
+    
+    // Cleanup window manager
+    if (server.window_manager) {
+        axiom_window_manager_destroy(server.window_manager);
     }
     
     // Cleanup desktop integration protocols
