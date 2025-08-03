@@ -1,10 +1,12 @@
 #include "compositor.h"
+#include "logging.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
 
 static void print_usage(const char *progname) {
+    // Use direct printf for usage info as it's intentional user output
     printf("Usage: %s [--nested] [--help]\n", progname);
     printf("Options:\n");
     printf("  --nested      Run the compositor in nested mode\n");
@@ -21,7 +23,7 @@ int main(int argc, char *argv[]) {
             print_usage(argv[0]);
             return EXIT_SUCCESS;
         } else {
-            fprintf(stderr, "Unknown argument: %s\n", argv[i]);
+            AXIOM_LOG_ERROR("Unknown argument: %s", argv[i]);
             print_usage(argv[0]);
             return EXIT_FAILURE;
         }
@@ -30,11 +32,15 @@ int main(int argc, char *argv[]) {
     struct axiom_server server = {0};
 
     if (!axiom_compositor_init(&server, nested)) {
-        fprintf(stderr, "Failed to initialize compositor\n");
+        AXIOM_LOG_ERROR("Failed to initialize compositor");
         return EXIT_FAILURE;
     }
 
+    AXIOM_LOG_INFO("Compositor initialized successfully");
+
     axiom_compositor_run(&server);
+
+    AXIOM_LOG_INFO("Compositor run completed, cleaning up");
 
     axiom_compositor_cleanup(&server);
 
