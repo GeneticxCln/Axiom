@@ -13,6 +13,7 @@ cc = meson.get_compiler('c')
 wayland_server = dependency('wayland-server', version: '>=1.20.0')
 wayland_client = dependency('wayland-client', version: '>=1.20.0')
 wayland_protos = dependency('wayland-protocols', version: '>=1.25')
+wlr_protos = dependency('wlr-protocols')
 wlroots = dependency('wlroots-0.19')
 xkbcommon = dependency('xkbcommon')
 xkbcommon_x11 = dependency('xkbcommon-x11')
@@ -30,6 +31,7 @@ gles3 = dependency('glesv2')
 # Protocol generation
 wayland_scanner = find_program('wayland-scanner')
 wl_protocol_dir = wayland_protos.get_variable('pkgdatadir')
+wlr_protocol_dir = wlr_protos.get_variable('pkgdatadir')
 
 wayland_scanner_server = generator(
   wayland_scanner,
@@ -43,24 +45,54 @@ wayland_scanner_code = generator(
   arguments: ['private-code', '@INPUT@', '@OUTPUT@'],
 )
 
-server_protocols = [
-  wl_protocol_dir / 'stable/xdg-shell/xdg-shell.xml',
-  wl_protocol_dir / 'unstable/xdg-decoration/xdg-decoration-unstable-v1.xml',
-  wl_protocol_dir / 'unstable/pointer-constraints/pointer-constraints-unstable-v1.xml',
-  wl_protocol_dir / 'unstable/relative-pointer/relative-pointer-unstable-v1.xml',
-  wl_protocol_dir / 'unstable/idle-inhibit/idle-inhibit-unstable-v1.xml',
-  wl_protocol_dir / 'unstable/input-method/input-method-unstable-v1.xml']
-
-server_protos_src = []
-server_protos_headers = []
-
-foreach xml : server_protocols
-  server_protos_src += wayland_scanner_code.process(xml)
-  server_protos_headers += wayland_scanner_server.process(xml)
-endforeach
+# Pre-generated protocol source files
+protocol_sources = [
+  'protocols/wayland-server-protocol.c',
+  'protocols/xdg-shell-protocol.c',
+  'protocols/linux-dmabuf-v1-protocol.c',
+  'protocols/presentation-time-protocol.c',
+  'protocols/viewporter-protocol.c',
+  'protocols/tablet-v2-protocol.c',
+  'protocols/xdg-activation-v1-protocol.c',
+  'protocols/fractional-scale-v1-protocol.c',
+  'protocols/single-pixel-buffer-v1-protocol.c',
+  'protocols/cursor-shape-v1-protocol.c',
+  'protocols/tearing-control-v1-protocol.c',
+  'protocols/security-context-v1-protocol.c',
+  'protocols/ext-session-lock-v1-protocol.c',
+  'protocols/ext-foreign-toplevel-list-v1-protocol.c',
+  # 'protocols/ext-image-copy-capture-v1-protocol.c',  # Disabled - missing interface definition
+  'protocols/ext-idle-notify-v1-protocol.c',
+  'protocols/ext-data-control-v1-protocol.c',
+  'protocols/xdg-dialog-v1-protocol.c',
+  'protocols/xdg-toplevel-drag-v1-protocol.c',
+  'protocols/content-type-v1-protocol.c',
+  'protocols/xdg-output-unstable-v1-protocol.c',
+  'protocols/xdg-decoration-unstable-v1-protocol.c',
+  'protocols/wlr-layer-shell-unstable-v1-protocol.c',
+  'protocols/input-method-unstable-v1-protocol.c',
+  'protocols/text-input-unstable-v3-protocol.c',
+  'protocols/primary-selection-unstable-v1-protocol.c',
+  'protocols/idle-inhibit-unstable-v1-protocol.c',
+  'protocols/pointer-constraints-unstable-v1-protocol.c',
+  'protocols/relative-pointer-unstable-v1-protocol.c',
+  'protocols/pointer-gestures-unstable-v1-protocol.c',
+  'protocols/keyboard-shortcuts-inhibit-unstable-v1-protocol.c',
+  'protocols/xdg-foreign-unstable-v2-protocol.c',
+  'protocols/input-timestamps-unstable-v1-protocol.c',
+  'protocols/fullscreen-shell-unstable-v1-protocol.c',
+  'protocols/linux-explicit-synchronization-unstable-v1-protocol.c',
+  'protocols/xwayland-keyboard-grab-unstable-v1-protocol.c',
+  'protocols/xwayland-shell-v1-protocol.c',
+  'protocols/wlr-export-dmabuf-unstable-v1-protocol.c',
+  'protocols/wlr-screencopy-unstable-v1-protocol.c',
+  'protocols/wlr-gamma-control-unstable-v1-protocol.c',
+  'protocols/wlr-output-power-management-unstable-v1-protocol.c',
+  'protocols/wlr-virtual-pointer-unstable-v1-protocol.c',
+]
 
 # Include directories
-inc = include_directories('include')
+inc = include_directories('include', 'protocols')
 
 # Source Code
 axiom_sources = files(
@@ -89,16 +121,33 @@ axiom_sources = files(
   'src/keybindings.c',
   'src/focus.c',
   'src/title_buttons.c',
+  # Desktop integration protocols
+  'src/layer_shell.c',
+  'src/screenshot.c',
+  'src/session.c',
+  'src/performance.c',
 )
 
-# Executable
-proto_inc = declare_dependency(
-  sources: server_protos_headers,
-)
+# Executable - no need for separate proto_inc since we use pre-generated files
 
-global_deps = [wayland_server, wlroots, xkbcommon, xkbcommon_x11, xcb, xcb_composite, xcb_icccm, xcb_render, xcb_res, xcb_xfixes, proto_inc, math_lib, egl, gles3]
+global_deps = [
+  wayland_server,
+  wayland_protos,
+  wlroots,
+  xkbcommon,
+  xkbcommon_x11,
+  xcb,
+  xcb_composite,
+  xcb_icccm,
+  xcb_render,
+  xcb_res,
+  xcb_xfixes,
+  math_lib,
+  egl,
+  gles3,
+]
 executable('axiom',
-  sources: axiom_sources + server_protos_src,
+  sources: axiom_sources + protocol_sources,
   dependencies: global_deps,
   include_directories: inc,
   install: true,
@@ -118,7 +167,7 @@ test_thumbnail_manager_sources = files(
 
 test_thumbnail_manager = executable('test_thumbnail_manager',
     sources: test_thumbnail_manager_sources,
-    dependencies: [wayland_server, wlroots, proto_inc, gles3, egl],
+    dependencies: [wayland_server, wlroots, gles3, egl],
     include_directories: inc,
     install: false,
 )
@@ -207,7 +256,7 @@ test_effects_sources = files(
 
 test_effects = executable('test_effects',
     sources: test_effects_sources,
-    dependencies: [math_lib, wayland_server, wlroots, proto_inc, gles3, egl, gl],
+    dependencies: [math_lib, wayland_server, wlroots, gles3, egl, gl],
     include_directories: inc,
     install: false,
 )
@@ -235,7 +284,7 @@ test_pip_manager_sources = files(
 
 test_pip_manager = executable('test_pip_manager',
     sources: test_pip_manager_sources,
-    dependencies: [wayland_server, wlroots, proto_inc],
+    dependencies: [wayland_server, wlroots],
     include_directories: inc,
     install: false,
 )
@@ -255,4 +304,17 @@ test_memory = executable('test_memory',
     install: false,
 )
 test('memory_tests', test_memory)
+
+# Protocol testing suite
+test_protocols_sources = files(
+  'tests/test_protocols.c'
+)
+
+test_protocols = executable('test_protocols',
+    sources: test_protocols_sources,
+    dependencies: [math_lib],
+    include_directories: inc,
+    install: false,
+)
+test('protocol_tests', test_protocols)
 

@@ -273,6 +273,14 @@ struct axiom_server {
     struct axiom_tag_manager *tag_manager;             // Tagging system
     struct axiom_keybinding_manager *keybinding_manager; // Key bindings
     struct axiom_focus_manager *focus_manager;           // Focus and stacking
+    
+    // Desktop integration protocols
+    struct axiom_layer_shell_manager *layer_shell_manager;   // Layer shell for panels/bars
+    struct axiom_screenshot_manager *screenshot_manager;      // Screenshot functionality
+    struct axiom_session_manager *session_manager;            // Session management
+    
+    // Performance monitoring
+    struct axiom_performance_monitor *performance_monitor;   // Performance monitoring and optimization
 };
 
 /* Function declarations */
