@@ -1,0 +1,11 @@
+option('build_dev_tools', type: 'boolean', value: false, 
+       description: 'Build developer tools and standalone tests')
+
+option('enable_image_capture', type: 'boolean', value: false, 
+       description: 'Enable ext-image-copy-capture protocol (experimental)')
+
+option('enable_debug_logs', type: 'boolean', value: false,
+       description: 'Enable verbose debug logging throughout the compositor')
+
+option('enable_performance_monitoring', type: 'boolean', value: true,
+       description: 'Enable performance monitoring and profiling tools')

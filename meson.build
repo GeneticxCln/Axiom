@@ -1,11 +1,20 @@
 project('axiom', 'c',
-  version: '3.8.0',
+  version: '4.0.0',
   license: 'GPL-3.0',
   meson_version: '>=0.60.0',
   default_options: ['c_std=c11', 'warning_level=2', 'werror=false', 'buildtype=release'],
 )
 
 add_project_arguments('-DAXIOM_VERSION="@0@"'.format(meson.project_version()), '-D_GNU_SOURCE', '-DWLR_USE_UNSTABLE', language: 'c')
+
+# Optional feature flags
+if get_option('enable_debug_logs')
+  add_project_arguments('-DAXIOM_DEBUG_LOGS', language: 'c')
+endif
+
+if get_option('enable_performance_monitoring')
+  add_project_arguments('-DAXIOM_PERFORMANCE_MONITORING', language: 'c')
+endif
 
 cc = meson.get_compiler('c')
 
@@ -61,7 +70,6 @@ protocol_sources = [
   'protocols/security-context-v1-protocol.c',
   'protocols/ext-session-lock-v1-protocol.c',
   'protocols/ext-foreign-toplevel-list-v1-protocol.c',
-  # 'protocols/ext-image-copy-capture-v1-protocol.c',  # Disabled - missing interface definition
   'protocols/ext-idle-notify-v1-protocol.c',
   'protocols/ext-data-control-v1-protocol.c',
   'protocols/xdg-dialog-v1-protocol.c',
@@ -90,6 +98,12 @@ protocol_sources = [
   'protocols/wlr-output-power-management-unstable-v1-protocol.c',
   'protocols/wlr-virtual-pointer-unstable-v1-protocol.c',
 ]
+
+# Optional protocols
+if get_option('enable_image_capture')
+  protocol_sources += 'protocols/ext-image-copy-capture-v1-protocol.c'
+  add_project_arguments('-DAXIOM_IMAGE_CAPTURE_SUPPORT', language: 'c')
+endif
 
 # Include directories
 inc = include_directories('include', 'protocols')
@@ -318,3 +332,102 @@ test_protocols = executable('test_protocols',
 )
 test('protocol_tests', test_protocols)
 
+# ==============================================
+# DEVELOPER TOOLS & STANDALONE TESTS
+# ==============================================
+
+# Standalone test executables (optional developer tools)
+if get_option('build_dev_tools')
+  # Minimal compositor for testing
+  axiom_minimal = executable('axiom-minimal',
+      'axiom-minimal.c',
+      dependencies: global_deps,
+      include_directories: inc,
+      install: false,
+  )
+  
+  # Animation demos
+  easing_demo = executable('easing-demo',
+      'easing_demo.c',
+      dependencies: [math_lib],
+      include_directories: inc,
+      install: false,
+  )
+  
+  simple_animation_demo = executable('simple-animation-demo',
+      'simple_animation_demo.c',
+      dependencies: [math_lib],
+      include_directories: inc,
+      install: false,
+  )
+  
+  # Rendering system tests
+  test_renderer = executable('test-renderer',
+      'test_renderer.c',
+      dependencies: [math_lib],
+      include_directories: inc,
+      install: false,
+  )
+  
+  test_rendering_pipeline = executable('test-rendering-pipeline',
+      'test_rendering_pipeline.c',
+      dependencies: global_deps,
+      include_directories: inc,
+      install: false,
+  )
+  
+  test_shaders = executable('test-shaders',
+      'test_shaders.c',
+      dependencies: [math_lib, gles3, egl],
+      include_directories: inc,
+      install: false,
+  )
+  
+  # Window snapping tests
+  test_snapping = executable('test-snapping',
+      'test_snapping.c',
+      dependencies: global_deps,
+      include_directories: inc,
+      install: false,
+  )
+  
+  test_snapping_simple = executable('test-snapping-simple',
+      'test_snapping_simple.c',
+      dependencies: [math_lib, wayland_server],
+      include_directories: inc,
+      install: false,
+  )
+endif
+
+# ==============================================
+# BUILD SUMMARY
+# ==============================================
+
+summary({
+    'Version': meson.project_version(),
+    'Build type': get_option('buildtype'),
+    'C standard': get_option('c_std'),
+    'Install prefix': get_option('prefix'),
+}, section: 'Axiom Wayland Compositor')
+
+summary({
+    'wlroots': wlroots.version(),
+    'Wayland server': wayland_server.version(),
+    'Wayland protocols': wayland_protos.version(),
+    'OpenGL ES': gles3.found() ? 'yes' : 'no',
+    'EGL': egl.found() ? 'yes' : 'no',
+}, section: 'Core Dependencies')
+
+summary({
+    'Debug logging': get_option('enable_debug_logs') ? 'enabled' : 'disabled',
+    'Performance monitoring': get_option('enable_performance_monitoring') ? 'enabled' : 'disabled',
+    'Image capture protocol': get_option('enable_image_capture') ? 'enabled' : 'disabled',
+    'Developer tools': get_option('build_dev_tools') ? 'enabled' : 'disabled',
+}, section: 'Optional Features')
+
+summary({
+    'Main protocols': protocol_sources.length(),
+    'Source files': axiom_sources.length(),
+    'Test suites': '10 comprehensive tests',
+    'Dev tools': get_option('build_dev_tools') ? '8 standalone tools' : 'disabled',
+}, section: 'Project Statistics')
