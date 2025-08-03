@@ -53,16 +53,22 @@ static void new_output(struct wl_listener *listener, void *data) {
     struct minimal_server *server = wl_container_of(listener, server, new_output);
     struct wlr_output *wlr_output = data;
     
-    // Set preferred mode
+    // Set preferred mode using wlroots 0.19 API
+    struct wlr_output_state state;
+    wlr_output_state_init(&state);
+    
     if (!wl_list_empty(&wlr_output->modes)) {
         struct wlr_output_mode *mode = wlr_output_preferred_mode(wlr_output);
-        wlr_output_set_mode(wlr_output, mode);
-        wlr_output_enable(wlr_output, true);
+        wlr_output_state_set_mode(&state, mode);
+        wlr_output_state_set_enabled(&state, true);
     }
     
-    if (!wlr_output_commit(wlr_output)) {
+    if (!wlr_output_commit_state(wlr_output, &state)) {
+        wlr_output_state_finish(&state);
         return;
     }
+    
+    wlr_output_state_finish(&state);
     
     struct wlr_output_layout_output *lo = wlr_output_layout_add_auto(server->output_layout, wlr_output);
     struct wlr_scene_output *scene_output = wlr_scene_output_create(server->scene, wlr_output);

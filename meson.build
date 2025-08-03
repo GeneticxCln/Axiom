@@ -355,8 +355,8 @@ if get_option('build_dev_tools')
   )
   
   simple_animation_demo = executable('simple-animation-demo',
-      ['simple_animation_demo.c', 'src/animation.c', 'src/logging.c'],
-      dependencies: [math_lib, wayland_server],
+      ['simple_animation_demo.c', 'src/animation.c', 'src/logging.c', 'src/window_manager.c', 'src/config.c', 'src/memory.c'],
+      dependencies: global_deps,
       include_directories: inc,
       install: false,
   )
@@ -386,14 +386,14 @@ if get_option('build_dev_tools')
   
   # Window snapping tests (with required source dependencies)
   test_snapping = executable('test-snapping',
-      ['test_snapping.c', 'src/window_snapping.c', 'src/logging.c'],
+      ['test_snapping.c', 'src/window_snapping.c', 'src/config.c', 'src/logging.c', 'src/memory.c'],
       dependencies: global_deps,
       include_directories: inc,
       install: false,
   )
   
   test_snapping_simple = executable('test-snapping-simple',
-      ['test_snapping_simple.c', 'src/window_snapping.c', 'src/logging.c'],
+      ['test_snapping_simple.c', 'src/window_snapping.c', 'src/config.c', 'src/logging.c', 'src/memory.c'],
       dependencies: [math_lib, wayland_server, wlroots],
       include_directories: inc,
       install: false,
