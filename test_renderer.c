@@ -1,5 +1,3 @@
-#include "include/renderer.h"
-#include "include/logging.h"
 #include <stdio.h>
 #include <stdlib.h>
 

@@ -6,7 +6,7 @@
 set -euo pipefail
 
 # Configuration
-AXIOM_DIR="/home/alex/Projects /Axiom"
+AXIOM_DIR="/home/alex/Projects/Axiom"
 LOG_FILE="$HOME/.axiom-updater.log"
 BACKUP_DIR="$HOME/.axiom-backups"
 FORCE_UPDATE=false

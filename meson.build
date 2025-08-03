@@ -370,7 +370,7 @@ if get_option('build_dev_tools')
   )
   
   test_rendering_pipeline = executable('test-rendering-pipeline',
-      'test_rendering_pipeline.c',
+      ['test_rendering_pipeline.c', 'test_shaders.c'],
       dependencies: global_deps,
       include_directories: inc,
       install: false,

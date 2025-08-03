@@ -1,5 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+#include <unistd.h>
 #include <wayland-server-core.h>
 #include <wlr/backend.h>
 #include <wlr/render/allocator.h>
@@ -11,6 +14,7 @@
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_output_layout.h>
+#include <wlr/types/wlr_output.h>
 
 struct minimal_server {
     struct wl_display *wl_display;
@@ -53,13 +57,16 @@ static void new_output(struct wl_listener *listener, void *data) {
     if (!wl_list_empty(&wlr_output->modes)) {
         struct wlr_output_mode *mode = wlr_output_preferred_mode(wlr_output);
         wlr_output_set_mode(wlr_output, mode);
+        wlr_output_enable(wlr_output, true);
     }
     
-    wlr_output_commit(wlr_output);
-    wlr_output_layout_add_auto(server->output_layout, wlr_output);
+    if (!wlr_output_commit(wlr_output)) {
+        return;
+    }
     
+    struct wlr_output_layout_output *lo = wlr_output_layout_add_auto(server->output_layout, wlr_output);
     struct wlr_scene_output *scene_output = wlr_scene_output_create(server->scene, wlr_output);
-    wlr_scene_output_layout_add_output(server->scene_layout, wlr_output, scene_output);
+    wlr_scene_output_layout_add_output(server->scene_layout, lo, scene_output);
     
     printf("New output: %s\n", wlr_output->name);
 }
