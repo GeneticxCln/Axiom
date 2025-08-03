@@ -64,11 +64,6 @@ jobs:
           wayland-scanner \
           ${{ matrix.compiler }}
     
-    - name: Generate protocol headers
-      run: |
-        wayland-scanner server-header \
-          /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml \
-          xdg-shell-protocol.h
     
     - name: Configure build
       env:
@@ -117,11 +112,6 @@ jobs:
           wayland-scanner \
           valgrind
     
-    - name: Generate protocol headers
-      run: |
-        wayland-scanner server-header \
-          /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml \
-          xdg-shell-protocol.h
     
     - name: Configure debug build
       run: |
@@ -166,11 +156,6 @@ jobs:
           wayland-scanner \
           time
     
-    - name: Generate protocol headers
-      run: |
-        wayland-scanner server-header \
-          /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml \
-          xdg-shell-protocol.h
     
     - name: Build optimized
       run: |
@@ -225,11 +210,6 @@ jobs:
           ninja-build \
           wayland-scanner
     
-    - name: Generate protocol headers
-      run: |
-        wayland-scanner server-header \
-          /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml \
-          xdg-shell-protocol.h
     
     - name: Build release
       run: |
