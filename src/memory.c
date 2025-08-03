@@ -102,8 +102,9 @@ axiom_result_t axiom_memory_init(void) {
     
     pthread_mutex_unlock(&g_memory_state.mutex);
     
-    // Use printf to avoid potential deadlock with logging system
-    printf("[MEMORY] Memory management system initialized\n");
+    // Use direct write to avoid potential deadlock with logging system during init
+    const char *msg = "[MEMORY] Memory management system initialized\n";
+    write(STDERR_FILENO, msg, strlen(msg));
     return AXIOM_SUCCESS;
 }
 
@@ -137,34 +138,57 @@ void axiom_memory_shutdown(void) {
     g_memory_state.initialized = false;
     pthread_mutex_unlock(&g_memory_state.mutex);
     
-    // Print statistics after releasing lock to avoid any potential deadlock
-    printf("[MEMORY] === Memory Statistics ===\n");
-    printf("[MEMORY] Total allocations: %lu\n", (unsigned long)stats.total_allocations);
-    printf("[MEMORY] Total deallocations: %lu\n", (unsigned long)stats.total_deallocations);
-    printf("[MEMORY] Current allocations: %lu\n", (unsigned long)stats.current_allocations);
-    printf("[MEMORY] Peak allocations: %lu\n", (unsigned long)stats.peak_allocations);
-    printf("[MEMORY] Total bytes allocated: %lu\n", (unsigned long)stats.total_bytes_allocated);
-    printf("[MEMORY] Total bytes freed: %lu\n", (unsigned long)stats.total_bytes_freed);
-    printf("[MEMORY] Current bytes used: %lu\n", (unsigned long)stats.current_bytes_used);
-    printf("[MEMORY] Peak bytes used: %lu\n", (unsigned long)stats.peak_bytes_used);
+    // Use stack buffer and write() to avoid potential deadlock during shutdown
+    char buffer[1024];
+    int len = snprintf(buffer, sizeof(buffer),
+        "[MEMORY] === Memory Statistics ===\n"
+        "[MEMORY] Total allocations: %lu\n"
+        "[MEMORY] Total deallocations: %lu\n"
+        "[MEMORY] Current allocations: %lu\n"
+        "[MEMORY] Peak allocations: %lu\n"
+        "[MEMORY] Total bytes allocated: %lu\n"
+        "[MEMORY] Total bytes freed: %lu\n"
+        "[MEMORY] Current bytes used: %lu\n"
+        "[MEMORY] Peak bytes used: %lu\n",
+        (unsigned long)stats.total_allocations,
+        (unsigned long)stats.total_deallocations,
+        (unsigned long)stats.current_allocations,
+        (unsigned long)stats.peak_allocations,
+        (unsigned long)stats.total_bytes_allocated,
+        (unsigned long)stats.total_bytes_freed,
+        (unsigned long)stats.current_bytes_used,
+        (unsigned long)stats.peak_bytes_used);
     
-    printf("[MEMORY] Allocations by type:\n");
+    if (len > 0 && len < (int)sizeof(buffer)) {
+        write(STDERR_FILENO, buffer, (size_t)len);
+    }
+    
+    // Print allocations by type
     for (int i = 0; i < AXIOM_MEM_TYPE_COUNT; i++) {
         if (stats.allocation_count_by_type[i] > 0) {
-            printf("[MEMORY]   %s: %lu allocations (%lu bytes)\n",
-                          memory_type_names[i], 
-                          (unsigned long)stats.allocation_count_by_type[i],
-                          (unsigned long)stats.bytes_by_type[i]);
+            len = snprintf(buffer, sizeof(buffer),
+                "[MEMORY]   %s: %lu allocations (%lu bytes)\n",
+                memory_type_names[i], 
+                (unsigned long)stats.allocation_count_by_type[i],
+                (unsigned long)stats.bytes_by_type[i]);
+            if (len > 0 && len < (int)sizeof(buffer)) {
+                write(STDERR_FILENO, buffer, (size_t)len);
+            }
         }
     }
     
+    // Print leak status
     if (leak_count > 0) {
-        printf("Memory leaks detected: %lu allocations\n", (unsigned long)leak_count);
+        len = snprintf(buffer, sizeof(buffer), "Memory leaks detected: %lu allocations\n", (unsigned long)leak_count);
     } else {
-        printf("No memory leaks detected\n");
+        len = snprintf(buffer, sizeof(buffer), "No memory leaks detected\n");
+    }
+    if (len > 0 && len < (int)sizeof(buffer)) {
+        write(STDERR_FILENO, buffer, (size_t)len);
     }
     
-    printf("Memory management system shut down\n");
+    const char *shutdown_msg = "Memory management system shut down\n";
+    write(STDERR_FILENO, shutdown_msg, strlen(shutdown_msg));
 }
 
 void axiom_memory_set_leak_detection(bool enabled) {
@@ -185,21 +209,21 @@ struct axiom_memory_stats axiom_memory_get_stats(void) {
 void axiom_memory_print_stats(void) {
     struct axiom_memory_stats stats = axiom_memory_get_stats();
     
-    // Use printf directly to avoid potential deadlocks from logging system allocations
-    printf("[MEMORY] === Memory Statistics ===\n");
-    printf("[MEMORY] Total allocations: %lu\n", (unsigned long)stats.total_allocations);
-    printf("[MEMORY] Total deallocations: %lu\n", (unsigned long)stats.total_deallocations);
-    printf("[MEMORY] Current allocations: %lu\n", (unsigned long)stats.current_allocations);
-    printf("[MEMORY] Peak allocations: %lu\n", (unsigned long)stats.peak_allocations);
-    printf("[MEMORY] Total bytes allocated: %lu\n", (unsigned long)stats.total_bytes_allocated);
-    printf("[MEMORY] Total bytes freed: %lu\n", (unsigned long)stats.total_bytes_freed);
-    printf("[MEMORY] Current bytes used: %lu\n", (unsigned long)stats.current_bytes_used);
-    printf("[MEMORY] Peak bytes used: %lu\n", (unsigned long)stats.peak_bytes_used);
+    // Use logging system here since this is not during init/shutdown
+    AXIOM_LOG_INFO("MEMORY", "=== Memory Statistics ===");
+    AXIOM_LOG_INFO("MEMORY", "Total allocations: %lu", (unsigned long)stats.total_allocations);
+    AXIOM_LOG_INFO("MEMORY", "Total deallocations: %lu", (unsigned long)stats.total_deallocations);
+    AXIOM_LOG_INFO("MEMORY", "Current allocations: %lu", (unsigned long)stats.current_allocations);
+    AXIOM_LOG_INFO("MEMORY", "Peak allocations: %lu", (unsigned long)stats.peak_allocations);
+    AXIOM_LOG_INFO("MEMORY", "Total bytes allocated: %lu", (unsigned long)stats.total_bytes_allocated);
+    AXIOM_LOG_INFO("MEMORY", "Total bytes freed: %lu", (unsigned long)stats.total_bytes_freed);
+    AXIOM_LOG_INFO("MEMORY", "Current bytes used: %lu", (unsigned long)stats.current_bytes_used);
+    AXIOM_LOG_INFO("MEMORY", "Peak bytes used: %lu", (unsigned long)stats.peak_bytes_used);
     
-    printf("[MEMORY] Allocations by type:\n");
+    AXIOM_LOG_INFO("MEMORY", "Allocations by type:");
     for (int i = 0; i < AXIOM_MEM_TYPE_COUNT; i++) {
         if (stats.allocation_count_by_type[i] > 0) {
-            printf("[MEMORY]   %s: %lu allocations (%lu bytes)\n",
+            AXIOM_LOG_INFO("MEMORY", "  %s: %lu allocations (%lu bytes)",
                           memory_type_names[i], 
                           (unsigned long)stats.allocation_count_by_type[i],
                           (unsigned long)stats.bytes_by_type[i]);

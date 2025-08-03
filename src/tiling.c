@@ -328,6 +328,9 @@ void axiom_update_window_decorations(struct axiom_window *window) {
         }
     }
     
+    // Update title bar buttons positions and colors
+    axiom_update_title_bar_buttons(window);
+    
     // Apply color changes to all border elements
     // Note: wlr_scene_rect doesn't have a direct color change API,
     // so we would need to recreate the rectangles or use a different approach

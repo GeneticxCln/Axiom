@@ -270,7 +270,6 @@ static void axiom_thumbnail_generate_representative_content(struct axiom_window 
                                                           uint8_t *data, int width, int height) {
     // Get window properties for content generation
     const char *app_id = window->xdg_toplevel ? window->xdg_toplevel->app_id : NULL;
-    const char *title = window->xdg_toplevel ? window->xdg_toplevel->title : NULL;
     bool is_focused = window->is_focused;
     
     // Generate color scheme based on app_id
@@ -307,7 +306,6 @@ static void axiom_thumbnail_generate_representative_content(struct axiom_window 
                 }
             } else {
                 // Content area - use base color with some variation
-                float fx = (float)x / width;
                 float fy = (float)(y - height/8) / (height - height/8);
                 
                 // Create subtle gradient

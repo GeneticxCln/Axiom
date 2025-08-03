@@ -3,6 +3,8 @@
 #include <string.h>
 #include <ctype.h>
 #include "config.h"
+#include "constants.h"
+#include "memory.h"
 
 // Forward declarations for logging functions
 void axiom_log_info(const char *format, ...);
@@ -22,29 +24,30 @@ bool axiom_config_validate(struct axiom_config *config) {
 
 
 struct axiom_config *axiom_config_create(void) {
-    struct axiom_config *config = calloc(1, sizeof(struct axiom_config));
+    struct axiom_config *config = axiom_calloc_tracked(1, sizeof(struct axiom_config), 
+                                                      AXIOM_MEM_TYPE_CONFIG, __FILE__, __func__, __LINE__);
     if (!config) {
         return NULL;
     }
 
     // Set defaults with NULL checks
-    config->cursor_theme = strdup("default");
+    config->cursor_theme = axiom_strdup_tracked("default", __FILE__, __func__, __LINE__);
     if (!config->cursor_theme) goto cleanup_error;
     
-    config->cursor_size = 24;
-    config->repeat_rate = 25;
-    config->repeat_delay = 600;
+    config->cursor_size = AXIOM_DEFAULT_CURSOR_SIZE;
+    config->repeat_rate = AXIOM_DEFAULT_REPEAT_RATE;
+    config->repeat_delay = AXIOM_DEFAULT_REPEAT_DELAY;
     config->tiling_enabled = true;
     config->border_width = 2;
     config->gap_size = 5;
     
-    config->background_color = strdup("#1e1e1e");
+    config->background_color = axiom_strdup_tracked("#1e1e1e", __FILE__, __func__, __LINE__);
     if (!config->background_color) goto cleanup_error;
     
-    config->border_active = strdup("#ffffff");
+    config->border_active = axiom_strdup_tracked("#ffffff", __FILE__, __func__, __LINE__);
     if (!config->border_active) goto cleanup_error;
     
-    config->border_inactive = strdup("#666666");
+    config->border_inactive = axiom_strdup_tracked("#666666", __FILE__, __func__, __LINE__);
     if (!config->border_inactive) goto cleanup_error;
     
     // Animation defaults
@@ -54,16 +57,16 @@ struct axiom_config *axiom_config_create(void) {
     config->focus_animations = true;
     config->layout_animations = true;
     
-    config->window_appear_duration = 300;
-    config->window_disappear_duration = 200;
-    config->window_move_duration = 250;
-    config->window_resize_duration = 200;
-    config->workspace_switch_duration = 400;
-    config->focus_ring_duration = 150;
-    config->layout_change_duration = 300;
+    config->window_appear_duration = AXIOM_ANIMATION_WINDOW_APPEAR_DURATION;
+    config->window_disappear_duration = AXIOM_ANIMATION_WINDOW_DISAPPEAR_DURATION;
+    config->window_move_duration = AXIOM_ANIMATION_WINDOW_MOVE_DURATION;
+    config->window_resize_duration = AXIOM_ANIMATION_WINDOW_RESIZE_DURATION;
+    config->workspace_switch_duration = AXIOM_ANIMATION_WORKSPACE_DURATION;
+    config->focus_ring_duration = AXIOM_ANIMATION_FOCUS_RING_DURATION;
+    config->layout_change_duration = AXIOM_ANIMATION_LAYOUT_CHANGE_DURATION;
     
     config->animation_speed_multiplier = 1.0f;
-    config->default_easing = strdup("ease_out_cubic");
+    config->default_easing = axiom_strdup_tracked("ease_out_cubic", __FILE__, __func__, __LINE__);
     if (!config->default_easing) goto cleanup_error;
     config->animation_debug_mode = false;
     
@@ -75,7 +78,7 @@ struct axiom_config *axiom_config_create(void) {
     config->effects.shadow_offset_x = 5;
     config->effects.shadow_offset_y = 5;
     config->effects.shadow_opacity = 0.5f;
-    config->effects.shadow_color = strdup("#000000");
+    config->effects.shadow_color = axiom_strdup_tracked("#000000", __FILE__, __func__, __LINE__);
     if (!config->effects.shadow_color) goto cleanup_error;
     config->effects.blur_radius = 15;
     config->effects.blur_focus_only = false;
@@ -90,7 +93,7 @@ struct axiom_config *axiom_config_create(void) {
     config->smart_gaps.min_gap = 0;
     config->smart_gaps.max_gap = 50;
     config->smart_gaps.single_window_gap = 0;
-    config->smart_gaps.adaptive_mode = strdup("count");
+    config->smart_gaps.adaptive_mode = axiom_strdup_tracked("count", __FILE__, __func__, __LINE__);
     if (!config->smart_gaps.adaptive_mode) goto cleanup_error;
     
     // Window snapping defaults
@@ -106,16 +109,17 @@ struct axiom_config *axiom_config_create(void) {
     
     // Workspaces defaults
     config->workspaces.max_workspaces = 9;
-    config->workspaces.names = calloc(9, sizeof(char*));
+    config->workspaces.names = axiom_calloc_tracked(9, sizeof(char*), 
+                                                    AXIOM_MEM_TYPE_CONFIG, __FILE__, __func__, __LINE__);
     if (!config->workspaces.names) goto cleanup_error;
     
     const char *default_names[] = {"Main", "Web", "Code", "Term", "Media", "Files", "Chat", "Game", "Misc"};
     for (int i = 0; i < 9; i++) {
-        config->workspaces.names[i] = strdup(default_names[i]);
+        config->workspaces.names[i] = axiom_strdup_tracked(default_names[i], __FILE__, __func__, __LINE__);
         if (!config->workspaces.names[i]) {
             // Clean up already allocated names
             for (int j = 0; j < i; j++) {
-                free(config->workspaces.names[j]);
+                axiom_free_tracked(config->workspaces.names[j], __FILE__, __func__, __LINE__);
             }
             goto cleanup_error;
         }
@@ -142,27 +146,27 @@ void axiom_config_destroy(struct axiom_config *config) {
         return;
     }
 
-    free(config->cursor_theme);
-    free(config->background_color);
-    free(config->border_active);
-    free(config->border_inactive);
-    free(config->default_easing);
+    axiom_free_tracked(config->cursor_theme, __FILE__, __func__, __LINE__);
+    axiom_free_tracked(config->background_color, __FILE__, __func__, __LINE__);
+    axiom_free_tracked(config->border_active, __FILE__, __func__, __LINE__);
+    axiom_free_tracked(config->border_inactive, __FILE__, __func__, __LINE__);
+    axiom_free_tracked(config->default_easing, __FILE__, __func__, __LINE__);
     
     // Free effects config
-    free(config->effects.shadow_color);
+    axiom_free_tracked(config->effects.shadow_color, __FILE__, __func__, __LINE__);
     
     // Free smart gaps config
-    free(config->smart_gaps.adaptive_mode);
+    axiom_free_tracked(config->smart_gaps.adaptive_mode, __FILE__, __func__, __LINE__);
     
     // Free workspaces config
     if (config->workspaces.names) {
         for (int i = 0; i < config->workspaces.names_count; i++) {
-            free(config->workspaces.names[i]);
+            axiom_free_tracked(config->workspaces.names[i], __FILE__, __func__, __LINE__);
         }
-        free(config->workspaces.names);
+        axiom_free_tracked(config->workspaces.names, __FILE__, __func__, __LINE__);
     }
     
-    free(config);
+    axiom_free_tracked(config, __FILE__, __func__, __LINE__);
 }
 
 static void trim_whitespace(char *str) {
@@ -198,8 +202,8 @@ bool axiom_config_load(struct axiom_config *config, const char *path) {
         return true; // Not an error, just use defaults
     }
 
-    char line[256];
-    char section[64] = "";
+    char line[AXIOM_CONFIG_MAX_LINE_LENGTH];
+    char section[AXIOM_CONFIG_MAX_SECTION_LENGTH] = "";
     
     while (fgets(line, sizeof(line), file)) {
         trim_whitespace(line);

@@ -1,6 +1,7 @@
 #include "window_snapping.h"
 #include "axiom.h"
 #include "config.h"
+#include "constants.h"
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -13,7 +14,7 @@ static const struct axiom_snap_behavior default_behavior = {
     .magnetism = true,
     .resistance_threshold = 20,
     .magnetism_range = 15,
-    .delay_ms = 100
+    .delay_ms = AXIOM_WORKSPACE_SWITCH_DELAY_MS
 };
 
 // Default snapping configuration
@@ -21,7 +22,7 @@ static const struct axiom_snapping_config default_config = {
     .snap_threshold = 20,
     .edge_resistance = 15,
     .magnetism_strength = 0.8f,
-    .animation_duration = 200,
+    .animation_duration = AXIOM_ANIMATION_DURATION_NORMAL,
     .smart_corners = true,
     .multi_monitor_snapping = true,
     .window_to_window_snapping = true,
@@ -476,7 +477,7 @@ bool axiom_window_snapping_load_config(struct axiom_window_snapping_manager *man
         .snap_threshold = temp_config->window_snapping.snap_threshold,
         .edge_resistance = temp_config->window_snapping.edge_resistance,
         .magnetism_strength = temp_config->window_snapping.magnetism_strength,
-        .animation_duration = 200,  // Default animation duration
+        .animation_duration = AXIOM_ANIMATION_DURATION_NORMAL,  // Default animation duration
         .smart_corners = temp_config->window_snapping.smart_corners,
         .multi_monitor_snapping = temp_config->window_snapping.multi_monitor_snapping,
         .window_to_window_snapping = temp_config->window_snapping.window_to_window_snapping,

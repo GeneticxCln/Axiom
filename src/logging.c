@@ -3,21 +3,11 @@
 #include <time.h>
 #include <stdbool.h>
 #include <string.h>
-
-typedef enum {
-    AXIOM_LOG_DEBUG = 0,
-    AXIOM_LOG_INFO = 1,
-    AXIOM_LOG_WARN = 2,
-    AXIOM_LOG_ERROR = 3
-} axiom_log_level_t;
+#include "logging.h"
 
 static axiom_log_level_t current_log_level = AXIOM_LOG_INFO;
 static bool log_enabled = true;
 static FILE *log_file = NULL;
-
-static const char *level_names[] = {
-    "DEBUG", "INFO", "WARN", "ERROR"
-};
 
 void axiom_log_set_level(axiom_log_level_t level) {
     current_log_level = level;
@@ -55,8 +45,12 @@ void axiom_log_impl(axiom_log_level_t level, const char *format, ...) {
     char timestamp[32];
     strftime(timestamp, sizeof(timestamp), "%H:%M:%S", tm_info);
     
+    // Get level name
+    const char *level_names[] = {"DEBUG", "INFO", "WARN", "ERROR"};
+    const char *level_name = (level >= 0 && level <= 3) ? level_names[level] : "UNKNOWN";
+    
     // Print level and timestamp
-    fprintf(output, "[%s] [%s] ", timestamp, level_names[level]);
+    fprintf(output, "[%s] [%s] ", timestamp, level_name);
     
     // Print the actual message
     va_list args;
@@ -76,11 +70,18 @@ void axiom_log_debug(const char *format, ...) {
     
     va_list args;
     va_start(args, format);
+    
     FILE *output = log_file ? log_file : stderr;
-    fprintf(output, "[DEBUG] ");
+    time_t now = time(NULL);
+    struct tm *tm_info = localtime(&now);
+    char timestamp[32];
+    strftime(timestamp, sizeof(timestamp), "%H:%M:%S", tm_info);
+    
+    fprintf(output, "[%s] [DEBUG] ", timestamp);
     vfprintf(output, format, args);
     fprintf(output, "\n");
     fflush(output);
+    
     va_end(args);
 }
 
@@ -91,11 +92,18 @@ void axiom_log_info(const char *format, ...) {
     
     va_list args;
     va_start(args, format);
+    
     FILE *output = log_file ? log_file : stderr;
-    fprintf(output, "[INFO] ");
+    time_t now = time(NULL);
+    struct tm *tm_info = localtime(&now);
+    char timestamp[32];
+    strftime(timestamp, sizeof(timestamp), "%H:%M:%S", tm_info);
+    
+    fprintf(output, "[%s] [INFO] ", timestamp);
     vfprintf(output, format, args);
     fprintf(output, "\n");
     fflush(output);
+    
     va_end(args);
 }
 
@@ -106,11 +114,18 @@ void axiom_log_warn(const char *format, ...) {
     
     va_list args;
     va_start(args, format);
+    
     FILE *output = log_file ? log_file : stderr;
-    fprintf(output, "[WARN] ");
+    time_t now = time(NULL);
+    struct tm *tm_info = localtime(&now);
+    char timestamp[32];
+    strftime(timestamp, sizeof(timestamp), "%H:%M:%S", tm_info);
+    
+    fprintf(output, "[%s] [WARN] ", timestamp);
     vfprintf(output, format, args);
     fprintf(output, "\n");
     fflush(output);
+    
     va_end(args);
 }
 
@@ -121,11 +136,18 @@ void axiom_log_error(const char *format, ...) {
     
     va_list args;
     va_start(args, format);
+    
     FILE *output = log_file ? log_file : stderr;
-    fprintf(output, "[ERROR] ");
+    time_t now = time(NULL);
+    struct tm *tm_info = localtime(&now);
+    char timestamp[32];
+    strftime(timestamp, sizeof(timestamp), "%H:%M:%S", tm_info);
+    
+    fprintf(output, "[%s] [ERROR] ", timestamp);
     vfprintf(output, format, args);
     fprintf(output, "\n");
     fflush(output);
+    
     va_end(args);
 }
 

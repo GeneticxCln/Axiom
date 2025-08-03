@@ -89,6 +89,21 @@ struct axiom_window {
     struct wlr_scene_rect *title_bar;
     struct wlr_scene_rect *title_accent;
     
+    // Title bar buttons (interactive) - containers for background + icons
+    struct wlr_scene_tree *close_button_tree;
+    struct wlr_scene_tree *minimize_button_tree;
+    struct wlr_scene_tree *maximize_button_tree;
+    
+    // Button backgrounds
+    struct wlr_scene_rect *close_button;
+    struct wlr_scene_rect *minimize_button;
+    struct wlr_scene_rect *maximize_button;
+    
+    // Button state
+    bool close_button_hovered;
+    bool minimize_button_hovered;
+    bool maximize_button_hovered;
+    
     // Border components (4-sided)
     struct wlr_scene_rect *border_top;
     struct wlr_scene_rect *border_bottom;
@@ -319,6 +334,15 @@ void axiom_adjust_master_ratio(float delta);
 const char* axiom_get_layout_name(void);
 void axiom_update_window_decorations(struct axiom_window *window);
 
+// Title bar button functions
+void axiom_create_title_bar_buttons(struct axiom_window *window);
+void axiom_update_title_bar_buttons(struct axiom_window *window);
+void axiom_update_button_hover_states(struct axiom_window *window, double x, double y);
+bool axiom_handle_title_bar_click(struct axiom_window *window, double x, double y);
+void axiom_window_close(struct axiom_window *window);
+void axiom_window_minimize(struct axiom_window *window);
+void axiom_window_toggle_maximize(struct axiom_window *window);
+
 // Phase 2: Layout management
 void axiom_set_layout(enum axiom_layout_type layout);
 enum axiom_layout_type axiom_get_layout(void);
@@ -339,34 +363,7 @@ bool axiom_process_exists(const char *name);
 // Configuration functions in config.h
 void axiom_reload_configuration(struct axiom_server *server);
 
-// Logging
-typedef enum {
-    AXIOM_LOG_DEBUG = 0,
-    AXIOM_LOG_INFO = 1,
-    AXIOM_LOG_WARN = 2,
-    AXIOM_LOG_ERROR = 3
-} axiom_log_level_t;
-
-// Core logging functions
-void axiom_log(const char *level, const char *format, ...);
-void axiom_log_impl(axiom_log_level_t level, const char *format, ...);
-
-// Configuration functions
-void axiom_log_set_level(axiom_log_level_t level);
-void axiom_log_set_enabled(bool enabled);
-void axiom_log_set_file(const char *filename);
-void axiom_log_cleanup(void);
-
-// Convenience functions
-void axiom_log_debug(const char *format, ...);
-void axiom_log_info(const char *format, ...);
-void axiom_log_warn(const char *format, ...);
-void axiom_log_error(const char *format, ...);
-
-// Legacy macros for compatibility
-#define AXIOM_LOG_INFO(fmt, ...) axiom_log_info(fmt, ##__VA_ARGS__)
-#define AXIOM_LOG_ERROR(fmt, ...) axiom_log_error(fmt, ##__VA_ARGS__)
-#define AXIOM_LOG_DEBUG(fmt, ...) axiom_log_debug(fmt, ##__VA_ARGS__)
-#define AXIOM_LOG_WARN(fmt, ...) axiom_log_warn(fmt, ##__VA_ARGS__)
+// Logging system is defined in logging.h
+#include "logging.h"
 
 #endif /* AXIOM_H */

@@ -66,6 +66,8 @@ inc = include_directories('include')
 axiom_sources = files(
   'src/main.c',
   'src/logging.c',
+  'src/errors.c',        # New comprehensive error handling
+  'src/memory.c',        # Advanced memory management system
   'src/input.c',
   'src/cursor.c',
   'src/config.c',
@@ -86,6 +88,7 @@ axiom_sources = files(
   'src/tagging.c',
   'src/keybindings.c',
   'src/focus.c',
+  'src/title_buttons.c',
 )
 
 # Executable
@@ -151,11 +154,13 @@ test_executable = executable('test_axiom',
 
 test_config_sources = files(
   'tests/test_config.c',
-  'src/logging.c'
+  'src/logging.c',
+  'src/memory.c'
 )
 
 test_config_executable = executable('test_config',
   sources: test_config_sources,
+  dependencies: [math_lib],
   include_directories: inc,
   install: false,
 )
@@ -180,7 +185,8 @@ test('animation_tests', test_animation_executable)
 test_animation_config_sources = files(
   'tests/test_animation_config.c',
   'src/config.c',
-  'src/logging.c'
+  'src/logging.c',
+  'src/memory.c'
 )
 
 test_animation_config = executable('test_animation_config',
@@ -234,4 +240,19 @@ test_pip_manager = executable('test_pip_manager',
     install: false,
 )
 test('pip_manager_tests', test_pip_manager)
+
+# Memory management test
+test_memory_sources = files(
+  'tests/test_memory.c',
+  'src/memory.c',
+  'src/logging.c'
+)
+
+test_memory = executable('test_memory',
+    sources: test_memory_sources,
+    dependencies: [math_lib],
+    include_directories: inc,
+    install: false,
+)
+test('memory_tests', test_memory)
 

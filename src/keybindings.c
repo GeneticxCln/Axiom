@@ -336,11 +336,21 @@ void axiom_keybinding_execute_action(struct axiom_server *server,
             break;
             
         case AXIOM_ACTION_FOCUS_NEXT:
-            axiom_focus_next_window(server);
+            // Start/continue Alt+Tab cycling forward
+            if (server->focus_manager && server->focus_manager->is_cycling) {
+                axiom_focus_cycle_next(server);
+            } else {
+                axiom_focus_cycle_start(server, false);
+            }
             break;
             
         case AXIOM_ACTION_FOCUS_PREV:
-            axiom_focus_prev_window(server);
+            // Start/continue Alt+Tab cycling backward
+            if (server->focus_manager && server->focus_manager->is_cycling) {
+                axiom_focus_cycle_prev(server);
+            } else {
+                axiom_focus_cycle_start(server, true);
+            }
             break;
             
         case AXIOM_ACTION_FOCUS_URGENT:
@@ -416,6 +426,12 @@ void axiom_keybinding_load_defaults(struct axiom_keybinding_manager *manager) {
                         AXIOM_ACTION_TAG_VIEW_ALL, 0, NULL, "View all tags");
     axiom_keybinding_add(manager, AXIOM_MOD_SUPER, XKB_KEY_Tab, 
                         AXIOM_ACTION_TAG_VIEW_PREVIOUS, 0, NULL, "View previous tags");
+    
+    // Focus management (Alt+Tab style window switching)
+    axiom_keybinding_add(manager, AXIOM_MOD_ALT, XKB_KEY_Tab, 
+                        AXIOM_ACTION_FOCUS_NEXT, 0, NULL, "Focus next window (Alt+Tab)");
+    axiom_keybinding_add(manager, AXIOM_MOD_ALT | AXIOM_MOD_SHIFT, XKB_KEY_Tab, 
+                        AXIOM_ACTION_FOCUS_PREV, 0, NULL, "Focus previous window (Alt+Shift+Tab)");
     
     // System control
     axiom_keybinding_add(manager, AXIOM_MOD_SUPER, XKB_KEY_q, 

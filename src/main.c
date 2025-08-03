@@ -16,6 +16,8 @@
 #include "window_snapping.h"
 #include "pip_manager.h"
 #include "thumbnail_manager.h"
+#include "keybindings.h"
+#include "focus.h"
 #include "logging.h"
 #include "memory.h"
 #include "constants.h"
@@ -122,38 +124,104 @@ void axiom_arrange_windows(struct axiom_server *server) {
 }
 
 void axiom_calculate_window_layout(struct axiom_server *server, int index, int *x, int *y, int *width, int *height) {
+    // Ensure we have valid workspace dimensions
     if (server->workspace_width <= 0 || server->workspace_height <= 0) {
+        AXIOM_LOG_WARN("WINDOW", "Invalid workspace dimensions: %dx%d, using fallback", 
+                       server->workspace_width, server->workspace_height);
         *x = *y = 0;
-        *width = 800;
-        *height = 600;
+        *width = AXIOM_DEFAULT_WINDOW_WIDTH;
+        *height = AXIOM_DEFAULT_WINDOW_HEIGHT;
         return;
     }
     
     int window_count = server->window_count;
+    
+    // Add bounds checking for index
+    if (index < 0) {
+        AXIOM_LOG_ERROR("WINDOW", "Invalid window index: %d", index);
+        index = 0;
+    }
+    
+    if (window_count <= 0) {
+        AXIOM_LOG_ERROR("WINDOW", "Invalid window count: %d", window_count);
+        *x = *y = 0;
+        *width = AXIOM_DEFAULT_WINDOW_WIDTH;
+        *height = AXIOM_DEFAULT_WINDOW_HEIGHT;
+        return;
+    }
+    
     if (window_count == 1) {
-        *x = 0;
-        *y = 0;
-        *width = server->workspace_width;
-        *height = server->workspace_height;
+        // Single window takes full workspace with small margins
+        const int margin = 20;
+        *x = margin;
+        *y = margin;
+        *width = server->workspace_width - (2 * margin);
+        *height = server->workspace_height - (2 * margin);
     } else if (window_count == 2) {
-        *width = server->workspace_width / 2;
-        *height = server->workspace_height;
-        *x = index * (*width);
-        *y = 0;
+        // Two windows split vertically
+        const int gap = 10;
+        *width = (server->workspace_width - gap) / 2;
+        *height = server->workspace_height - 40; // Leave room for title bars
+        *x = index * (*width + gap);
+        *y = 20; // Top margin
     } else {
-        // Grid layout for more than 2 windows
+        // Grid layout for 3+ windows
         int cols = (int)ceil(sqrt(window_count));
         int rows = (int)ceil((double)window_count / cols);
         
-        *width = server->workspace_width / cols;
-        *height = server->workspace_height / rows;
+        // Ensure we don't exceed array bounds
+        if (index >= window_count) {
+            AXIOM_LOG_ERROR("WINDOW", "Window index %d exceeds count %d", index, window_count);
+            index = window_count - 1;
+        }
+        
+        const int gap = 5;
+        const int title_bar_height = 30;
+        
+        *width = (server->workspace_width - (cols + 1) * gap) / cols;
+        *height = (server->workspace_height - (rows + 1) * gap - title_bar_height) / rows;
         
         int col = index % cols;
         int row = index / cols;
         
-        *x = col * (*width);
-        *y = row * (*height);
+        *x = gap + col * (*width + gap);
+        *y = gap + title_bar_height + row * (*height + gap);
     }
+    
+    // Ensure minimum window dimensions
+    if (*width < AXIOM_MIN_WINDOW_WIDTH) {
+        AXIOM_LOG_WARN("WINDOW", "Calculated width %d below minimum, using %d", 
+                       *width, AXIOM_MIN_WINDOW_WIDTH);
+        *width = AXIOM_MIN_WINDOW_WIDTH;
+    }
+    if (*height < AXIOM_MIN_WINDOW_HEIGHT) {
+        AXIOM_LOG_WARN("WINDOW", "Calculated height %d below minimum, using %d", 
+                       *height, AXIOM_MIN_WINDOW_HEIGHT);
+        *height = AXIOM_MIN_WINDOW_HEIGHT;
+    }
+    
+    // Ensure windows don't go off-screen
+    if (*x < 0) {
+        AXIOM_LOG_WARN("WINDOW", "Window X position %d adjusted to 0", *x);
+        *x = 0;
+    }
+    if (*y < 0) {
+        AXIOM_LOG_WARN("WINDOW", "Window Y position %d adjusted to 0", *y);
+        *y = 0;
+    }
+    if (*x + *width > server->workspace_width) {
+        AXIOM_LOG_WARN("WINDOW", "Window extends beyond workspace width, adjusting");
+        *x = server->workspace_width - *width;
+        if (*x < 0) *x = 0;
+    }
+    if (*y + *height > server->workspace_height) {
+        AXIOM_LOG_WARN("WINDOW", "Window extends beyond workspace height, adjusting");
+        *y = server->workspace_height - *height;
+        if (*y < 0) *y = 0;
+    }
+    
+    AXIOM_LOG_DEBUG("WINDOW", "Layout calculated: index=%d, pos=(%d,%d), size=%dx%d, workspace=%dx%d", 
+                    index, *x, *y, *width, *height, server->workspace_width, server->workspace_height);
 }
 
 static void window_map(struct wl_listener *listener, void *data) {
@@ -236,9 +304,10 @@ static void server_new_xdg_toplevel(struct wl_listener *listener, void *data) {
     }
     
     window->scene_tree->node.data = window;
-
-
     window->server = server;
+    
+    // Initialize window type
+    window->type = AXIOM_WINDOW_XDG;
     
     // Initialize window dimensions (default values)
     window->width = AXIOM_DEFAULT_WINDOW_WIDTH;
@@ -295,6 +364,9 @@ static void server_new_xdg_toplevel(struct wl_listener *listener, void *data) {
             window->title_accent->node.data = window;
             wlr_scene_node_set_position(&window->title_accent->node, window->x, window->y - 2);
         }
+        
+        // Create title bar buttons after title bar is created
+        axiom_create_title_bar_buttons(window);
         
         // Position border elements
         if (window->border_top) {
@@ -737,6 +809,29 @@ int main(int argc, char *argv[]) {
         }
     }
     
+    // Initialize keybinding manager (Phase 2.1 - Critical for keyboard shortcuts)
+    server.keybinding_manager = axiom_calloc_tracked(1, sizeof(struct axiom_keybinding_manager), 
+                                                     AXIOM_MEM_TYPE_CONFIG, __FILE__, __func__, __LINE__);
+    if (!server.keybinding_manager) {
+        AXIOM_LOG_ERROR("Failed to allocate keybinding manager");
+    } else {
+        axiom_keybinding_manager_init(server.keybinding_manager);
+        AXIOM_LOG_INFO("Keybinding manager initialized with default shortcuts");
+        
+        // Print all loaded keybindings for debugging
+        axiom_keybinding_print_all(server.keybinding_manager);
+    }
+    
+    // Initialize focus manager (Phase 2.1 - Critical for Alt+Tab and focus management)
+    server.focus_manager = axiom_calloc_tracked(1, sizeof(struct axiom_focus_manager), 
+                                                AXIOM_MEM_TYPE_CONFIG, __FILE__, __func__, __LINE__);
+    if (!server.focus_manager) {
+        AXIOM_LOG_ERROR("Failed to allocate focus manager");
+    } else {
+        axiom_focus_manager_init(server.focus_manager);
+        AXIOM_LOG_INFO("Focus manager initialized for window switching and focus management");
+    }
+    
     // Set up input management
     wl_list_init(&server.input_devices);
     
@@ -880,6 +975,18 @@ int main(int argc, char *argv[]) {
     // Cleanup thumbnail manager
     if (server.thumbnail_manager) {
         axiom_thumbnail_manager_destroy(server.thumbnail_manager);
+    }
+    
+    // Cleanup keybinding manager
+    if (server.keybinding_manager) {
+        axiom_keybinding_manager_cleanup(server.keybinding_manager);
+        axiom_free_tracked(server.keybinding_manager, __FILE__, __func__, __LINE__);
+    }
+    
+    // Cleanup focus manager
+    if (server.focus_manager) {
+        axiom_focus_manager_cleanup(server.focus_manager);
+        axiom_free_tracked(server.focus_manager, __FILE__, __func__, __LINE__);
     }
     
     axiom_config_destroy(server.config);

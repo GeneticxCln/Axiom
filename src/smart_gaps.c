@@ -6,6 +6,7 @@
 #include <sys/time.h>
 #include "../include/smart_gaps.h"
 #include "../include/axiom.h"
+#include "../include/constants.h"
 
 // Helper function to get current time in milliseconds
 static uint32_t axiom_get_time_ms(void) {
@@ -171,7 +172,7 @@ bool axiom_smart_gaps_load_defaults(struct axiom_smart_gaps_manager *manager) {
         },
         .animation = {
             .enabled = true,
-            .duration_ms = 200,
+            .duration_ms = AXIOM_ANIMATION_DURATION_NORMAL,
             .easing = AXIOM_GAP_ANIM_EASE_OUT
         }
     };
@@ -203,7 +204,7 @@ bool axiom_smart_gaps_load_defaults(struct axiom_smart_gaps_manager *manager) {
         },
         .animation = {
             .enabled = true,
-            .duration_ms = 300,
+            .duration_ms = AXIOM_ANIMATION_DURATION_SLOW,
             .easing = AXIOM_GAP_ANIM_EASE_IN_OUT
         }
     };
@@ -235,7 +236,7 @@ bool axiom_smart_gaps_load_defaults(struct axiom_smart_gaps_manager *manager) {
         },
         .animation = {
             .enabled = false,
-            .duration_ms = 100,
+            .duration_ms = AXIOM_WORKSPACE_SWITCH_DELAY_MS,
             .easing = AXIOM_GAP_ANIM_LINEAR
         }
     };
@@ -267,7 +268,7 @@ bool axiom_smart_gaps_load_defaults(struct axiom_smart_gaps_manager *manager) {
         },
         .animation = {
             .enabled = true,
-            .duration_ms = 400,
+            .duration_ms = AXIOM_ANIMATION_DURATION_SLOW * 2,
             .easing = AXIOM_GAP_ANIM_EASE_IN_OUT
         }
     };
@@ -481,12 +482,12 @@ struct axiom_gap_state *axiom_smart_gaps_get_output_state(struct axiom_smart_gap
     
     state->output = output;
     state->active_profile = manager->default_profile;
-    state->current_inner = state->active_profile ? state->active_profile->inner_gap : 10;
-    state->current_outer = state->active_profile ? state->active_profile->outer_gap : 5;
-    state->current_top = state->active_profile ? state->active_profile->top_gap : 5;
-    state->current_bottom = state->active_profile ? state->active_profile->bottom_gap : 5;
-    state->current_left = state->active_profile ? state->active_profile->left_gap : 5;
-    state->current_right = state->active_profile ? state->active_profile->right_gap : 5;
+    state->current_inner = state->active_profile ? state->active_profile->inner_gap : AXIOM_DEFAULT_GAP_SIZE;
+    state->current_outer = state->active_profile ? state->active_profile->outer_gap : AXIOM_DEFAULT_GAP_SIZE / 2;
+    state->current_top = state->active_profile ? state->active_profile->top_gap : AXIOM_DEFAULT_GAP_SIZE / 2;
+    state->current_bottom = state->active_profile ? state->active_profile->bottom_gap : AXIOM_DEFAULT_GAP_SIZE / 2;
+    state->current_left = state->active_profile ? state->active_profile->left_gap : AXIOM_DEFAULT_GAP_SIZE / 2;
+    state->current_right = state->active_profile ? state->active_profile->right_gap : AXIOM_DEFAULT_GAP_SIZE / 2;
     
     wl_list_insert(&manager->gap_states, &state->link);
     
@@ -531,8 +532,8 @@ bool axiom_smart_gaps_update_output_state(struct axiom_smart_gaps_manager *manag
         .floating_windows = floating_windows,
         .has_fullscreen = has_fullscreen,
         .focused_window = server->focused_window,
-        .screen_width = output_box.width > 0 ? output_box.width : 1920,
-        .screen_height = output_box.height > 0 ? output_box.height : 1080,
+        .screen_width = output_box.width > 0 ? output_box.width : AXIOM_DEFAULT_WORKSPACE_WIDTH,
+        .screen_height = output_box.height > 0 ? output_box.height : AXIOM_DEFAULT_WORKSPACE_HEIGHT,
         .density = 96.0f // Standard DPI - could be enhanced later
     };
     

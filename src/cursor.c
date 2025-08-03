@@ -1,4 +1,5 @@
 #include "axiom.h"
+#include "focus.h"
 #include "window_snapping.h"
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_pointer.h>
@@ -63,6 +64,15 @@ static void process_motion(struct axiom_server *server, uint32_t time) {
         }
     }
     
+    // Handle title bar button hover states
+    if (window) {
+        double relative_x = server->cursor->x - window->x;
+        double relative_y = server->cursor->y - (window->y - 30); // Account for title bar above window
+        
+        // Check if cursor is over any title bar button and update hover states
+        axiom_update_button_hover_states(window, relative_x, relative_y);
+    }
+    
     if (surface) {
         wlr_seat_pointer_notify_enter(server->seat, surface, sx, sy);
         wlr_seat_pointer_notify_motion(server->seat, time, sx, sy);
@@ -107,7 +117,26 @@ void axiom_cursor_button(struct wl_listener *listener, void *data) {
             server->cursor->x, server->cursor->y, &surface, &sx, &sy);
         
         if (window) {
-            axiom_focus_window_legacy(server, window, surface);
+            // Check if click is on title bar buttons first
+            // Get relative coordinates within the window decorations
+            double relative_x = server->cursor->x - window->x;
+            double relative_y = server->cursor->y - (window->y - 30); // Account for title bar above window
+            
+            // Try to handle title bar button click
+            if (axiom_handle_title_bar_click(window, relative_x, relative_y)) {
+                // Title bar button was clicked, don't proceed with focus or other actions
+                return;
+            }
+            
+            // Modern focus system with proper window focusing
+            if (server->focus_manager) {
+                axiom_focus_window(server, window);
+            } else {
+                axiom_focus_window_legacy(server, window, surface);
+            }
+            
+            AXIOM_LOG_DEBUG("FOCUS", "Click-to-focus: Focused window %s", 
+                           window->xdg_toplevel->title ?: "(no title)");
             
             // Check if modifiers are held down for move/resize
             if (server->seat->keyboard_state.keyboard) {
@@ -115,11 +144,27 @@ void axiom_cursor_button(struct wl_listener *listener, void *data) {
                 if (modifiers & WLR_MODIFIER_LOGO) {
                     // Logo + Left Click = Move window
                     axiom_begin_interactive(window, AXIOM_CURSOR_MOVE, 0);
+                    AXIOM_LOG_DEBUG("INTERACTION", "Started interactive move for window");
                 }
             }
         } else {
             // Click on empty space - unfocus current window
-            axiom_focus_window_legacy(server, NULL, NULL);
+            if (server->focus_manager) {
+                // Clear focus using modern focus system
+                if (server->focused_window) {
+                    server->focused_window->is_focused = false;
+                    if (server->focused_window->xdg_toplevel) {
+                        wlr_xdg_toplevel_set_activated(server->focused_window->xdg_toplevel, false);
+                    }
+                }
+                server->focused_window = NULL;
+                if (server->seat) {
+                    wlr_seat_keyboard_clear_focus(server->seat);
+                }
+                AXIOM_LOG_DEBUG("FOCUS", "Unfocused window due to empty space click");
+            } else {
+                axiom_focus_window_legacy(server, NULL, NULL);
+            }
         }
     }
 }
