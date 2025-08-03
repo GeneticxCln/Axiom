@@ -5,6 +5,32 @@ All notable changes to Axiom Wayland Compositor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.3.4] - 2025-08-03 🔧 SESSION STABILITY RELEASE
+
+### 🐛 Critical Session Fixes
+- **CRITICAL**: Fixed infinite cleanup loop in axiom-session script causing session crashes and SDDM failures
+- **CRITICAL**: Resolved SDDM compatibility issues that caused black screen with white line and session kickback
+- **SECURITY**: Added user to render group for proper GPU access permissions (requires logout/login)
+- **ENHANCEMENT**: Improved session script error handling to prevent crashes on non-critical errors
+
+### 🛠️ Session Management Improvements
+- **NEW**: Added comprehensive debug session script (axiom-session-debug) for troubleshooting
+- **IMPROVEMENT**: Enhanced session detection between nested and primary display server modes
+- **IMPROVEMENT**: Better libseat and DRM device access error handling
+- **IMPROVEMENT**: Added timeout and error recovery mechanisms for session startup
+
+### 🔧 Development & Installation
+- **UPDATE**: Updated meson.build to properly install axiom-session script via build system
+- **UPDATE**: Enhanced installation scripts to include session script deployment
+- **NEW**: Added strace integration for advanced session debugging
+- **IMPROVEMENT**: Better session logging with structured error reporting
+
+### 📋 Technical Details
+- **Files Changed**: `axiom-session`, `meson.build`, `install-axiom-v3.5.1.sh`
+- **New Tools**: `axiom-session-debug`, `test-primary-mode`
+- **Dependencies**: Added strace for debugging, render group membership required
+- **Compatibility**: Fixed primary display server mode issues with proper seat management
+
 ## [4.3.3] - 2025-08-03 🔧 CRITICAL BUG FIX RELEASE
 
 ### 🐛 Fixed

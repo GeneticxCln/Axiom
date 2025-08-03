@@ -1,0 +1,26 @@
+#!/bin/bash
+
+# Test Axiom in primary display mode (similar to SDDM environment)
+
+# Clear display environment variables to simulate SDDM startup
+unset WAYLAND_DISPLAY
+unset DISPLAY
+
+# Set up minimal environment similar to what SDDM provides
+export XDG_SESSION_TYPE="wayland"
+export XDG_SESSION_DESKTOP="axiom"
+export XDG_CURRENT_DESKTOP="Axiom"
+export XDG_RUNTIME_DIR="/run/user/1000"
+
+echo "Testing Axiom in primary display mode..."
+echo "Environment:"
+echo "  WAYLAND_DISPLAY: ${WAYLAND_DISPLAY:-unset}"
+echo "  DISPLAY: ${DISPLAY:-unset}"
+echo "  XDG_SESSION_TYPE: ${XDG_SESSION_TYPE}"
+
+# Test with timeout to prevent hanging
+echo "Starting Axiom (will timeout after 10 seconds)..."
+timeout 10 ./build/axiom 2>&1 | head -20
+
+echo "Exit code: $?"
+echo "Test complete."

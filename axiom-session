@@ -1,13 +1,14 @@
 #!/bin/bash
 
 # Axiom Wayland Compositor Session Starter
-# Version: 4.3.2 - AI-Powered wlroots Monitoring System with Multi-Session Support
+# Version: 4.3.4 - Session Stability Release with SDDM Compatibility Fixes
 # This script properly initializes the environment and starts Axiom with AI monitoring
 
-set -e
+# Removed set -e to prevent script from failing on non-critical errors
+# set -e
 
 # Define version and directories
-AXIOM_VERSION="4.3.2"
+AXIOM_VERSION="4.3.4"
 AXIOM_HOME="${HOME}/.local/share/axiom"
 AXIOM_CONFIG_DIR="${HOME}/.config/axiom"
 AXIOM_CACHE_DIR="${HOME}/.cache/axiom"
@@ -140,6 +141,12 @@ setup_xwayland_env() {
 
 # Clean up function
 cleanup() {
+    # Prevent multiple cleanup calls
+    if [[ "${AXIOM_CLEANUP_DONE:-false}" == "true" ]]; then
+        return 0
+    fi
+    export AXIOM_CLEANUP_DONE="true"
+    
     log_info "Cleaning up Axiom session"
     
     # Kill any remaining Axiom processes
@@ -252,5 +259,21 @@ log_info "Session log: ${SESSION_LOG}"
 log_info "Starting Axiom compositor..."
 log_info "Command: ${AXIOM_BINARY} ${NESTED_MODE}"
 
-# Execute Axiom with proper logging
-exec "${AXIOM_BINARY}" ${NESTED_MODE} 2>&1 | tee "${SESSION_LOG}"
+# Execute Axiom with proper logging and error handling
+if [[ -z "${NESTED_MODE}" ]]; then
+    # Primary display server mode
+    log_info "Starting as primary display server"
+    exec "${AXIOM_BINARY}" 2>&1 | tee "${SESSION_LOG}"
+else
+    # Nested mode
+    log_info "Starting in nested mode"
+    "${AXIOM_BINARY}" ${NESTED_MODE} 2>&1 | tee "${SESSION_LOG}"
+    EXIT_CODE=$?
+    
+    if [[ ${EXIT_CODE} -ne 0 ]]; then
+        log_error "Axiom exited with code ${EXIT_CODE}"
+        sleep 2  # Give time for logs to flush
+    fi
+    
+    exit ${EXIT_CODE}
+fi

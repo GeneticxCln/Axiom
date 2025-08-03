@@ -42,10 +42,12 @@ else
     exit 1
 fi
 
-# Install binary
-echo "📦 Installing Axiom binary..."
+# Install binary and session script
+echo "📦 Installing Axiom binary and session script..."
 sudo cp build/axiom /usr/local/bin/axiom
 sudo chmod +x /usr/local/bin/axiom
+sudo cp axiom-session /usr/local/bin/axiom-session
+sudo chmod +x /usr/local/bin/axiom-session
 
 # Install desktop session files
 echo "🖥️ Installing desktop session files..."

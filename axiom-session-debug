@@ -1,0 +1,139 @@
+#!/bin/bash
+
+# Axiom Debug Session Starter
+# This script helps troubleshoot issues when starting Axiom as primary display server
+
+# Define version and directories
+AXIOM_VERSION="4.3.2"
+AXIOM_HOME="${HOME}/.local/share/axiom"
+AXIOM_CONFIG_DIR="${HOME}/.config/axiom"
+AXIOM_CACHE_DIR="${HOME}/.cache/axiom"
+AXIOM_LOG_DIR="${AXIOM_CACHE_DIR}/logs"
+AXIOM_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp}/axiom-${USER}"
+
+# Create necessary directories
+mkdir -p "${AXIOM_HOME}" "${AXIOM_CONFIG_DIR}" "${AXIOM_CACHE_DIR}" "${AXIOM_LOG_DIR}" "${AXIOM_RUNTIME_DIR}"
+
+# Function to log messages
+log_info() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] INFO: $*" | tee -a "${AXIOM_LOG_DIR}/debug-session.log"
+}
+
+log_error() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $*" | tee -a "${AXIOM_LOG_DIR}/debug-session.log" >&2
+}
+
+log_info "Starting Axiom Debug Session v${AXIOM_VERSION}"
+
+# Debug: Print environment information
+log_info "Environment debug information:"
+log_info "USER: ${USER}"
+log_info "HOME: ${HOME}"
+log_info "XDG_RUNTIME_DIR: ${XDG_RUNTIME_DIR}"
+log_info "WAYLAND_DISPLAY: ${WAYLAND_DISPLAY:-unset}"
+log_info "DISPLAY: ${DISPLAY:-unset}"
+
+# Check user permissions for DRM/KMS
+log_info "Checking user permissions..."
+if groups | grep -q video; then
+    log_info "User is in 'video' group - good for DRM access"
+else
+    log_error "User is NOT in 'video' group - may cause DRM access issues"
+fi
+
+if groups | grep -q render; then
+    log_info "User is in 'render' group - good for GPU access"
+else
+    log_error "User is NOT in 'render' group - may cause GPU access issues"
+fi
+
+# Check for DRM devices
+log_info "Checking DRM devices..."
+if ls /dev/dri/card* >/dev/null 2>&1; then
+    log_info "DRM devices found:"
+    ls -la /dev/dri/card* | while read line; do
+        log_info "  $line"
+    done
+else
+    log_error "No DRM devices found at /dev/dri/card*"
+fi
+
+# Check if we're in a session that already has display control
+if [[ -n "${WAYLAND_DISPLAY}" || -n "${DISPLAY}" ]]; then
+    log_info "Already in a display session - using nested mode"
+    NESTED_MODE="--nested"
+else
+    log_info "No existing display session - will attempt primary mode"
+    NESTED_MODE=""
+fi
+
+# Set up essential environment variables
+export XDG_SESSION_TYPE="wayland"
+export XDG_SESSION_DESKTOP="axiom"
+export XDG_CURRENT_DESKTOP="Axiom"
+
+# Find Axiom binary
+if [[ -x "./build/axiom" ]]; then
+    AXIOM_BINARY="./build/axiom"
+    log_info "Using local Axiom binary: ${AXIOM_BINARY}"
+elif [[ -x "/usr/local/bin/axiom" ]]; then
+    AXIOM_BINARY="/usr/local/bin/axiom"
+    log_info "Using system Axiom binary: ${AXIOM_BINARY}"
+else
+    log_error "Axiom binary not found!"
+    exit 1
+fi
+
+# Test the binary first
+log_info "Testing Axiom binary..."
+if "${AXIOM_BINARY}" --help >/dev/null 2>&1; then
+    log_info "Axiom binary test successful"
+else
+    log_error "Axiom binary test failed!"
+    exit 1
+fi
+
+# Create configuration if needed
+if [[ ! -f "${AXIOM_CONFIG_DIR}/axiom.conf" ]]; then
+    log_info "Creating default configuration..."
+    if [[ -f "./axiom.conf" ]]; then
+        cp "./axiom.conf" "${AXIOM_CONFIG_DIR}/axiom.conf"
+        log_info "Copied configuration to ${AXIOM_CONFIG_DIR}/axiom.conf"
+    fi
+fi
+
+# Set up session logging
+DEBUG_LOG="${AXIOM_LOG_DIR}/axiom-debug-$(date '+%Y%m%d-%H%M%S').log"
+log_info "Debug session log: ${DEBUG_LOG}"
+
+# Start Axiom compositor with debug output
+log_info "Starting Axiom compositor in debug mode..."
+log_info "Command: ${AXIOM_BINARY} ${NESTED_MODE}"
+
+# Run with timeout and capture everything
+timeout 30 strace -e trace=openat,ioctl,mmap -o "${AXIOM_LOG_DIR}/strace-debug.log" \
+    "${AXIOM_BINARY}" ${NESTED_MODE} 2>&1 | tee "${DEBUG_LOG}"
+
+EXIT_CODE=$?
+log_info "Axiom exited with code ${EXIT_CODE}"
+
+if [[ ${EXIT_CODE} -eq 124 ]]; then
+    log_info "Process was terminated by timeout (30s) - this might be normal"
+elif [[ ${EXIT_CODE} -ne 0 ]]; then
+    log_error "Axiom exited abnormally with code ${EXIT_CODE}"
+    
+    # Check for common issues
+    if grep -q "Permission denied" "${DEBUG_LOG}"; then
+        log_error "Permission denied errors found - check DRM/GPU permissions"
+    fi
+    
+    if grep -q "No such file or directory" "${DEBUG_LOG}"; then
+        log_error "Missing file errors found - check dependencies"
+    fi
+    
+    if grep -q "segfault" "${AXIOM_LOG_DIR}/strace-debug.log"; then
+        log_error "Segmentation fault detected - check strace log for details"
+    fi
+fi
+
+log_info "Debug session complete. Check logs in ${AXIOM_LOG_DIR}/"
