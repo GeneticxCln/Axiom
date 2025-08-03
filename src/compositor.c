@@ -84,6 +84,7 @@ bool axiom_compositor_init(struct axiom_server *server, bool nested) {
     // Initialize window lists
     wl_list_init(&server->windows);
     wl_list_init(&server->outputs);
+    wl_list_init(&server->input_devices);
 
     // Set up XDG shell
     server->xdg_shell = wlr_xdg_shell_create(server->wl_display, 3);
