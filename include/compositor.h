@@ -36,16 +36,4 @@ void axiom_compositor_cleanup(struct axiom_server *server);
  */
 void axiom_compositor_reload_config(struct axiom_server *server);
 
-/**
- * Reload configuration - called from various modules
- * @param server The server instance
- */
-void axiom_reload_configuration(struct axiom_server *server);
-
-/**
- * Arrange windows - called from various modules
- * @param server The server instance
- */
-void axiom_arrange_windows(struct axiom_server *server);
-
 #endif /* AXIOM_COMPOSITOR_H */

@@ -43,6 +43,109 @@ bool axiom_handle_title_bar_click(struct axiom_window *window, double x, double 
     return false;
 }
 
+// Window button action implementations
+void axiom_window_close(struct axiom_window *window) {
+    if (!window || !window->xdg_toplevel) {
+        AXIOM_LOG_ERROR("Cannot close window: invalid window or toplevel");
+        return;
+    }
+    
+    AXIOM_LOG_INFO("Closing window: %s", window->xdg_toplevel->title ?: "(no title)");
+    wlr_xdg_toplevel_send_close(window->xdg_toplevel);
+}
+
+void axiom_window_minimize(struct axiom_window *window) {
+    if (!window) {
+        AXIOM_LOG_ERROR("Cannot minimize window: invalid window");
+        return;
+    }
+    
+    AXIOM_LOG_INFO("Minimizing window: %s", window->xdg_toplevel ? window->xdg_toplevel->title : "(no title)");
+    
+    // Save current geometry before minimizing
+    window->saved_x = window->x;
+    window->saved_y = window->y;
+    window->saved_width = window->width;
+    window->saved_height = window->height;
+    
+    // Hide the window by disabling its scene node
+    if (window->scene_tree) {
+        wlr_scene_node_set_enabled(&window->scene_tree->node, false);
+    }
+    
+    // Hide decorations too
+    if (window->decoration_tree) {
+        wlr_scene_node_set_enabled(&window->decoration_tree->node, false);
+    }
+    
+    // Update window state
+    if (window->xdg_toplevel) {
+        wlr_xdg_toplevel_set_activated(window->xdg_toplevel, false);
+    }
+    
+    // Clear focus if this window was focused
+    if (window->server && window->server->focused_window == window) {
+        window->server->focused_window = NULL;
+        if (window->server->seat) {
+            wlr_seat_keyboard_clear_focus(window->server->seat);
+        }
+    }
+}
+
+void axiom_window_toggle_maximize(struct axiom_window *window) {
+    if (!window || !window->xdg_toplevel) {
+        AXIOM_LOG_ERROR("Cannot toggle maximize: invalid window or toplevel");
+        return;
+    }
+    
+    bool currently_maximized = window->is_maximized;
+    
+    if (currently_maximized) {
+        // Restore window
+        AXIOM_LOG_INFO("Restoring window: %s", window->xdg_toplevel->title ?: "(no title)");
+        
+        window->is_maximized = false;
+        wlr_xdg_toplevel_set_maximized(window->xdg_toplevel, false);
+        
+        // Restore saved geometry
+        if (window->saved_width > 0 && window->saved_height > 0) {
+            window->x = window->saved_x;
+            window->y = window->saved_y;
+            window->width = window->saved_width;
+            window->height = window->saved_height;
+            
+            wlr_scene_node_set_position(&window->scene_tree->node, window->x, window->y);
+            wlr_xdg_toplevel_set_size(window->xdg_toplevel, window->width, window->height);
+        }
+    } else {
+        // Maximize window
+        AXIOM_LOG_INFO("Maximizing window: %s", window->xdg_toplevel->title ?: "(no title)");
+        
+        // Save current geometry
+        window->saved_x = window->x;
+        window->saved_y = window->y;
+        window->saved_width = window->width;
+        window->saved_height = window->height;
+        
+        window->is_maximized = true;
+        wlr_xdg_toplevel_set_maximized(window->xdg_toplevel, true);
+        
+        // Set window to fill the workspace
+        if (window->server) {
+            window->x = 0;
+            window->y = 0;
+            window->width = window->server->workspace_width;
+            window->height = window->server->workspace_height;
+            
+            wlr_scene_node_set_position(&window->scene_tree->node, window->x, window->y);
+            wlr_xdg_toplevel_set_size(window->xdg_toplevel, window->width, window->height);
+        }
+    }
+    
+    // Update decorations to reflect new state
+    axiom_update_window_decorations(window);
+}
+
 void axiom_update_button_hover_states(struct axiom_window *window, double x, double y) {
     if (!window) {
         return;

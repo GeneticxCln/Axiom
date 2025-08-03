@@ -27,9 +27,9 @@ typedef struct {
 static protocol_test_t protocol_tests[] = {
     // Core compositor functionality
     {
-        .name = "weston-info",
+        .name = "wayland-info",
         .description = "Basic compositor info and protocol enumeration",
-        .command = "timeout 5 weston-info",
+        .command = "timeout 5 wayland-info",
         .expected_output = "interface: 'wl_compositor'",
         .should_succeed = 1
     },
@@ -92,7 +92,7 @@ static protocol_test_t protocol_tests[] = {
     {
         .name = "pointer-constraints-test",
         .description = "Pointer constraints for games",
-        .command = "weston-info | grep pointer_constraints",
+        .command = "wayland-info | grep pointer_constraints",
         .expected_output = "pointer_constraints",
         .should_succeed = 1
     },
@@ -101,7 +101,7 @@ static protocol_test_t protocol_tests[] = {
     {
         .name = "fractional-scale-test",
         .description = "Fractional scaling protocol",
-        .command = "weston-info | grep fractional_scale",
+        .command = "wayland-info | grep fractional_scale",
         .expected_output = "fractional_scale",
         .should_succeed = 1
     },

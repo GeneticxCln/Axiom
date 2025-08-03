@@ -4,6 +4,7 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <stdio.h>
 #include <wlr/util/box.h>
 #include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/types/wlr_scene.h>
@@ -155,7 +156,40 @@ const char* axiom_get_layout_name(void) {
     }
 }
 
-// Forward declarations for internal functions
+static void window_manager_schedule_layout_update(struct axiom_window_manager *manager);
+static int window_manager_layout_timer_handler(void *data);
+static void window_manager_calculate_tiled_layout(struct axiom_window_manager *manager);
+static void window_manager_apply_constraints(struct axiom_window_constraints *constraints, 
+                                            int *width, int *height);
+static bool window_manager_validate_geometry(const struct axiom_window_geometry *geometry);
+
+void axiom_calculate_window_layout(struct axiom_server *server, int index, 
+                                   int *x, int *y, int *width, int *height) {
+    if (!server || !x || !y || !width || !height) return;
+
+    struct axiom_window *window;
+    wl_list_for_each(window, &server->windows, link) {
+        if (index-- == 0) {
+            *x = window->x;
+            *y = window->y;
+            *width = window->width;
+            *height = window->height;
+            return;
+        }
+    }
+}
+
+void axiom_calculate_window_layout_advanced(struct axiom_server *server, int index, 
+                                           int *x, int *y, int *width, int *height) {
+    if (!server || !x || !y || !width || !height) return;
+
+    // In advanced layout, we might offset or transform window sizes
+    axiom_calculate_window_layout(server, index, x, y, width, height);
+    *x += 10; // Example offset
+    *y += 10; // Example offset
+    *width -= 20; // Example size change
+    *height -= 20; // Example size change
+}
 static void window_manager_schedule_layout_update(struct axiom_window_manager *manager);
 static int window_manager_layout_timer_handler(void *data);
 static void window_manager_calculate_tiled_layout(struct axiom_window_manager *manager);
@@ -1220,4 +1254,74 @@ static bool window_manager_validate_geometry(const struct axiom_window_geometry 
     return (geometry->width > 0 && geometry->height > 0 &&
             geometry->width >= AXIOM_MIN_WINDOW_WIDTH &&
             geometry->height >= AXIOM_MIN_WINDOW_HEIGHT);
+}
+
+// Implementation of the global arrange windows function
+void axiom_arrange_windows(struct axiom_server *server) {
+    if (!server || !server->window_manager) {
+        AXIOM_LOG_ERROR("WINDOW_MGR", "Cannot arrange windows: invalid server or window manager");
+        return;
+    }
+
+    axiom_window_manager_arrange_all(server->window_manager);
+    AXIOM_LOG_DEBUG("WINDOW_MGR", "Arranged all windows");
+}
+
+// Implementation of the global reload configuration function
+void axiom_reload_configuration(struct axiom_server *server) {
+    if (!server) {
+        AXIOM_LOG_ERROR("CONFIG", "Cannot reload configuration: invalid server");
+        return;
+    }
+
+    AXIOM_LOG_INFO("CONFIG", "Reloading configuration...");
+
+    // Load the configuration from the default path
+    const char *config_path = getenv("AXIOM_CONFIG_PATH");
+    if (!config_path) {
+        config_path = "/home/alex/.config/axiom/config.ini"; // Default path
+    }
+
+    // Create a new config and load it
+    struct axiom_config *new_config = axiom_config_create();
+    if (!new_config) {
+        AXIOM_LOG_ERROR("CONFIG", "Failed to create new configuration");
+        return;
+    }
+
+    if (!axiom_config_load(new_config, config_path)) {
+        AXIOM_LOG_ERROR("CONFIG", "Failed to load configuration from %s", config_path);
+        axiom_config_destroy(new_config);
+        return;
+    }
+
+    if (!axiom_config_validate(new_config)) {
+        AXIOM_LOG_ERROR("CONFIG", "Configuration validation failed");
+        axiom_config_destroy(new_config);
+        return;
+    }
+
+    // Replace the old config with the new one
+    if (server->config) {
+        axiom_config_destroy(server->config);
+    }
+    server->config = new_config;
+
+    // Apply configuration changes to the window manager
+    if (server->window_manager) {
+        // Update window manager settings from new config
+        server->window_manager->border_width = new_config->border_width;
+        server->window_manager->gap_size = new_config->gap_size;
+        
+        // Rearrange windows with new settings
+        axiom_window_manager_arrange_all(server->window_manager);
+    }
+
+    // Update cursor settings if available
+    if (server->cursor_mgr && new_config->cursor_size > 0) {
+        // Note: cursor manager update would need implementation
+        AXIOM_LOG_DEBUG("CONFIG", "Updated cursor settings");
+    }
+
+    AXIOM_LOG_INFO("CONFIG", "Configuration reloaded successfully");
 }

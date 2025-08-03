@@ -144,27 +144,6 @@ void axiom_compositor_cleanup(struct axiom_server *server) {
 void axiom_compositor_reload_config(struct axiom_server *server) {
     if (!server) return;
     
-    axiom_reload_configuration(server);
-    AXIOM_LOG_INFO("Configuration reloaded");
-}
-
-/**
- * Reload configuration - stub implementation
- */
-void axiom_reload_configuration(struct axiom_server *server) {
-    if (!server) return;
-    
-    AXIOM_LOG_INFO("Reloading configuration...");
-    // TODO: Implement configuration reload
-    AXIOM_LOG_INFO("Configuration reload complete");
-}
-
-/**
- * Arrange windows - stub implementation
- */
-void axiom_arrange_windows(struct axiom_server *server) {
-    if (!server) return;
-    
-    AXIOM_LOG_DEBUG("Arranging windows...");
-    // TODO: Implement window arrangement
+    AXIOM_LOG_INFO("Configuration reload requested - not yet implemented");
+    // TODO: Implement when config system is ready
 }
