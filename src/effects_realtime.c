@@ -407,7 +407,7 @@ bool axiom_realtime_blur_render(struct axiom_effects_manager *manager,
     
     struct axiom_blur_params h_params = {
         .radius = MAX_BLUR_RADIUS,
-        .intensity = 1.0f,
+        .intensity = manager->blur.intensity,
         .horizontal = true,
         .width = blur->width,
         .height = blur->height
@@ -422,7 +422,7 @@ bool axiom_realtime_blur_render(struct axiom_effects_manager *manager,
     
     struct axiom_blur_params v_params = {
         .radius = MAX_BLUR_RADIUS,
-        .intensity = 1.0f,
+        .intensity = manager->blur.intensity,
         .horizontal = false,
         .width = blur->width,
         .height = blur->height

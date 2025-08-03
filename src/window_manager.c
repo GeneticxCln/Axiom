@@ -1213,6 +1213,154 @@ void axiom_update_title_bar_buttons(struct axiom_window *window) {
     }
 }
 
+void axiom_update_button_hover_states(struct axiom_window *window, double x, double y) {
+    if (!window) return;
+    
+    int window_width = window->width;
+    int close_x = window_width - BUTTON_MARGIN - BUTTON_SIZE;
+    int minimize_x = close_x - BUTTON_SIZE - BUTTON_SPACING;
+    int maximize_x = minimize_x - BUTTON_SIZE - BUTTON_SPACING;
+    int button_y = (TITLE_BAR_HEIGHT - BUTTON_SIZE) / 2;
+    
+    // Check close button hover
+    window->close_button_hovered = (x >= close_x && x <= close_x + BUTTON_SIZE &&
+                                   y >= button_y && y <= button_y + BUTTON_SIZE);
+    
+    // Check minimize button hover
+    window->minimize_button_hovered = (x >= minimize_x && x <= minimize_x + BUTTON_SIZE &&
+                                      y >= button_y && y <= button_y + BUTTON_SIZE);
+    
+    // Check maximize button hover
+    window->maximize_button_hovered = (x >= maximize_x && x <= maximize_x + BUTTON_SIZE &&
+                                      y >= button_y && y <= button_y + BUTTON_SIZE);
+    
+    // Update button colors based on new hover states
+    axiom_update_title_bar_buttons(window);
+}
+
+bool axiom_handle_title_bar_click(struct axiom_window *window, double x, double y) {
+    if (!window) return false;
+    
+    int window_width = window->width;
+    int close_x = window_width - BUTTON_MARGIN - BUTTON_SIZE;
+    int minimize_x = close_x - BUTTON_SIZE - BUTTON_SPACING;
+    int maximize_x = minimize_x - BUTTON_SIZE - BUTTON_SPACING;
+    int button_y = (TITLE_BAR_HEIGHT - BUTTON_SIZE) / 2;
+    
+    // Check if click is on close button
+    if (x >= close_x && x <= close_x + BUTTON_SIZE &&
+        y >= button_y && y <= button_y + BUTTON_SIZE) {
+        axiom_window_close(window);
+        return true;
+    }
+    
+    // Check if click is on minimize button
+    if (x >= minimize_x && x <= minimize_x + BUTTON_SIZE &&
+        y >= button_y && y <= button_y + BUTTON_SIZE) {
+        axiom_window_minimize(window);
+        return true;
+    }
+    
+    // Check if click is on maximize button
+    if (x >= maximize_x && x <= maximize_x + BUTTON_SIZE &&
+        y >= button_y && y <= button_y + BUTTON_SIZE) {
+        axiom_window_toggle_maximize(window);
+        return true;
+    }
+    
+    return false;
+}
+
+void axiom_window_close(struct axiom_window *window) {
+    if (!window || !window->xdg_toplevel) return;
+    
+    AXIOM_LOG_INFO("WINDOW_MGR", "Closing window %p", (void*)window);
+    
+    // Send close request to client
+    wlr_xdg_toplevel_send_close(window->xdg_toplevel);
+}
+
+void axiom_window_minimize(struct axiom_window *window) {
+    if (!window || !window->state) return;
+    
+    AXIOM_LOG_INFO("WINDOW_MGR", "Minimizing window %p", (void*)window);
+    
+    // Set minimized state
+    axiom_window_set_state(window, AXIOM_WINDOW_STATE_MINIMIZED, true);
+    
+    // Hide window in scene graph
+    if (window->scene_tree) {
+        wlr_scene_node_set_enabled(&window->scene_tree->node, false);
+    }
+    
+    // Hide decorations
+    if (window->decoration_tree) {
+        wlr_scene_node_set_enabled(&window->decoration_tree->node, false);
+    }
+    
+    // Start minimize animation if available
+    if (window->server && window->server->animation_manager) {
+        axiom_animate_window_disappear(window->server, window);
+    }
+}
+
+void axiom_window_toggle_maximize(struct axiom_window *window) {
+    if (!window || !window->state || !window->geometry) return;
+    
+    bool is_maximized = axiom_window_has_state(window, AXIOM_WINDOW_STATE_MAXIMIZED);
+    
+    if (is_maximized) {
+        AXIOM_LOG_INFO("WINDOW_MGR", "Unmaximizing window %p", (void*)window);
+        
+        // Restore from maximized state
+        axiom_window_set_state(window, AXIOM_WINDOW_STATE_MAXIMIZED, false);
+        
+        // Restore saved geometry
+        axiom_window_geometry_restore(window->geometry);
+        axiom_window_apply_geometry(window, window->geometry);
+        
+        // Send unmaximized state to client
+        if (window->xdg_toplevel) {
+            wlr_xdg_toplevel_set_maximized(window->xdg_toplevel, false);
+        }
+    } else {
+        AXIOM_LOG_INFO("WINDOW_MGR", "Maximizing window %p", (void*)window);
+        
+        // Save current geometry before maximizing
+        axiom_window_geometry_save(window->geometry);
+        
+        // Set maximized state
+        axiom_window_set_state(window, AXIOM_WINDOW_STATE_MAXIMIZED, true);
+        
+        // Get workspace dimensions
+        struct axiom_window_manager *manager = window->manager;
+        if (manager) {
+            // Calculate maximized geometry
+            window->geometry->x = 0;
+            window->geometry->y = manager->title_bar_height;
+            window->geometry->width = manager->workspace_width;
+            window->geometry->height = manager->workspace_height - manager->title_bar_height;
+            
+            // Apply maximized geometry
+            axiom_window_apply_geometry(window, window->geometry);
+        }
+        
+        // Send maximized state to client
+        if (window->xdg_toplevel) {
+            wlr_xdg_toplevel_set_maximized(window->xdg_toplevel, true);
+        }
+    }
+    
+    // Start resize animation if available
+    if (window->server && window->server->animation_manager) {
+        axiom_animate_window_resize(window->server, window, 
+                                   window->geometry->width, window->geometry->height);
+    }
+    
+    // Update decorations
+    axiom_update_window_decorations(window);
+}
+
 static void window_manager_schedule_layout_update(struct axiom_window_manager *manager) {
     if (!manager || !manager->layout_timer) return;
 
