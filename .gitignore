@@ -12,3 +12,10 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Build artifacts
+*.o
+*.so
+*.a
+test_*_exe
+*_exe
