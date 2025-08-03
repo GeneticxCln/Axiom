@@ -78,8 +78,8 @@ void axiom_update_window_decorations(struct axiom_window *window) {
     const float *border_color = window->is_focused ? border_focused : border_unfocused;
 
     // Create title bar
-    const int title_height = 30;
-    const int border_width = 2;
+    const int title_height = AXIOM_TITLE_BAR_HEIGHT;
+    const int border_width = AXIOM_BORDER_WIDTH;
     window->title_bar = wlr_scene_rect_create(window->decoration_tree, 
                                               window->width, title_height, title_color);
     if (window->title_bar) {
@@ -123,7 +123,7 @@ void axiom_update_window_decorations(struct axiom_window *window) {
 
 // Tiling layout functionality (merged from tiling.c)
 static enum axiom_layout_type current_layout = AXIOM_LAYOUT_MASTER_STACK;
-static float master_ratio = 0.6f; // 60% for master window
+static float master_ratio = AXIOM_MASTER_RATIO_DEFAULT;
 
 void axiom_set_layout(enum axiom_layout_type layout) {
     current_layout = layout;
@@ -136,8 +136,8 @@ enum axiom_layout_type axiom_get_layout(void) {
 
 void axiom_adjust_master_ratio(float delta) {
     master_ratio += delta;
-    if (master_ratio < 0.2f) master_ratio = 0.2f;
-    if (master_ratio > 0.8f) master_ratio = 0.8f;
+    if (master_ratio < AXIOM_MASTER_RATIO_MIN) master_ratio = AXIOM_MASTER_RATIO_MIN;
+    if (master_ratio > AXIOM_MASTER_RATIO_MAX) master_ratio = AXIOM_MASTER_RATIO_MAX;
     AXIOM_LOG_INFO("Master ratio adjusted to: %.2f", master_ratio);
 }
 
@@ -185,10 +185,10 @@ void axiom_calculate_window_layout_advanced(struct axiom_server *server, int ind
 
     // In advanced layout, we might offset or transform window sizes
     axiom_calculate_window_layout(server, index, x, y, width, height);
-    *x += 10; // Example offset
-    *y += 10; // Example offset
-    *width -= 20; // Example size change
-    *height -= 20; // Example size change
+    *x += AXIOM_DEFAULT_GAP_SIZE; // Example offset
+    *y += AXIOM_DEFAULT_GAP_SIZE; // Example offset
+    *width -= 2 * AXIOM_DEFAULT_GAP_SIZE; // Example size change
+    *height -= 2 * AXIOM_DEFAULT_GAP_SIZE; // Example size change
 }
 static void window_manager_schedule_layout_update(struct axiom_window_manager *manager);
 static int window_manager_layout_timer_handler(void *data);
@@ -229,17 +229,17 @@ struct axiom_window_manager *axiom_window_manager_create(struct axiom_server *se
     manager->last_focused_window = NULL;
 
     // Set default layout parameters
-    manager->workspace_width = 1920;   // Will be updated from actual output
-    manager->workspace_height = 1080;
-    manager->title_bar_height = 30;
-    manager->border_width = 2;
-    manager->gap_size = 5;
+    manager->workspace_width = AXIOM_DEFAULT_WORKSPACE_WIDTH;   // Will be updated from actual output
+    manager->workspace_height = AXIOM_DEFAULT_WORKSPACE_HEIGHT;
+    manager->title_bar_height = AXIOM_TITLE_BAR_HEIGHT;
+    manager->border_width = AXIOM_BORDER_WIDTH;
+    manager->gap_size = AXIOM_DEFAULT_GAP_SIZE;
 
     // Set default configuration
     manager->auto_focus_new_windows = true;
     manager->focus_follows_mouse = false;
     manager->click_to_focus = true;
-    manager->max_focus_history = 10;
+    manager->max_focus_history = AXIOM_MAX_FOCUS_HISTORY;
 
     // Initialize performance optimization flags
     manager->layout_calculation_pending = false;

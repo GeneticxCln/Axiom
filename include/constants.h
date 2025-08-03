@@ -177,6 +177,7 @@
 #define AXIOM_MAX_PROCESSES                100
 #define AXIOM_MAX_WINDOWS_PER_WORKSPACE    50
 #define AXIOM_MAX_EFFECTS_PER_WINDOW       10
+#define AXIOM_MAX_FOCUS_HISTORY            10
 
 /** Performance thresholds */
 #define AXIOM_PERFORMANCE_WARNING_FPS      30
