@@ -250,7 +250,7 @@ void axiom_arrange_layers(struct axiom_server *server) {
             .height = output->wlr_output->height,
         };
         
-        struct wlr_box usable_area = full_area;
+        struct wlr_box usable_area __attribute__((unused)) = full_area;
         
         // Configure layer surfaces for this output
         // In newer wlroots, layer surfaces are managed differently

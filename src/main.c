@@ -549,10 +549,10 @@ int main(int argc, char *argv[]) {
             nested = true;
             AXIOM_LOG_INFO("Nested mode enabled");
         } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
-            printf("Usage: %s [OPTIONS]\n", argv[0]);
-            printf("Options:\n");
-            printf("  --nested    Run in nested mode (within another compositor)\n");
-            printf("  --help, -h  Show this help message\n");
+            AXIOM_LOG_INFO("Usage: %s [OPTIONS]", argv[0]);
+            AXIOM_LOG_INFO("Options:");
+            AXIOM_LOG_INFO("  --nested    Run in nested mode (within another compositor)");
+            AXIOM_LOG_INFO("  --help, -h  Show this help message");
             return EXIT_SUCCESS;
         }
     }

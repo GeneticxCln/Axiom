@@ -160,7 +160,7 @@ static int test_protocol(const protocol_test_t *test) {
     return 0;
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc __attribute__((unused)), char *argv[] __attribute__((unused))) {
     printf("=== Axiom Protocol Testing Suite ===\n\n");
     
     // Check if we're running under Axiom
