@@ -71,21 +71,28 @@
         <div class="absolute inset-0 bg-black/20"></div>
         <div class="container mx-auto px-6 text-center relative z-10">
             <div class="animate-float mb-8">
-                <div class="w-32 h-32 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-8 backdrop-blur-sm p-4">
+                <div class="w-32 h-32 bg-black/60 rounded-full flex items-center justify-center mx-auto mb-8 backdrop-blur-sm p-4 border-2 border-cyan-400/30">
                     <svg width="96" height="96" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
                         <defs>
                             <linearGradient id="axeGradLarge" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" style="stop-color:#00bfff;stop-opacity:1" />
-                                <stop offset="50%" style="stop-color:#0080ff;stop-opacity:1" />
-                                <stop offset="100%" style="stop-color:#0040ff;stop-opacity:1" />
+                                <stop offset="0%" style="stop-color:#00d4ff;stop-opacity:1" />
+                                <stop offset="50%" style="stop-color:#0099ff;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#0066cc;stop-opacity:1" />
                             </linearGradient>
+                            <filter id="heroGlow" x="-50%" y="-50%" width="200%" height="200%">
+                                <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                                <feMerge> 
+                                    <feMergeNode in="coloredBlur"/>
+                                    <feMergeNode in="SourceGraphic"/>
+                                </feMerge>
+                            </filter>
                         </defs>
-                        <circle cx="100" cy="100" r="90" fill="rgba(0,0,0,0.3)" stroke="#333" stroke-width="2"/>
-                        <rect x="97" y="120" width="6" height="50" fill="url(#axeGradLarge)" rx="3"/>
-                        <path d="M 70 80 L 100 60 L 130 80 L 120 100 L 100 90 L 80 100 Z" fill="url(#axeGradLarge)"/>
-                        <path d="M 75 82 L 100 65 L 125 82 L 115 95 L 100 87 L 85 95 Z" fill="#40c0ff" opacity="0.6"/>
-                        <circle cx="100" cy="85" r="8" fill="#0080ff"/>
-                        <circle cx="100" cy="85" r="4" fill="#00bfff"/>
+                        <circle cx="100" cy="100" r="90" fill="#1a1a1a" stroke="#00d4ff" stroke-width="2" opacity="0.8"/>
+                        <rect x="97" y="120" width="6" height="50" fill="url(#axeGradLarge)" rx="3" filter="url(#heroGlow)"/>
+                        <path d="M 70 80 L 100 60 L 130 80 L 120 100 L 100 90 L 80 100 Z" fill="url(#axeGradLarge)" filter="url(#heroGlow)"/>
+                        <path d="M 75 82 L 100 65 L 125 82 L 115 95 L 100 87 L 85 95 Z" fill="#60d0ff" opacity="0.8"/>
+                        <circle cx="100" cy="85" r="8" fill="#0099ff" filter="url(#heroGlow)"/>
+                        <circle cx="100" cy="85" r="4" fill="#00d4ff"/>
                     </svg>
                 </div>
             </div>
