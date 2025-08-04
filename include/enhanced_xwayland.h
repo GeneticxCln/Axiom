@@ -236,4 +236,20 @@ bool axiom_xwayland_surface_matches_rule(struct axiom_xwayland_surface *surface,
 void axiom_xwayland_surface_debug_properties(struct axiom_xwayland_surface *surface);
 void axiom_xwayland_manager_debug_state(struct axiom_xwayland_manager *manager);
 
+// Phase 1.3: Advanced Features
+void axiom_enhanced_xwayland_handle_override_redirect(struct axiom_xwayland_manager *manager,
+                                                     struct wlr_xwayland_surface *wlr_surface,
+                                                     struct axiom_xwayland_surface *surface);
+void axiom_enhanced_xwayland_handle_managed_window(struct axiom_xwayland_manager *manager,
+                                                   struct wlr_xwayland_surface *wlr_surface,
+                                                   struct axiom_xwayland_surface *surface);
+void axiom_enhanced_xwayland_focus_management(struct axiom_xwayland_manager *manager,
+                                             struct axiom_xwayland_surface *surface,
+                                             bool should_focus);
+void axiom_enhanced_xwayland_scene_integration(struct axiom_xwayland_manager *manager,
+                                              struct axiom_xwayland_surface *surface);
+void axiom_enhanced_xwayland_stacking_management(struct axiom_xwayland_manager *manager);
+void axiom_enhanced_xwayland_log_properties(struct wlr_xwayland_surface *wlr_surface);
+bool axiom_enhanced_xwayland_surface_should_manage(struct wlr_xwayland_surface *wlr_surface);
+
 #endif /* AXIOM_ENHANCED_XWAYLAND_H */
