@@ -17,7 +17,44 @@
 
 ---
 
-## 🚨 **LATEST: v4.3.5 - CRITICAL BOOT FIXES RELEASE** 🔧
+## 🚨 **LATEST: v4.3.6 - DOCUMENTATION & ANALYSIS RELEASE** 📚
+
+### 📊 **COMPREHENSIVE INITIALIZATION DOCUMENTATION**
+
+**📋 NEW DOCUMENTATION FEATURES**
+- **Added**: Complete initialization flow diagram with visual representation
+- **Added**: Detailed initialization sequence analysis and dependencies
+- **Enhanced**: Project documentation for better system understanding
+- **Improved**: Developer onboarding with architectural insights
+
+**🔍 INITIALIZATION ANALYSIS**
+- Comprehensive flow diagram showing all initialization stages
+- Detailed sequence analysis with timing and dependencies
+- Visual representation of component relationships
+- Enhanced debugging and troubleshooting capabilities
+
+**📋 IMMEDIATE UPGRADE RECOMMENDED:**
+For the latest documentation and system insights, upgrade to v4.3.6:
+```bash
+git pull origin main
+# v4.3.6 is now the latest main branch
+meson setup builddir --wipe
+meson compile -C builddir
+sudo meson install -C builddir
+```
+
+**🎯 ENHANCED FEATURES**
+- All previous v4.3.5 critical fixes maintained ✅
+- All 11 test suites pass ✅
+- Stable nested mode operation ✅
+- Primary display server boot success ✅
+- wlroots 0.19 compatibility confirmed ✅
+
+**[🔗 Download v4.3.6](https://github.com/GeneticxCln/Axiom/releases/tag/v4.3.6)** | **[📚 Documentation Updates](https://github.com/GeneticxCln/Axiom/releases/tag/v4.3.6)**
+
+---
+
+## 🚀 **PREVIOUS: v4.3.5 - CRITICAL BOOT FIXES RELEASE** 🔧
 
 ### ⚡ **MAJOR SDDM KICKBACK ISSUE RESOLVED**
 
@@ -34,22 +71,6 @@
 - Safe cursor initialization with retry logic and proper scaling
 - Graceful output fallback handling for complex display configurations
 - Stable operation even when individual components have issues
-
-**📋 IMMEDIATE UPGRADE REQUIRED:**
-If you're experiencing black screen + SDDM kickback, upgrade to v4.3.5 immediately:
-```bash
-git pull origin main
-# v4.3.5 is now the latest main branch
-meson setup builddir --wipe
-meson compile -C builddir
-sudo meson install -C builddir
-```
-
-**🎯 TESTING VERIFIED**
-- All 11 test suites pass ✅
-- Stable nested mode operation ✅
-- Primary display server boot success ✅
-- wlroots 0.19 compatibility confirmed ✅
 
 **[🔗 Download v4.3.5](https://github.com/GeneticxCln/Axiom/releases/tag/v4.3.5)** | **[🔧 Critical Fixes Details](RELEASE_NOTES_v4.3.5.md)**
 
