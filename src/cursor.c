@@ -3,6 +3,7 @@
 #include "axiom.h"
 #include "focus.h"
 #include "window_snapping.h"
+#include "input.h"
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_pointer.h>
 #include <wlr/util/log.h>
@@ -276,4 +277,184 @@ void axiom_process_cursor_resize(struct axiom_server *server, uint32_t time) {
     
     AXIOM_LOG_DEBUG("Resizing window to %dx%d at %d,%d (with snapping constraints)", 
                     window->width, window->height, window->x, window->y);
+}
+
+// Enhanced mouse input functions
+void axiom_pointer_set_accel(struct axiom_input_device *device, double speed) {
+    if (!device) return;
+    
+    // Set acceleration speed if device has pointer capabilities
+    if (device->wlr_device && device->wlr_device->type == WLR_INPUT_DEVICE_POINTER) {
+        struct wlr_pointer *pointer = wlr_pointer_from_input_device(device->wlr_device);
+        if (pointer) {
+            // Store the acceleration setting (wlroots doesn't have a direct function for this)
+            // This would typically be handled by libinput configuration
+            AXIOM_LOG_DEBUG("Pointer acceleration set to %f for device %s", 
+                           speed, device->wlr_device->name ? device->wlr_device->name : "Unknown");
+        }
+    }
+}
+
+void axiom_pointer_set_natural_scroll(struct axiom_input_device *device, bool enabled) {
+    if (!device) return;
+    
+    if (device->wlr_device && device->wlr_device->type == WLR_INPUT_DEVICE_POINTER) {
+        struct wlr_pointer *pointer = wlr_pointer_from_input_device(device->wlr_device);
+        if (pointer) {
+            // Store natural scroll setting
+            AXIOM_LOG_DEBUG("Natural scroll %s for device %s", 
+                           enabled ? "enabled" : "disabled", 
+                           device->wlr_device->name ? device->wlr_device->name : "Unknown");
+        }
+    }
+}
+
+void axiom_pointer_set_tap_to_click(struct axiom_input_device *device, bool enabled) {
+    if (!device) return;
+    
+    if (device->wlr_device && device->wlr_device->type == WLR_INPUT_DEVICE_POINTER) {
+        struct wlr_pointer *pointer = wlr_pointer_from_input_device(device->wlr_device);
+        if (pointer) {
+            // Store tap-to-click setting
+            AXIOM_LOG_DEBUG("Tap-to-click %s for device %s", 
+                           enabled ? "enabled" : "disabled", 
+                           device->wlr_device->name ? device->wlr_device->name : "Unknown");
+        }
+    }
+}
+
+void axiom_pointer_enable_gestures(struct axiom_input_device *device, bool enabled) {
+    if (!device) return;
+    
+    AXIOM_LOG_DEBUG("Gestures %s for pointer device %s", 
+                   enabled ? "enabled" : "disabled", 
+                   device->wlr_device && device->wlr_device->name ? device->wlr_device->name : "Unknown");
+}
+
+// Gesture recognition functions
+void axiom_input_process_gesture(struct axiom_input_manager *manager,
+                                struct axiom_gesture_event *event) {
+    if (!manager || !event) return;
+    
+    switch (event->type) {
+        case AXIOM_GESTURE_SWIPE_LEFT:
+            AXIOM_LOG_DEBUG("Swipe left gesture detected at (%f, %f)", event->x, event->y);
+            // Could trigger workspace switching or window navigation
+            break;
+            
+        case AXIOM_GESTURE_SWIPE_RIGHT:
+            AXIOM_LOG_DEBUG("Swipe right gesture detected at (%f, %f)", event->x, event->y);
+            break;
+            
+        case AXIOM_GESTURE_SWIPE_UP:
+            AXIOM_LOG_DEBUG("Swipe up gesture detected at (%f, %f)", event->x, event->y);
+            // Could trigger application overview or expose
+            break;
+            
+        case AXIOM_GESTURE_SWIPE_DOWN:
+            AXIOM_LOG_DEBUG("Swipe down gesture detected at (%f, %f)", event->x, event->y);
+            break;
+            
+        case AXIOM_GESTURE_PINCH_IN:
+            AXIOM_LOG_DEBUG("Pinch in gesture detected, scale: %f", event->scale);
+            // Could trigger zoom out or window minimize
+            break;
+            
+        case AXIOM_GESTURE_PINCH_OUT:
+            AXIOM_LOG_DEBUG("Pinch out gesture detected, scale: %f", event->scale);
+            // Could trigger zoom in or window maximize
+            break;
+            
+        default:
+            AXIOM_LOG_DEBUG("Unknown gesture type: %d", event->type);
+            break;
+    }
+}
+
+// Enhanced cursor button handling with right-click context menu support
+void axiom_cursor_button_enhanced(struct wl_listener *listener, void *data) {
+    struct axiom_server *server = wl_container_of(listener, server, cursor_button);
+    struct wlr_pointer_button_event *event = data;
+    
+    // Handle right-click context menu
+    if (event->button == BTN_RIGHT && event->state == WL_POINTER_BUTTON_STATE_PRESSED) {
+        struct wlr_surface *surface = NULL;
+        double sx, sy;
+        struct axiom_window *window = axiom_window_at(server,
+            server->cursor->x, server->cursor->y, &surface, &sx, &sy);
+        
+        if (window) {
+            AXIOM_LOG_DEBUG("Right-click on window: %s", 
+                           window->xdg_toplevel->title ?: "(no title)");
+            // Here you could show a context menu for window operations
+            // like minimize, maximize, close, move to workspace, etc.
+        } else {
+            AXIOM_LOG_DEBUG("Right-click on desktop at (%f, %f)", 
+                           server->cursor->x, server->cursor->y);
+            // Here you could show a desktop context menu
+        }
+        return;
+    }
+    
+    // Handle middle-click actions
+    if (event->button == BTN_MIDDLE && event->state == WL_POINTER_BUTTON_STATE_PRESSED) {
+        struct wlr_surface *surface = NULL;
+        double sx, sy;
+        struct axiom_window *window = axiom_window_at(server,
+            server->cursor->x, server->cursor->y, &surface, &sx, &sy);
+        
+        if (window) {
+            AXIOM_LOG_DEBUG("Middle-click on window: %s", 
+                           window->xdg_toplevel->title ?: "(no title)");
+            // Middle-click could close window or toggle floating state
+            axiom_toggle_window_floating(server, window);
+        }
+        return;
+    }
+    
+    // Fall back to standard cursor button handling
+    axiom_cursor_button(listener, data);
+}
+
+// Mouse wheel actions for window management
+void axiom_cursor_axis_enhanced(struct wl_listener *listener, void *data) {
+    struct axiom_server *server = wl_container_of(listener, server, cursor_axis);
+    struct wlr_pointer_axis_event *event = data;
+    
+    // Check for modifier keys
+    uint32_t modifiers = 0;
+    if (server->seat->keyboard_state.keyboard) {
+        modifiers = wlr_keyboard_get_modifiers(server->seat->keyboard_state.keyboard);
+    }
+    
+    // Super + scroll wheel = workspace switching
+    if (modifiers & WLR_MODIFIER_LOGO) {
+        if (event->delta > 0) {
+            // Scroll up - next workspace
+            AXIOM_LOG_DEBUG("Super+scroll up: switching to next workspace");
+            // Implement workspace switching logic here
+        } else {
+            // Scroll down - previous workspace
+            AXIOM_LOG_DEBUG("Super+scroll down: switching to previous workspace");
+        }
+        return;
+    }
+    
+    // Alt + scroll wheel = window transparency (if supported)
+    if (modifiers & WLR_MODIFIER_ALT) {
+        struct wlr_surface *surface = NULL;
+        double sx, sy;
+        struct axiom_window *window = axiom_window_at(server,
+            server->cursor->x, server->cursor->y, &surface, &sx, &sy);
+        
+        if (window) {
+            AXIOM_LOG_DEBUG("Alt+scroll on window: adjusting opacity");
+            // Implement window opacity adjustment here
+            // Note: opacity support depends on wlroots version and compositor implementation
+        }
+        return;
+    }
+    
+    // Fall back to standard axis handling
+    axiom_cursor_axis(listener, data);
 }

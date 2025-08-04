@@ -541,3 +541,205 @@ void axiom_keybinding_print_all(struct axiom_keybinding_manager *manager) {
                        binding->enabled ? "" : "[DISABLED]");
     }
 }
+
+enum axiom_action_type axiom_keybinding_action_from_string(const char *action_str) {
+    if (!action_str) return AXIOM_ACTION_COMMAND;
+    
+    if (strcmp(action_str, "command") == 0) return AXIOM_ACTION_COMMAND;
+    if (strcmp(action_str, "window_close") == 0) return AXIOM_ACTION_WINDOW_CLOSE;
+    if (strcmp(action_str, "window_kill") == 0) return AXIOM_ACTION_WINDOW_KILL;
+    if (strcmp(action_str, "window_fullscreen") == 0) return AXIOM_ACTION_WINDOW_FULLSCREEN;
+    if (strcmp(action_str, "window_maximize") == 0) return AXIOM_ACTION_WINDOW_MAXIMIZE;
+    if (strcmp(action_str, "window_floating") == 0) return AXIOM_ACTION_WINDOW_FLOATING;
+    if (strcmp(action_str, "window_sticky") == 0) return AXIOM_ACTION_WINDOW_STICKY;
+    if (strcmp(action_str, "layout_cycle") == 0) return AXIOM_ACTION_LAYOUT_CYCLE;
+    if (strcmp(action_str, "layout_set") == 0) return AXIOM_ACTION_LAYOUT_SET;
+    if (strcmp(action_str, "master_ratio_inc") == 0) return AXIOM_ACTION_MASTER_RATIO_INC;
+    if (strcmp(action_str, "master_ratio_dec") == 0) return AXIOM_ACTION_MASTER_RATIO_DEC;
+    if (strcmp(action_str, "tag_view") == 0) return AXIOM_ACTION_TAG_VIEW;
+    if (strcmp(action_str, "tag_toggle_view") == 0) return AXIOM_ACTION_TAG_TOGGLE_VIEW;
+    if (strcmp(action_str, "tag_view_all") == 0) return AXIOM_ACTION_TAG_VIEW_ALL;
+    if (strcmp(action_str, "tag_view_previous") == 0) return AXIOM_ACTION_TAG_VIEW_PREVIOUS;
+    if (strcmp(action_str, "window_tag") == 0) return AXIOM_ACTION_WINDOW_TAG;
+    if (strcmp(action_str, "window_tag_toggle") == 0) return AXIOM_ACTION_WINDOW_TAG_TOGGLE;
+    if (strcmp(action_str, "focus_next") == 0) return AXIOM_ACTION_FOCUS_NEXT;
+    if (strcmp(action_str, "focus_prev") == 0) return AXIOM_ACTION_FOCUS_PREV;
+    if (strcmp(action_str, "focus_urgent") == 0) return AXIOM_ACTION_FOCUS_URGENT;
+    if (strcmp(action_str, "quit") == 0) return AXIOM_ACTION_QUIT;
+    if (strcmp(action_str, "reload_config") == 0) return AXIOM_ACTION_RELOAD_CONFIG;
+    if (strcmp(action_str, "macro") == 0) return AXIOM_ACTION_MACRO;
+    
+    return AXIOM_ACTION_COMMAND; // Default fallback
+}
+
+uint32_t axiom_keybinding_modifiers_from_string(const char *mod_str) {
+    if (!mod_str) return 0;
+    
+    uint32_t modifiers = 0;
+    char *str_copy = strdup(mod_str);
+    if (!str_copy) return 0;
+    
+    char *token = strtok(str_copy, "+|");
+    while (token) {
+        // Trim whitespace
+        while (*token == ' ') token++;
+        char *end = token + strlen(token) - 1;
+        while (end > token && *end == ' ') *end-- = '\0';
+        
+        if (strcasecmp(token, "super") == 0 || strcasecmp(token, "mod4") == 0 || strcasecmp(token, "logo") == 0) {
+            modifiers |= AXIOM_MOD_SUPER;
+        } else if (strcasecmp(token, "ctrl") == 0 || strcasecmp(token, "control") == 0) {
+            modifiers |= AXIOM_MOD_CTRL;
+        } else if (strcasecmp(token, "alt") == 0 || strcasecmp(token, "mod1") == 0) {
+            modifiers |= AXIOM_MOD_ALT;
+        } else if (strcasecmp(token, "shift") == 0) {
+            modifiers |= AXIOM_MOD_SHIFT;
+        }
+        
+        token = strtok(NULL, "+|");
+    }
+    
+    free(str_copy);
+    return modifiers;
+}
+
+xkb_keysym_t axiom_keybinding_keysym_from_string(const char *key_str) {
+    if (!key_str) return XKB_KEY_NoSymbol;
+    
+    // Handle special cases first
+    if (strcasecmp(key_str, "return") == 0 || strcasecmp(key_str, "enter") == 0) {
+        return XKB_KEY_Return;
+    }
+    if (strcasecmp(key_str, "space") == 0) {
+        return XKB_KEY_space;
+    }
+    if (strcasecmp(key_str, "tab") == 0) {
+        return XKB_KEY_Tab;
+    }
+    if (strcasecmp(key_str, "escape") == 0 || strcasecmp(key_str, "esc") == 0) {
+        return XKB_KEY_Escape;
+    }
+    if (strcasecmp(key_str, "backspace") == 0) {
+        return XKB_KEY_BackSpace;
+    }
+    if (strcasecmp(key_str, "delete") == 0) {
+        return XKB_KEY_Delete;
+    }
+    
+    // Function keys
+    if (strncasecmp(key_str, "f", 1) == 0 && strlen(key_str) >= 2) {
+        int fnum = atoi(key_str + 1);
+        if (fnum >= 1 && fnum <= 12) {
+            return XKB_KEY_F1 + (fnum - 1);
+        }
+    }
+    
+    // Arrow keys
+    if (strcasecmp(key_str, "up") == 0) return XKB_KEY_Up;
+    if (strcasecmp(key_str, "down") == 0) return XKB_KEY_Down;
+    if (strcasecmp(key_str, "left") == 0) return XKB_KEY_Left;
+    if (strcasecmp(key_str, "right") == 0) return XKB_KEY_Right;
+    
+    // Try XKB keysym lookup
+    return xkb_keysym_from_name(key_str, XKB_KEYSYM_CASE_INSENSITIVE);
+}
+
+bool axiom_keybinding_load_config(struct axiom_keybinding_manager *manager, const char *config_file) {
+    if (!manager || !config_file) return false;
+    
+    FILE *file = fopen(config_file, "r");
+    if (!file) {
+        AXIOM_LOG_INFO("Could not open keybinding config file: %s", config_file);
+        return false;
+    }
+    
+    char line[512];
+    int line_num = 0;
+    int loaded_bindings = 0;
+    
+    while (fgets(line, sizeof(line), file)) {
+        line_num++;
+        
+        // Skip comments and empty lines
+        char *trimmed = line;
+        while (*trimmed == ' ' || *trimmed == '\t') trimmed++;
+        if (*trimmed == '#' || *trimmed == '\n' || *trimmed == '\0') continue;
+        
+        // Remove trailing newline
+        char *end = trimmed + strlen(trimmed) - 1;
+        while (end > trimmed && (*end == '\n' || *end == '\r')) *end-- = '\0';
+        
+        // Parse line format: "modifiers key action [parameter] [command] [description]"
+        char mod_str[64], key_str[64], action_str[64], param_str[32], command[256], desc[128];
+        int parsed = sscanf(trimmed, "%63s %63s %63s %31s %255s %127[^\n]", 
+                           mod_str, key_str, action_str, param_str, command, desc);
+        
+        if (parsed < 3) {
+            AXIOM_LOG_INFO("Invalid keybinding syntax at line %d: %s", line_num, trimmed);
+            continue;
+        }
+        
+        uint32_t modifiers = axiom_keybinding_modifiers_from_string(mod_str);
+        xkb_keysym_t keysym = axiom_keybinding_keysym_from_string(key_str);
+        enum axiom_action_type action = axiom_keybinding_action_from_string(action_str);
+        
+        if (keysym == XKB_KEY_NoSymbol) {
+            AXIOM_LOG_INFO("Invalid key symbol at line %d: %s", line_num, key_str);
+            continue;
+        }
+        
+        int parameter = (parsed >= 4) ? atoi(param_str) : 0;
+        const char *cmd = (parsed >= 5 && strcmp(command, "-") != 0) ? command : NULL;
+        const char *description = (parsed >= 6) ? desc : NULL;
+        
+        if (axiom_keybinding_add(manager, modifiers, keysym, action, parameter, cmd, description)) {
+            loaded_bindings++;
+        }
+    }
+    
+    fclose(file);
+    AXIOM_LOG_INFO("Loaded %d keybindings from %s", loaded_bindings, config_file);
+    return loaded_bindings > 0;
+}
+
+bool axiom_keybinding_save_config(struct axiom_keybinding_manager *manager, const char *config_file) {
+    if (!manager || !config_file) return false;
+    
+    FILE *file = fopen(config_file, "w");
+    if (!file) {
+        AXIOM_LOG_INFO("Could not create keybinding config file: %s", config_file);
+        return false;
+    }
+    
+    fprintf(file, "# Axiom Keybinding Configuration\n");
+    fprintf(file, "# Format: modifiers key action [parameter] [command] [description]\n");
+    fprintf(file, "# Use '-' for empty command field\n\n");
+    
+    for (int i = 0; i < manager->binding_count; i++) {
+        struct axiom_keybinding *binding = &manager->bindings[i];
+        
+        if (binding->is_macro) {
+            // Skip macros for now - they need special handling
+            continue;
+        }
+        
+        const char *mod_str = axiom_keybinding_modifiers_to_string(binding->modifiers);
+        const char *key_str = axiom_keybinding_keysym_to_string(binding->keysym);
+        const char *action_str = axiom_keybinding_action_to_string(binding->action);
+        
+        if (binding->action == AXIOM_ACTION_COMMAND && binding->command[0]) {
+            fprintf(file, "%s %s %s 0 %s %s\n", 
+                   mod_str, key_str, action_str, binding->command, binding->description);
+        } else if (binding->parameter != 0) {
+            fprintf(file, "%s %s %s %d - %s\n", 
+                   mod_str, key_str, action_str, binding->parameter, binding->description);
+        } else {
+            fprintf(file, "%s %s %s 0 - %s\n", 
+                   mod_str, key_str, action_str, binding->description);
+        }
+    }
+    
+    fclose(file);
+    AXIOM_LOG_INFO("Saved %d keybindings to %s", manager->binding_count, config_file);
+    return true;
+}
