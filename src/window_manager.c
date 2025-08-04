@@ -167,16 +167,62 @@ void axiom_calculate_window_layout(struct axiom_server *server, int index,
                                    int *x, int *y, int *width, int *height) {
     if (!server || !x || !y || !width || !height) return;
 
+    // Get workspace bounds for proper positioning
+    int workspace_width = server->workspace_width > 0 ? server->workspace_width : AXIOM_DEFAULT_WORKSPACE_WIDTH;
+    int workspace_height = server->workspace_height > 0 ? server->workspace_height : AXIOM_DEFAULT_WORKSPACE_HEIGHT;
+    
+    // If we have outputs, use the first one's dimensions
+    if (!wl_list_empty(&server->outputs)) {
+        struct axiom_output *output = wl_container_of(server->outputs.next, output, link);
+        if (output->wlr_output) {
+            workspace_width = output->wlr_output->width;
+            workspace_height = output->wlr_output->height;
+        }
+    }
+
     struct axiom_window *window;
+    int current_index = 0;
     wl_list_for_each(window, &server->windows, link) {
-        if (index-- == 0) {
+        if (current_index == index) {
             *x = window->x;
             *y = window->y;
             *width = window->width;
             *height = window->height;
+            
+            // Edge case handling: ensure window is within bounds
+            if (*x < 0) *x = 0;
+            if (*y < 0) *y = 0;
+            if (*x + *width > workspace_width) {
+                *x = workspace_width - *width;
+                if (*x < 0) {
+                    *x = 0;
+                    *width = workspace_width;
+                }
+            }
+            if (*y + *height > workspace_height) {
+                *y = workspace_height - *height;
+                if (*y < 0) {
+                    *y = 0;
+                    *height = workspace_height;
+                }
+            }
+            
+            // Ensure minimum window size
+            const int min_width = 100;
+            const int min_height = 80;
+            if (*width < min_width) *width = min_width;
+            if (*height < min_height) *height = min_height;
+            
             return;
         }
+        current_index++;
     }
+    
+    // Default positioning for new windows (center of screen)
+    *width = workspace_width / 2;
+    *height = workspace_height / 2;
+    *x = (workspace_width - *width) / 2;
+    *y = (workspace_height - *height) / 2;
 }
 
 void axiom_calculate_window_layout_advanced(struct axiom_server *server, int index, 

@@ -199,6 +199,25 @@ void axiom_focus_cycle_next(struct axiom_server *server) {
         return;
     }
     
+    // Move to next window
+    if (manager->cycle_current) {
+        struct wl_list *next = manager->cycle_current->link.next;
+        if (next == &manager->cycle_list) {
+            next = manager->cycle_list.next;
+        }
+        manager->cycle_current = wl_container_of(next, manager->cycle_current, link);
+    } else {
+        manager->cycle_current = wl_container_of(manager->cycle_list.next, 
+                                               manager->cycle_current, link);
+    }
+    
+    // Focus the current window
+    if (manager->cycle_current && manager->cycle_current->window) {
+        axiom_focus_window(server, manager->cycle_current->window);
+        AXIOM_LOG_DEBUG("FOCUS", "Cycled to next window: %p", 
+                       (void *)manager->cycle_current->window);
+    }
+    
     // Move to next window in cycle list
     if (manager->cycle_current) {
         struct wl_list *next_link = manager->cycle_current->link.next;

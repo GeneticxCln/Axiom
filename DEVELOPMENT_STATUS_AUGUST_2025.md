@@ -72,16 +72,24 @@ if (master_ratio < AXIOM_MASTER_RATIO_MIN) master_ratio = AXIOM_MASTER_RATIO_MIN
 3. **✅ Added uninstall functionality** with clean removal script
 4. **✅ Support for multiple distributions** with automatic detection
 
-### **Phase 2.1: Window Management Polish** ⏱️ *2-3 weeks*
-1. **Fix window positioning edge cases**
-   - Windows spawning off-screen
-   - Tiling calculations for unusual layouts
-2. **Implement proper window focus system**
-   - Keyboard focus following improvements
-   - Enhanced Alt+Tab cycling
-3. **Add working window decorations**
-   - Properly rendered title bars
-   - Functional close/minimize/maximize buttons
+### **🔄 Phase 2.1: Window Management Polish** ⏱️ *IN PROGRESS*
+1. **✅ COMPLETED: Enhanced window positioning**
+   - ✅ Fixed windows spawning off-screen with bounds checking
+   - ✅ Improved tiling calculations with proper workspace detection
+   - ✅ Added minimum window size enforcement (100x80)
+   - ✅ Center positioning for new windows
+2. **✅ COMPLETED: Advanced focus management system**
+   - ✅ Professional Alt+Tab cycling with visual feedback
+   - ✅ Enhanced keyboard focus following with history
+   - ✅ Focus stack management with size limits
+   - ✅ Urgency system for demanding windows
+   - ✅ Cycle start/end with confirmation/cancellation
+3. **✅ COMPLETED: Working window decorations**
+   - ✅ Properly rendered title bars with focus states
+   - ✅ Functional close/minimize/maximize buttons
+   - ✅ Interactive button hover states
+   - ✅ Title bar click handling
+   - ✅ Window state management (maximized/minimized/normal)
 
 ### **Phase 2.2: Input System Enhancement** ⏱️ *2-3 weeks*
 1. **Fix keyboard input inconsistencies**
@@ -95,9 +103,9 @@ if (master_ratio < AXIOM_MASTER_RATIO_MIN) master_ratio = AXIOM_MASTER_RATIO_MIN
 
 ### **Current Development Position:**
 - ✅ **Phase 1.1 Complete**: Version fixes and hardcoded values
-- ✅ **Phase 1.2 Complete**: Build system improvements with multi-distro support
-- 🔄 **Phase 2.1 Next**: Window management enhancements
-- 📋 **Phase 2.2 Ready**: Input system refinements
+- ✅ **Phase 1.2 Complete**: Build system improvements with multi-distro support  
+- 🔄 **Phase 2.1 Nearly Complete**: Window management enhancements (90% done)
+- 📋 **Phase 2.2 Next**: Input system refinements
 
 ### **Recommended Immediate Actions:**
 1. **Test compositor functionality** - Run in nested mode to verify features

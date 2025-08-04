@@ -222,6 +222,18 @@ void axiom_window_manager_move_resize_window(struct axiom_window_manager *manage
                                             struct axiom_window *window,
                                             int x, int y, int width, int height);
 
+// Title bar button management
+void axiom_create_title_bar_buttons(struct axiom_window *window);
+void axiom_update_title_bar_buttons(struct axiom_window *window);
+void axiom_update_button_hover_states(struct axiom_window *window, double x, double y);
+bool axiom_handle_title_bar_click(struct axiom_window *window, double x, double y);
+void axiom_window_close(struct axiom_window *window);
+void axiom_window_minimize(struct axiom_window *window);
+void axiom_window_toggle_maximize(struct axiom_window *window);
+
+// Window decoration management
+void axiom_update_window_decorations(struct axiom_window *window);
+
 // Window finding and querying
 struct axiom_window *axiom_window_manager_window_at(struct axiom_window_manager *manager, 
                                                    double x, double y,
