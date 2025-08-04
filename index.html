@@ -39,7 +39,23 @@
     <header class="fixed top-0 w-full z-50 bg-black/50 backdrop-blur-sm">
         <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
             <div class="flex items-center space-x-3">
-                <img src="logo.svg" alt="Axiom Logo" class="w-10 h-10">
+                <div class="w-10 h-10 flex items-center justify-center">
+                    <svg width="40" height="40" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="axeGradSmall" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#00bfff;stop-opacity:1" />
+                                <stop offset="50%" style="stop-color:#0080ff;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#0040ff;stop-opacity:1" />
+                            </linearGradient>
+                        </defs>
+                        <circle cx="100" cy="100" r="90" fill="#000000" stroke="#333" stroke-width="2"/>
+                        <rect x="97" y="120" width="6" height="50" fill="url(#axeGradSmall)" rx="3"/>
+                        <path d="M 70 80 L 100 60 L 130 80 L 120 100 L 100 90 L 80 100 Z" fill="url(#axeGradSmall)"/>
+                        <path d="M 75 82 L 100 65 L 125 82 L 115 95 L 100 87 L 85 95 Z" fill="#40c0ff" opacity="0.6"/>
+                        <circle cx="100" cy="85" r="8" fill="#0080ff"/>
+                        <circle cx="100" cy="85" r="4" fill="#00bfff"/>
+                    </svg>
+                </div>
                 <span class="text-xl font-bold">Axiom</span>
             </div>
             <div class="hidden md:flex space-x-8">
@@ -56,7 +72,21 @@
         <div class="container mx-auto px-6 text-center relative z-10">
             <div class="animate-float mb-8">
                 <div class="w-32 h-32 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-8 backdrop-blur-sm p-4">
-                    <img src="logo.svg" alt="Axiom Logo" class="w-full h-full">
+                    <svg width="96" height="96" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="axeGradLarge" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#00bfff;stop-opacity:1" />
+                                <stop offset="50%" style="stop-color:#0080ff;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#0040ff;stop-opacity:1" />
+                            </linearGradient>
+                        </defs>
+                        <circle cx="100" cy="100" r="90" fill="rgba(0,0,0,0.3)" stroke="#333" stroke-width="2"/>
+                        <rect x="97" y="120" width="6" height="50" fill="url(#axeGradLarge)" rx="3"/>
+                        <path d="M 70 80 L 100 60 L 130 80 L 120 100 L 100 90 L 80 100 Z" fill="url(#axeGradLarge)"/>
+                        <path d="M 75 82 L 100 65 L 125 82 L 115 95 L 100 87 L 85 95 Z" fill="#40c0ff" opacity="0.6"/>
+                        <circle cx="100" cy="85" r="8" fill="#0080ff"/>
+                        <circle cx="100" cy="85" r="4" fill="#00bfff"/>
+                    </svg>
                 </div>
             </div>
             <h1 class="text-6xl md:text-8xl font-bold mb-6">
@@ -116,7 +146,21 @@
                 <div class="bg-gray-900/50 backdrop-blur-sm border border-white/10 rounded-2xl p-8">
                     <div class="flex items-center justify-center mb-6">
                         <div class="w-16 h-16 bg-gradient-cyan rounded-full flex items-center justify-center mr-4 p-2">
-                            <img src="logo.svg" alt="Axiom Logo" class="w-full h-full">
+                            <svg width="48" height="48" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <linearGradient id="axeGradMed" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" style="stop-color:#00bfff;stop-opacity:1" />
+                                        <stop offset="50%" style="stop-color:#0080ff;stop-opacity:1" />
+                                        <stop offset="100%" style="stop-color:#0040ff;stop-opacity:1" />
+                                    </linearGradient>
+                                </defs>
+                                <circle cx="100" cy="100" r="90" fill="rgba(0,0,0,0.2)" stroke="#333" stroke-width="2"/>
+                                <rect x="97" y="120" width="6" height="50" fill="url(#axeGradMed)" rx="3"/>
+                                <path d="M 70 80 L 100 60 L 130 80 L 120 100 L 100 90 L 80 100 Z" fill="url(#axeGradMed)"/>
+                                <path d="M 75 82 L 100 65 L 125 82 L 115 95 L 100 87 L 85 95 Z" fill="#40c0ff" opacity="0.6"/>
+                                <circle cx="100" cy="85" r="8" fill="#0080ff"/>
+                                <circle cx="100" cy="85" r="4" fill="#00bfff"/>
+                            </svg>
                         </div>
                         <span class="text-2xl font-bold">Arch Linux</span>
                     </div>
