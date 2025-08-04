@@ -6,8 +6,9 @@
 echo "=== Axiom XWayland Test Script ==="
 echo "Testing XWayland support in nested mode..."
 
-# Check if required X11 apps are available
-X11_APPS=("xterm" "xclock" "xeyes")
+# Check if required X11 apps are available  
+# Test with both simple and complex X11 applications
+X11_APPS=("xeyes" "thunar" "mousepad" "code" "steam")
 AVAILABLE_APPS=()
 
 for app in "${X11_APPS[@]}"; do

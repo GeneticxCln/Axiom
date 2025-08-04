@@ -1,9 +1,11 @@
 #include "xwayland.h"  // Use existing xwayland definitions
 #include "logging.h"
 #include "axiom.h"
+#include "window_manager.h"  // For window integration
 #include <wlr/xwayland.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 // Enhanced handler for new XWayland surfaces - provides detailed logging
 static void enhanced_handle_new_xwayland_surface(struct wl_listener *listener, void *data) {
@@ -98,8 +100,80 @@ struct axiom_xwayland_manager *axiom_enhanced_xwayland_manager_create(struct axi
 }
 
 void axiom_enhanced_xwayland_manager_destroy(struct axiom_xwayland_manager *manager) {
-    if (manager->wlr_xwayland)
+    if (!manager) return;
+    
+    if (manager->wlr_xwayland) {
         wlr_xwayland_destroy(manager->wlr_xwayland);
-
+    }
+    
+    AXIOM_LOG_INFO("Enhanced XWayland manager destroyed");
     free(manager);
+}
+
+// Enhanced surface classification for better window management
+bool axiom_enhanced_xwayland_surface_should_manage(struct wlr_xwayland_surface *wlr_surface) {
+    if (!wlr_surface) return false;
+    
+    // Don't manage override-redirect windows (tooltips, menus, etc.)
+    if (wlr_surface->override_redirect) {
+        AXIOM_LOG_DEBUG("Surface override_redirect=true, will not manage");
+        return false;
+    }
+    
+    // Don't manage windows that don't have a surface yet
+    if (!wlr_surface->surface) {
+        AXIOM_LOG_DEBUG("Surface not ready yet, deferring management");
+        return false;
+    }
+    
+    // Check for known application types that should be managed
+    if (wlr_surface->class) {
+        const char *class = wlr_surface->class;
+        
+        // File managers
+        if (strcmp(class, "Thunar") == 0 || 
+            strcmp(class, "thunar") == 0 ||
+            strcmp(class, "Pcmanfm") == 0) {
+            AXIOM_LOG_INFO("Detected file manager: %s - will manage", class);
+            return true;
+        }
+        
+        // Text editors
+        if (strcmp(class, "Mousepad") == 0 || 
+            strcmp(class, "mousepad") == 0 ||
+            strcmp(class, "Code") == 0 ||
+            strcmp(class, "code") == 0) {
+            AXIOM_LOG_INFO("Detected text editor: %s - will manage", class);
+            return true;
+        }
+        
+        // Steam and games
+        if (strcmp(class, "Steam") == 0 || 
+            strcmp(class, "steam") == 0) {
+            AXIOM_LOG_INFO("Detected Steam: %s - will manage", class);
+            return true;
+        }
+        
+        AXIOM_LOG_DEBUG("Unknown application class: %s - will manage by default", class);
+    }
+    
+    return true;  // Manage by default
+}
+
+// Enhanced logging for X11 window properties
+void axiom_enhanced_xwayland_log_properties(struct wlr_xwayland_surface *wlr_surface) {
+    if (!wlr_surface) return;
+    
+    AXIOM_LOG_DEBUG("=== XWayland Surface Properties ===");
+    AXIOM_LOG_DEBUG("Title: '%s'", wlr_surface->title ? wlr_surface->title : "(none)");
+    AXIOM_LOG_DEBUG("Class: '%s'", wlr_surface->class ? wlr_surface->class : "(none)");
+    AXIOM_LOG_DEBUG("Instance: '%s'", wlr_surface->instance ? wlr_surface->instance : "(none)");
+    AXIOM_LOG_DEBUG("Role: '%s'", wlr_surface->role ? wlr_surface->role : "(none)");
+    AXIOM_LOG_DEBUG("Startup ID: '%s'", wlr_surface->startup_id ? wlr_surface->startup_id : "(none)");
+    AXIOM_LOG_DEBUG("Override Redirect: %s", wlr_surface->override_redirect ? "yes" : "no");
+    AXIOM_LOG_DEBUG("Surface: %s", wlr_surface->surface ? "present" : "none");
+    AXIOM_LOG_DEBUG("Position: (%d, %d)", wlr_surface->x, wlr_surface->y);
+    AXIOM_LOG_DEBUG("Size: %dx%d", wlr_surface->width, wlr_surface->height);
+    AXIOM_LOG_DEBUG("PID: %d", wlr_surface->pid);
+    AXIOM_LOG_DEBUG("=================================");
 }
