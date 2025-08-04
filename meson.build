@@ -1,5 +1,5 @@
 project('axiom', 'c',
-version: '4.3.4',
+version: '4.3.5',
   license: 'GPL-3.0',
   meson_version: '>=0.60.0',
   default_options: ['c_std=c11', 'warning_level=2', 'werror=false', 'buildtype=release'],

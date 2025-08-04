@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # Axiom Wayland Compositor Session Starter
-# Version: 4.3.4 - Session Stability Release with SDDM Compatibility Fixes
+# Version: 4.3.5 - Critical Boot Fixes Release - Prevents SDDM Kickback
 # This script properly initializes the environment and starts Axiom with AI monitoring
 
 # Removed set -e to prevent script from failing on non-critical errors
 # set -e
 
 # Define version and directories
-AXIOM_VERSION="4.3.4"
+AXIOM_VERSION="4.3.5"
 AXIOM_HOME="${HOME}/.local/share/axiom"
 AXIOM_CONFIG_DIR="${HOME}/.config/axiom"
 AXIOM_CACHE_DIR="${HOME}/.cache/axiom"
