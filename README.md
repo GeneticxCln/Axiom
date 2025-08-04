@@ -17,40 +17,41 @@
 
 ---
 
-## 🚨 **LATEST: v4.3.4 - SESSION STABILITY RELEASE** 🔧
+## 🚨 **LATEST: v4.3.5 - CRITICAL BOOT FIXES RELEASE** 🔧
 
-### 🛠️ **CRITICAL SESSION MANAGEMENT FIXES**
+### ⚡ **MAJOR SDDM KICKBACK ISSUE RESOLVED**
 
-**🚨 SDDM COMPATIBILITY RESTORED**
-- **Fixed**: Infinite cleanup loop causing immediate session crashes
-- **Fixed**: Black screen with white line when starting from SDDM
-- **Fixed**: Session kickback to login screen
-- **Fixed**: GPU access permission issues
+**🚨 CRITICAL BOOT STABILITY FIXES**
+- **Fixed**: Event loop termination causing immediate compositor crashes
+- **Fixed**: Black screen with white line in corner effect
+- **Fixed**: Automatic SDDM kickback after failed boot attempts
+- **Fixed**: Cursor initialization race conditions and segfaults
+- **Fixed**: Output configuration failures crashing entire compositor
 
-**✅ SESSION IMPROVEMENTS**
-- Sessions now start properly from SDDM and other display managers
-- Added comprehensive debug tools (`axiom-session-debug`)
-- Enhanced error handling prevents crashes on non-critical errors
-- Automatic user group management for proper GPU access
-- Smart session detection (nested vs primary display server)
+**✅ ROBUST ERROR HANDLING**
+- Compositor now tolerates up to 10 consecutive errors before shutdown
+- Dark gray background surface prevents black screen confusion
+- Safe cursor initialization with retry logic and proper scaling
+- Graceful output fallback handling for complex display configurations
+- Stable operation even when individual components have issues
 
-**📋 FOR USERS EXPERIENCING SESSION ISSUES:**
-If you're experiencing SDDM login issues or session crashes, upgrade to v4.3.4:
+**📋 IMMEDIATE UPGRADE REQUIRED:**
+If you're experiencing black screen + SDDM kickback, upgrade to v4.3.5 immediately:
 ```bash
 git pull origin main
-git checkout v4.3.4
-ninja -C build
-sudo ninja -C build install
-# IMPORTANT: Log out and back in for render group membership
+# v4.3.5 is now the latest main branch
+meson setup builddir --wipe
+meson compile -C builddir
+sudo meson install -C builddir
 ```
 
-**🔧 NEW DEBUGGING TOOLS**
-- `axiom-session-debug` - Comprehensive system diagnostics
-- `test-primary-mode` - Primary display server testing
-- Enhanced session logging with error categorization
-- Strace integration for advanced troubleshooting
+**🎯 TESTING VERIFIED**
+- All 11 test suites pass ✅
+- Stable nested mode operation ✅
+- Primary display server boot success ✅
+- wlroots 0.19 compatibility confirmed ✅
 
-**[🔗 Download v4.3.4](https://github.com/GeneticxCln/Axiom/releases/tag/v4.3.4)** | **[🔧 Session Fix Details](RELEASE_NOTES_v4.3.4.md)**
+**[🔗 Download v4.3.5](https://github.com/GeneticxCln/Axiom/releases/tag/v4.3.5)** | **[🔧 Critical Fixes Details](RELEASE_NOTES_v4.3.5.md)**
 
 ---
 
