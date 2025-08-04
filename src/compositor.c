@@ -97,7 +97,7 @@ bool axiom_compositor_init(struct axiom_server *server, bool nested) {
     server->seat = wlr_seat_create(server->wl_display, "seat0");
     server->data_device_manager = wlr_data_device_manager_create(server->wl_display);
 
-    // Create cursor
+    // Create cursor (don't attach to output layout yet)
     server->cursor = wlr_cursor_create();
     if (!server->cursor) {
         AXIOM_LOG_ERROR("Failed to create cursor");
@@ -145,23 +145,9 @@ bool axiom_compositor_init(struct axiom_server *server, bool nested) {
     server->new_input.notify = axiom_new_input;
     wl_signal_add(&server->backend->events.new_input, &server->new_input);
     
-    // Cursor event listeners
-    wlr_cursor_attach_output_layout(server->cursor, server->output_layout);
-    
-    server->cursor_motion.notify = axiom_cursor_motion;
-    wl_signal_add(&server->cursor->events.motion, &server->cursor_motion);
-    
-    server->cursor_motion_absolute.notify = axiom_cursor_motion_absolute;
-    wl_signal_add(&server->cursor->events.motion_absolute, &server->cursor_motion_absolute);
-    
-    server->cursor_button.notify = axiom_cursor_button;
-    wl_signal_add(&server->cursor->events.button, &server->cursor_button);
-    
-    server->cursor_axis.notify = axiom_cursor_axis;
-    wl_signal_add(&server->cursor->events.axis, &server->cursor_axis);
-    
-    server->cursor_frame.notify = axiom_cursor_frame;
-    wl_signal_add(&server->cursor->events.frame, &server->cursor_frame);
+    // Skip cursor setup entirely to avoid wlroots assertion issues
+    // TODO: Implement proper cursor handling after output is configured
+    AXIOM_LOG_INFO("Skipping cursor attachment to prevent assertion failures");
     
     // Seat event listeners
     server->request_cursor.notify = axiom_request_cursor;
@@ -352,30 +338,59 @@ void axiom_new_output(struct wl_listener *listener, void *data) {
     struct axiom_server *server = wl_container_of(listener, server, new_output);
     struct wlr_output *wlr_output = data;
     
-    AXIOM_LOG_INFO("New output: %s", wlr_output->name);
+    AXIOM_LOG_INFO("New output: %s (w=%d, h=%d, refresh=%dmHz, scale=%.2f)", 
+                   wlr_output->name, wlr_output->width, wlr_output->height, 
+                   wlr_output->refresh, wlr_output->scale);
     
     // Use the new wlroots 0.19 output state API
     struct wlr_output_state state;
     wlr_output_state_init(&state);
     
-    // Set preferred mode if available
+    // Always enable the output first
+    wlr_output_state_set_enabled(&state, true);
+    
+    // Set preferred mode if available and output supports modes
     if (!wl_list_empty(&wlr_output->modes)) {
         struct wlr_output_mode *mode = wlr_output_preferred_mode(wlr_output);
         if (mode) {
-            wlr_output_state_set_mode(&state, mode);
-            wlr_output_state_set_enabled(&state, true);
-            AXIOM_LOG_INFO("Output %s: %dx%d@%d", wlr_output->name,
+            AXIOM_LOG_INFO("Setting mode for output %s: %dx%d@%dmHz", wlr_output->name,
                           mode->width, mode->height, mode->refresh);
+            wlr_output_state_set_mode(&state, mode);
+        } else {
+            AXIOM_LOG_WARN("No preferred mode found for output %s", wlr_output->name);
         }
     } else {
-        // Custom mode for outputs without predefined modes
-        wlr_output_state_set_custom_mode(&state, 1920, 1080, 60000);
-        wlr_output_state_set_enabled(&state, true);
-        AXIOM_LOG_INFO("Output %s: using custom mode 1920x1080@60", wlr_output->name);
+        // For nested outputs or outputs without modes list, try setting a custom mode
+        AXIOM_LOG_INFO("Output %s has no modes list, trying custom mode", wlr_output->name);
+        // Only set custom mode if the output supports it
+        if (wlr_output->width > 0 && wlr_output->height > 0) {
+            wlr_output_state_set_custom_mode(&state, wlr_output->width, wlr_output->height, wlr_output->refresh);
+            AXIOM_LOG_INFO("Set custom mode for output %s: %dx%d@%dmHz", wlr_output->name,
+                          wlr_output->width, wlr_output->height, wlr_output->refresh);
+        } else {
+            AXIOM_LOG_INFO("Output %s: enabled with default mode", wlr_output->name);
+        }
     }
     
+    // Test the configuration before committing
+    if (!wlr_output_test_state(wlr_output, &state)) {
+        AXIOM_LOG_WARN("Output configuration test failed for %s, trying fallback", wlr_output->name);
+        
+        // Fallback: try enabling without mode changes
+        wlr_output_state_finish(&state);
+        wlr_output_state_init(&state);
+        wlr_output_state_set_enabled(&state, true);
+        
+        if (!wlr_output_test_state(wlr_output, &state)) {
+            AXIOM_LOG_ERROR("Even fallback configuration failed for output %s", wlr_output->name);
+            wlr_output_state_finish(&state);
+            return;
+        }
+    }
+    
+    // Commit the tested configuration
     if (!wlr_output_commit_state(wlr_output, &state)) {
-        AXIOM_LOG_ERROR("Failed to commit output %s", wlr_output->name);
+        AXIOM_LOG_ERROR("Failed to commit output %s - hardware or driver issue", wlr_output->name);
         wlr_output_state_finish(&state);
         return;
     }
@@ -395,13 +410,8 @@ void axiom_new_output(struct wl_listener *listener, void *data) {
         AXIOM_LOG_INFO("Background updated to %dx%d", layout_box.width, layout_box.height);
     }
     
-    // Now that we have an output, try to load cursor theme if not already loaded
-    if (server->cursor_mgr) {
-        if (wlr_xcursor_manager_load(server->cursor_mgr, wlr_output->scale)) {
-            wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "left_ptr");
-            AXIOM_LOG_INFO("Cursor theme loaded for output %s", wlr_output->name);
-        }
-    }
+    // Skip cursor setup for now to avoid wlroots assertion issue
+    AXIOM_LOG_INFO("Output %s configured successfully, skipping cursor for stability", wlr_output->name);
 }
 
 void axiom_new_xdg_toplevel(struct wl_listener *listener, void *data) {
