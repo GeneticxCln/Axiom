@@ -225,6 +225,14 @@ executable('axiom',
   install: true,
 )
 
+# Minimal nested compositor for testing
+executable('minimal_nested',
+  sources: 'minimal_nested.c',
+  dependencies: global_deps,
+  include_directories: inc,
+  install: false,
+)
+
 # Install desktop integration files
 install_data('axiom.desktop',
   install_dir: get_option('datadir') / 'wayland-sessions'

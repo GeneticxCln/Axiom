@@ -265,10 +265,20 @@ bool axiom_compositor_init(struct axiom_server *server, bool nested) {
         return false;
     }
 
-    // Start the backend
+    // Start the backend FIRST
     if (!wlr_backend_start(server->backend)) {
         AXIOM_LOG_ERROR("Failed to start backend");
         return false;
+    }
+    
+    // For nested mode, create an output window AFTER starting backend
+    if (nested) {
+        struct wlr_output *output = wlr_wl_output_create(server->backend);
+        if (!output) {
+            AXIOM_LOG_ERROR("Failed to create nested output window");
+            return false;
+        }
+        AXIOM_LOG_INFO("Created nested output window - should be visible!");
     }
     
     // Set environment variable for clients
