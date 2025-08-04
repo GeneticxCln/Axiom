@@ -75,6 +75,7 @@ void axiom_advanced_tiling_apply_window_layout(struct axiom_advanced_tiling_engi
                                               struct axiom_advanced_window_layout *layout);
 void axiom_advanced_tiling_adjust_master_ratio(struct axiom_advanced_tiling_engine *engine, float delta);
 void axiom_advanced_tiling_adjust_master_count(struct axiom_advanced_tiling_engine *engine, int delta);
+void axiom_advanced_tiling_set_gap_size(struct axiom_advanced_tiling_engine *engine, int gap_size);
 void axiom_advanced_tiling_cycle_mode(struct axiom_advanced_tiling_engine *engine);
 
 // Utility functions

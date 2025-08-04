@@ -8,6 +8,7 @@
 #include "tagging.h"
 #include "focus.h"
 #include "window_manager.h"
+#include "advanced_tiling.h"
 
 void axiom_keybinding_manager_init(struct axiom_keybinding_manager *manager) {
     if (!manager) return;
@@ -288,6 +289,97 @@ void axiom_keybinding_execute_action(struct axiom_server *server,
             axiom_arrange_windows(server);
             break;
             
+        case AXIOM_ACTION_MASTER_COUNT_INC:
+            {
+                struct axiom_advanced_tiling_engine *tiling_engine = axiom_window_manager_get_tiling_engine();
+                if (tiling_engine) {
+                    axiom_advanced_tiling_adjust_master_count(tiling_engine, 1);
+                    axiom_window_manager_apply_tiling(server->window_manager);
+                    AXIOM_LOG_INFO("Master count increased to: %d", tiling_engine->master_count);
+                }
+            }
+            break;
+            
+        case AXIOM_ACTION_MASTER_COUNT_DEC:
+            {
+                struct axiom_advanced_tiling_engine *tiling_engine = axiom_window_manager_get_tiling_engine();
+                if (tiling_engine && tiling_engine->master_count > 1) {
+                    axiom_advanced_tiling_adjust_master_count(tiling_engine, -1);
+                    axiom_window_manager_apply_tiling(server->window_manager);
+                    AXIOM_LOG_INFO("Master count decreased to: %d", tiling_engine->master_count);
+                }
+            }
+            break;
+            
+        case AXIOM_ACTION_TILING_MODE_MASTER_STACK:
+            {
+                struct axiom_advanced_tiling_engine *tiling_engine = axiom_window_manager_get_tiling_engine();
+                if (tiling_engine) {
+                    axiom_advanced_tiling_set_mode(tiling_engine, AXIOM_TILING_MASTER_STACK);
+                    axiom_window_manager_apply_tiling(server->window_manager);
+                    AXIOM_LOG_INFO("Tiling mode set to: Master-Stack");
+                }
+            }
+            break;
+            
+        case AXIOM_ACTION_TILING_MODE_GRID:
+            {
+                struct axiom_advanced_tiling_engine *tiling_engine = axiom_window_manager_get_tiling_engine();
+                if (tiling_engine) {
+                    axiom_advanced_tiling_set_mode(tiling_engine, AXIOM_TILING_GRID);
+                    axiom_window_manager_apply_tiling(server->window_manager);
+                    AXIOM_LOG_INFO("Tiling mode set to: Grid");
+                }
+            }
+            break;
+            
+        case AXIOM_ACTION_TILING_MODE_SPIRAL:
+            {
+                struct axiom_advanced_tiling_engine *tiling_engine = axiom_window_manager_get_tiling_engine();
+                if (tiling_engine) {
+                    axiom_advanced_tiling_set_mode(tiling_engine, AXIOM_TILING_SPIRAL);
+                    axiom_window_manager_apply_tiling(server->window_manager);
+                    AXIOM_LOG_INFO("Tiling mode set to: Spiral");
+                }
+            }
+            break;
+            
+        case AXIOM_ACTION_TILING_MODE_BINARY_TREE:
+            {
+                struct axiom_advanced_tiling_engine *tiling_engine = axiom_window_manager_get_tiling_engine();
+                if (tiling_engine) {
+                    axiom_advanced_tiling_set_mode(tiling_engine, AXIOM_TILING_BINARY_TREE);
+                    axiom_window_manager_apply_tiling(server->window_manager);
+                    AXIOM_LOG_INFO("Tiling mode set to: Binary Tree");
+                }
+            }
+            break;
+            
+        case AXIOM_ACTION_TILING_GAPS_INC:
+            {
+                struct axiom_advanced_tiling_engine *tiling_engine = axiom_window_manager_get_tiling_engine();
+                if (tiling_engine) {
+                    int new_gap_size = tiling_engine->gap_size + 5;
+                    axiom_advanced_tiling_set_gap_size(tiling_engine, new_gap_size);
+                    axiom_window_manager_apply_tiling(server->window_manager);
+                    AXIOM_LOG_INFO("Gap size increased to: %dpx", new_gap_size);
+                }
+            }
+            break;
+            
+        case AXIOM_ACTION_TILING_GAPS_DEC:
+            {
+                struct axiom_advanced_tiling_engine *tiling_engine = axiom_window_manager_get_tiling_engine();
+                if (tiling_engine && tiling_engine->gap_size > 0) {
+                    int new_gap_size = tiling_engine->gap_size - 5;
+                    if (new_gap_size < 0) new_gap_size = 0;
+                    axiom_advanced_tiling_set_gap_size(tiling_engine, new_gap_size);
+                    axiom_window_manager_apply_tiling(server->window_manager);
+                    AXIOM_LOG_INFO("Gap size decreased to: %dpx", new_gap_size);
+                }
+            }
+            break;
+            
         case AXIOM_ACTION_TAG_VIEW:
             if (server->tag_manager && parameter >= 1 && parameter <= AXIOM_TAGS_MAX) {
                 uint32_t tag = axiom_tag_mask_from_number(parameter);
@@ -411,6 +503,28 @@ void axiom_keybinding_load_defaults(struct axiom_keybinding_manager *manager) {
     axiom_keybinding_add(manager, AXIOM_MOD_SUPER, XKB_KEY_j, 
                         AXIOM_ACTION_MASTER_RATIO_INC, 0, NULL, "Increase master ratio");
     
+    // Advanced tiling system keybindings
+    axiom_keybinding_add(manager, AXIOM_MOD_SUPER | AXIOM_MOD_SHIFT, XKB_KEY_h,
+                        AXIOM_ACTION_MASTER_COUNT_DEC, 0, NULL, "Decrease master count");
+    axiom_keybinding_add(manager, AXIOM_MOD_SUPER | AXIOM_MOD_SHIFT, XKB_KEY_j,
+                        AXIOM_ACTION_MASTER_COUNT_INC, 0, NULL, "Increase master count");
+    
+    // Tiling mode shortcuts
+    axiom_keybinding_add(manager, AXIOM_MOD_SUPER | AXIOM_MOD_CTRL, XKB_KEY_1,
+                        AXIOM_ACTION_TILING_MODE_MASTER_STACK, 0, NULL, "Set master-stack layout");
+    axiom_keybinding_add(manager, AXIOM_MOD_SUPER | AXIOM_MOD_CTRL, XKB_KEY_2,
+                        AXIOM_ACTION_TILING_MODE_GRID, 0, NULL, "Set grid layout");
+    axiom_keybinding_add(manager, AXIOM_MOD_SUPER | AXIOM_MOD_CTRL, XKB_KEY_3,
+                        AXIOM_ACTION_TILING_MODE_SPIRAL, 0, NULL, "Set spiral layout");
+    axiom_keybinding_add(manager, AXIOM_MOD_SUPER | AXIOM_MOD_CTRL, XKB_KEY_4,
+                        AXIOM_ACTION_TILING_MODE_BINARY_TREE, 0, NULL, "Set binary tree layout");
+    
+    // Gap adjustment
+    axiom_keybinding_add(manager, AXIOM_MOD_SUPER, XKB_KEY_equal,
+                        AXIOM_ACTION_TILING_GAPS_INC, 0, NULL, "Increase window gaps");
+    axiom_keybinding_add(manager, AXIOM_MOD_SUPER, XKB_KEY_minus,
+                        AXIOM_ACTION_TILING_GAPS_DEC, 0, NULL, "Decrease window gaps");
+    
     // Tag management (view tags)
     for (int i = 1; i <= AXIOM_TAGS_MAX; i++) {
         xkb_keysym_t key = XKB_KEY_1 + (i - 1);
@@ -459,6 +573,14 @@ const char *axiom_keybinding_action_to_string(enum axiom_action_type action) {
         case AXIOM_ACTION_LAYOUT_SET: return "layout_set";
         case AXIOM_ACTION_MASTER_RATIO_INC: return "master_ratio_inc";
         case AXIOM_ACTION_MASTER_RATIO_DEC: return "master_ratio_dec";
+        case AXIOM_ACTION_MASTER_COUNT_INC: return "master_count_inc";
+        case AXIOM_ACTION_MASTER_COUNT_DEC: return "master_count_dec";
+        case AXIOM_ACTION_TILING_MODE_MASTER_STACK: return "tiling_mode_master_stack";
+        case AXIOM_ACTION_TILING_MODE_GRID: return "tiling_mode_grid";
+        case AXIOM_ACTION_TILING_MODE_SPIRAL: return "tiling_mode_spiral";
+        case AXIOM_ACTION_TILING_MODE_BINARY_TREE: return "tiling_mode_binary_tree";
+        case AXIOM_ACTION_TILING_GAPS_INC: return "tiling_gaps_inc";
+        case AXIOM_ACTION_TILING_GAPS_DEC: return "tiling_gaps_dec";
         case AXIOM_ACTION_TAG_VIEW: return "tag_view";
         case AXIOM_ACTION_TAG_TOGGLE_VIEW: return "tag_toggle_view";
         case AXIOM_ACTION_TAG_VIEW_ALL: return "tag_view_all";

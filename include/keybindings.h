@@ -31,6 +31,14 @@ enum axiom_action_type {
     AXIOM_ACTION_LAYOUT_SET,        // Set specific layout
     AXIOM_ACTION_MASTER_RATIO_INC,  // Increase master ratio
     AXIOM_ACTION_MASTER_RATIO_DEC,  // Decrease master ratio
+    AXIOM_ACTION_MASTER_COUNT_INC,  // Increase master count
+    AXIOM_ACTION_MASTER_COUNT_DEC,  // Decrease master count
+    AXIOM_ACTION_TILING_MODE_MASTER_STACK, // Set master-stack layout
+    AXIOM_ACTION_TILING_MODE_GRID,  // Set grid layout
+    AXIOM_ACTION_TILING_MODE_SPIRAL, // Set spiral layout
+    AXIOM_ACTION_TILING_MODE_BINARY_TREE, // Set binary tree layout
+    AXIOM_ACTION_TILING_GAPS_INC,   // Increase window gaps
+    AXIOM_ACTION_TILING_GAPS_DEC,   // Decrease window gaps
     AXIOM_ACTION_TAG_VIEW,          // View specific tag
     AXIOM_ACTION_TAG_TOGGLE_VIEW,   // Toggle view tag
     AXIOM_ACTION_TAG_VIEW_ALL,      // View all tags

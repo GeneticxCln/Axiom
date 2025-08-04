@@ -189,6 +189,17 @@ void axiom_advanced_tiling_adjust_master_count(struct axiom_advanced_tiling_engi
     AXIOM_LOG_INFO("Master count adjusted to: %d", engine->master_count);
 }
 
+void axiom_advanced_tiling_set_gap_size(struct axiom_advanced_tiling_engine *engine, int gap_size) {
+    if (!engine) return;
+    
+    if (gap_size < 0) gap_size = 0;
+    if (gap_size > 100) gap_size = 100; // Maximum reasonable gap
+    
+    engine->gap_size = gap_size;
+    engine->needs_recalculation = true;
+    AXIOM_LOG_INFO("Gap size set to: %dpx", engine->gap_size);
+}
+
 void axiom_advanced_tiling_cycle_mode(struct axiom_advanced_tiling_engine *engine) {
     if (!engine) return;
     
