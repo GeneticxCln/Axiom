@@ -86,39 +86,7 @@ void axiom_update_window_decorations(struct axiom_window *window) {
         wlr_scene_node_set_position(&window->title_bar->node, 0, -title_height);
     }
 
-// Enhanced Window Decorations
-void axiom_set_window_decorations(struct axiom_window *window, bool focused) {
-    if (!window || !window->scene_tree) return;
-
-    // Colors and dimensions
-    const float title_bar_focused[] = {0.2f, 0.3f, 0.4f, 0.9f};
-    const float title_bar_unfocused[] = {0.1f, 0.1f, 0.1f, 0.7f};
-    const float *title_color = focused ? title_bar_focused : title_bar_unfocused;
-
-    const int title_height = AXIOM_TITLE_BAR_HEIGHT;
-    const int border_width = AXIOM_BORDER_WIDTH;
-
-    // Remove existing decorations
-    if (window->title_bar) {
-        wlr_scene_node_destroy(&window->title_bar->node);
-        window->title_bar = NULL;
-    }
-
-    // Create focused or unfocused decorations
-    window->title_bar = wlr_scene_rect_create(window->scene_tree, window->width, title_height, title_color);
-    if (window->title_bar) {
-        wlr_scene_node_set_position(&window->title_bar->node, 0, -title_height);
-    }
-
-    // Callbacks for button actions (close/minimize/maximize)
-    // Buttons will use event handlers for interaction
-    axiom_create_title_bar_buttons(window);
-    
-    // Ensure focus state is reflected
-    axiom_update_title_bar_buttons(window);
-}
-
-// Enhan
+// Use the unified axiom_update_window_decorations function instead
     // Top border
     window->border_top = wlr_scene_rect_create(window->decoration_tree,
                                                window->width, border_width, border_color);

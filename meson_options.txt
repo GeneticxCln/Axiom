@@ -9,3 +9,18 @@ option('enable_debug_logs', type: 'boolean', value: false,
 
 option('enable_performance_monitoring', type: 'boolean', value: true,
        description: 'Enable performance monitoring and profiling tools')
+
+option('install_user_config', type: 'boolean', value: true,
+       description: 'Install example configuration files to user directory')
+
+option('enable_xwayland', type: 'boolean', value: true,
+       description: 'Enable XWayland support for X11 applications')
+
+option('enable_animations', type: 'boolean', value: true,
+       description: 'Enable window animations and effects')
+
+option('enable_session_management', type: 'boolean', value: true,
+       description: 'Enable multi-session support and SDDM integration')
+
+option('build_type_optimized', type: 'boolean', value: false,
+       description: 'Enable additional optimizations for production builds')

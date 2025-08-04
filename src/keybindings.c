@@ -355,7 +355,9 @@ void axiom_keybinding_execute_action(struct axiom_server *server,
             break;
             
         case AXIOM_ACTION_FOCUS_URGENT:
-            axiom_focus_urgent_window(server);
+            if (server->focus_manager) {
+                axiom_focus_urgent_window(server);
+            }
             break;
             
         default:

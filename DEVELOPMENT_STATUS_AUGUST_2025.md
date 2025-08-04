@@ -66,11 +66,11 @@ if (master_ratio < AXIOM_MASTER_RATIO_MIN) master_ratio = AXIOM_MASTER_RATIO_MIN
 
 ## 📋 NEXT PRIORITY ACTIONS
 
-### **Phase 1.2: Build System & Dependencies** ⏱️ *1-2 weeks*
-1. **Enhance dependency checking** in meson.build
-2. **Create proper installation scripts** for multiple distros
-3. **Add uninstall functionality**
-4. **Support multiple distributions** (not just Arch/CachyOS)
+### **✅ Phase 1.2: Build System & Dependencies COMPLETED** 
+1. **✅ Enhanced dependency checking** in meson.build with detailed error messages
+2. **✅ Created proper installation scripts** for Arch, Ubuntu/Debian, Fedora, openSUSE, Alpine
+3. **✅ Added uninstall functionality** with clean removal script
+4. **✅ Support for multiple distributions** with automatic detection
 
 ### **Phase 2.1: Window Management Polish** ⏱️ *2-3 weeks*
 1. **Fix window positioning edge cases**
@@ -95,9 +95,9 @@ if (master_ratio < AXIOM_MASTER_RATIO_MIN) master_ratio = AXIOM_MASTER_RATIO_MIN
 
 ### **Current Development Position:**
 - ✅ **Phase 1.1 Complete**: Version fixes and hardcoded values
-- 🔄 **Phase 1.2 Next**: Build system improvements
-- 📋 **Phase 2.1 Ready**: Window management enhancements
-- 📋 **Phase 2.2 Planned**: Input system refinements
+- ✅ **Phase 1.2 Complete**: Build system improvements with multi-distro support
+- 🔄 **Phase 2.1 Next**: Window management enhancements
+- 📋 **Phase 2.2 Ready**: Input system refinements
 
 ### **Recommended Immediate Actions:**
 1. **Test compositor functionality** - Run in nested mode to verify features

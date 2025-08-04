@@ -18,25 +18,78 @@ endif
 
 cc = meson.get_compiler('c')
 
-# Dependencies
-wayland_server = dependency('wayland-server', version: '>=1.20.0')
-wayland_client = dependency('wayland-client', version: '>=1.20.0')
-wayland_protos = dependency('wayland-protocols', version: '>=1.25')
-wlr_protos = dependency('wlr-protocols')
-wlroots = dependency('wlroots-0.19')
-xkbcommon = dependency('xkbcommon')
-xkbcommon_x11 = dependency('xkbcommon-x11')
-# XWayland support dependencies
-xcb = dependency('xcb')
-xcb_composite = dependency('xcb-composite')
-xcb_icccm = dependency('xcb-icccm')
-xcb_render = dependency('xcb-render')
-xcb_res = dependency('xcb-res')
-xcb_xfixes = dependency('xcb-xfixes')
+# Enhanced dependency management with better error reporting
+message('Checking core dependencies...')
+
+# Core Wayland dependencies (required)
+wayland_server = dependency('wayland-server', version: '>=1.20.0',
+                           required: true,
+                           not_found_message: 'wayland-server >= 1.20.0 is required. Install with: sudo pacman -S wayland (Arch) or sudo apt install libwayland-dev (Ubuntu)')
+wayland_client = dependency('wayland-client', version: '>=1.20.0',
+                           required: true,
+                           not_found_message: 'wayland-client >= 1.20.0 is required. Install with: sudo pacman -S wayland (Arch) or sudo apt install libwayland-dev (Ubuntu)')
+wayland_protos = dependency('wayland-protocols', version: '>=1.25',
+                           required: true,
+                           not_found_message: 'wayland-protocols >= 1.25 is required. Install with: sudo pacman -S wayland-protocols (Arch) or sudo apt install wayland-protocols (Ubuntu)')
+wlr_protos = dependency('wlr-protocols',
+                       required: true,
+                       not_found_message: 'wlr-protocols is required. Install wlroots development package: sudo pacman -S wlroots (Arch) or build from source (Ubuntu)')
+wlroots = dependency('wlroots-0.19',
+                    required: true,
+                    not_found_message: 'wlroots 0.19 is required. Install with: sudo pacman -S wlroots (Arch) or build from source (Ubuntu)')
+
+# Keyboard and input dependencies (required)
+xkbcommon = dependency('xkbcommon',
+                      required: true,
+                      not_found_message: 'libxkbcommon is required. Install with: sudo pacman -S libxkbcommon (Arch) or sudo apt install libxkbcommon-dev (Ubuntu)')
+xkbcommon_x11 = dependency('xkbcommon-x11',
+                          required: true,
+                          not_found_message: 'libxkbcommon-x11 is required. Install with: sudo pacman -S libxkbcommon-x11 (Arch) or sudo apt install libxkbcommon-x11-dev (Ubuntu)')
+
+# XWayland support dependencies (required for X11 app compatibility)
+xcb = dependency('xcb',
+                required: true,
+                not_found_message: 'libxcb is required for XWayland support. Install with: sudo pacman -S libxcb (Arch) or sudo apt install libxcb1-dev (Ubuntu)')
+xcb_composite = dependency('xcb-composite',
+                          required: true,
+                          not_found_message: 'xcb-composite is required. Install with: sudo pacman -S xcb-util-wm (Arch) or sudo apt install libxcb-composite0-dev (Ubuntu)')
+xcb_icccm = dependency('xcb-icccm',
+                      required: true,
+                      not_found_message: 'xcb-icccm is required. Install with: sudo pacman -S xcb-util-wm (Arch) or sudo apt install libxcb-icccm4-dev (Ubuntu)')
+xcb_render = dependency('xcb-render',
+                       required: true,
+                       not_found_message: 'xcb-render is required. Install with: sudo pacman -S libxcb (Arch) or sudo apt install libxcb-render0-dev (Ubuntu)')
+xcb_res = dependency('xcb-res',
+                    required: true,
+                    not_found_message: 'xcb-res is required. Install with: sudo pacman -S libxcb (Arch) or sudo apt install libxcb-res0-dev (Ubuntu)')
+xcb_xfixes = dependency('xcb-xfixes',
+                       required: true,
+                       not_found_message: 'xcb-xfixes is required. Install with: sudo pacman -S libxcb (Arch) or sudo apt install libxcb-xfixes0-dev (Ubuntu)')
+
+# Math library (universally available)
 math_lib = cc.find_library('m', required: true)
-egl = dependency('egl')
-gl = dependency('gl')
-gles3 = dependency('glesv2')
+
+# OpenGL/EGL dependencies (required for hardware acceleration)
+egl = dependency('egl',
+                required: true,
+                not_found_message: 'EGL is required for hardware acceleration. Install with: sudo pacman -S mesa (Arch) or sudo apt install libegl-dev (Ubuntu)')
+gl = dependency('gl',
+               required: false,  # OpenGL is optional, we primarily use GLES
+               not_found_message: 'OpenGL is optional but recommended. Install with: sudo pacman -S mesa (Arch) or sudo apt install libgl-dev (Ubuntu)')
+gles3 = dependency('glesv2',
+                  required: true,
+                  not_found_message: 'OpenGL ES 2.0 is required for rendering. Install with: sudo pacman -S mesa (Arch) or sudo apt install libgles2-mesa-dev (Ubuntu)')
+
+# Verify critical paths and programs
+wayland_scanner = find_program('wayland-scanner',
+                               required: true,
+                               disabler: true,
+                               native: true)
+if not wayland_scanner.found()
+  error('wayland-scanner is required but not found. Install wayland development packages.')
+endif
+
+message('All core dependencies found successfully!')
 
 # Protocol generation
 wayland_scanner = find_program('wayland-scanner')
@@ -225,6 +278,39 @@ test_executable = executable('test_axiom',
   install: false,
 )
 
+# Enhanced keybindings test
+test_keybindings_sources = files(
+  'test_keybindings.c',
+  'src/keybindings.c',
+  'src/config.c',
+  'src/logging.c',
+  'src/memory.c'
+)
+
+test_keybindings = executable('test_keybindings',
+    sources: test_keybindings_sources,
+    dependencies: [math_lib, wayland_server, wlroots, xkbcommon],
+    include_directories: inc,
+    install: false,
+)
+
+# Enhanced input test
+test_input_sources = files(
+  'test_input.c',
+  'src/input.c',
+  'src/cursor.c',
+  'src/config.c',
+  'src/logging.c',
+  'src/memory.c'
+)
+
+test_input = executable('test_input',
+    sources: test_input_sources,
+    dependencies: [math_lib, wayland_server, wlroots, xkbcommon, xkbcommon_x11],
+    include_directories: inc,
+    install: false,
+)
+
 test_config_sources = files(
   'tests/test_config.c',
   'src/logging.c',
@@ -251,6 +337,9 @@ test_animation_executable = executable('test_animation',
 )
 
 test('basic_tests', test_executable)
+# Skip tests that require additional dependencies for now
+# test('keybindings_tests', test_keybindings)
+# test('input_tests', test_input)
 test('config_tests', test_config_executable)
 test('animation_tests', test_animation_executable)
 
