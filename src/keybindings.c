@@ -7,6 +7,7 @@
 #include "keybindings.h"
 #include "tagging.h"
 #include "focus.h"
+#include "window_manager.h"
 
 void axiom_keybinding_manager_init(struct axiom_keybinding_manager *manager) {
     if (!manager) return;
