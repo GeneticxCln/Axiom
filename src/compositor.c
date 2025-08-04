@@ -174,10 +174,21 @@ bool axiom_compositor_init(struct axiom_server *server, bool nested) {
     server->backend_destroy.notify = axiom_backend_destroy;
     wl_signal_add(&server->backend->events.destroy, &server->backend_destroy);
     
+    // Create a background surface to prevent black screen
+    server->background = wlr_scene_rect_create(&server->scene->tree, 0, 0, 
+                                              (float[]){0.1, 0.1, 0.1, 1.0});
+    if (server->background) {
+        AXIOM_LOG_INFO("Background surface created");
+    }
+    
     // Initialize cursor manager
     server->cursor_mgr = wlr_xcursor_manager_create(NULL, 24);
     if (server->cursor_mgr) {
-        wlr_xcursor_manager_load(server->cursor_mgr, 1);
+        if (!wlr_xcursor_manager_load(server->cursor_mgr, 1)) {
+            AXIOM_LOG_WARN("Failed to load cursor theme, will retry on first output");
+        } else {
+            AXIOM_LOG_INFO("Cursor theme loaded successfully");
+        }
     }
 
     // Try to add socket
@@ -210,18 +221,42 @@ void axiom_compositor_run(struct axiom_server *server) {
 
     server->running = true;
     AXIOM_LOG_INFO("Axiom running on Wayland display");
+    
+    int consecutive_errors = 0;
+    const int MAX_CONSECUTIVE_ERRORS = 10;
 
     while (server->running) {
         wl_display_flush_clients(server->wl_display);
 
-    // Update animations if the animation manager is available
-    if (server->animation_manager) {
-        uint32_t current_time = get_current_time_ms();
-        axiom_animation_manager_update(server->animation_manager, current_time);
-    }
+        // Update animations if the animation manager is available
+        if (server->animation_manager) {
+            uint32_t current_time = get_current_time_ms();
+            axiom_animation_manager_update(server->animation_manager, current_time);
+        }
 
-        if (wl_event_loop_dispatch(server->wl_event_loop, -1) < 0) {
-            break;
+        int dispatch_result = wl_event_loop_dispatch(server->wl_event_loop, -1);
+        if (dispatch_result < 0) {
+            consecutive_errors++;
+            AXIOM_LOG_ERROR("Event loop dispatch failed (attempt %d/%d)", 
+                           consecutive_errors, MAX_CONSECUTIVE_ERRORS);
+            
+            // Only exit if we have too many consecutive errors
+            if (consecutive_errors >= MAX_CONSECUTIVE_ERRORS) {
+                AXIOM_LOG_ERROR("Too many consecutive errors, shutting down");
+                break;
+            }
+            
+            // Check if display is still valid
+            if (!server->wl_display) {
+                AXIOM_LOG_ERROR("Display destroyed, shutting down");
+                break;
+            }
+            
+            // Small delay to prevent tight error loop
+            usleep(10000); // 10ms
+        } else {
+            // Reset error counter on successful dispatch
+            consecutive_errors = 0;
         }
     }
 }
@@ -326,12 +361,21 @@ void axiom_new_output(struct wl_listener *listener, void *data) {
     // Set preferred mode if available
     if (!wl_list_empty(&wlr_output->modes)) {
         struct wlr_output_mode *mode = wlr_output_preferred_mode(wlr_output);
-        wlr_output_state_set_mode(&state, mode);
+        if (mode) {
+            wlr_output_state_set_mode(&state, mode);
+            wlr_output_state_set_enabled(&state, true);
+            AXIOM_LOG_INFO("Output %s: %dx%d@%d", wlr_output->name,
+                          mode->width, mode->height, mode->refresh);
+        }
+    } else {
+        // Custom mode for outputs without predefined modes
+        wlr_output_state_set_custom_mode(&state, 1920, 1080, 60000);
         wlr_output_state_set_enabled(&state, true);
+        AXIOM_LOG_INFO("Output %s: using custom mode 1920x1080@60", wlr_output->name);
     }
     
     if (!wlr_output_commit_state(wlr_output, &state)) {
-        AXIOM_LOG_WARN("Failed to commit output %s", wlr_output->name);
+        AXIOM_LOG_ERROR("Failed to commit output %s", wlr_output->name);
         wlr_output_state_finish(&state);
         return;
     }
@@ -342,6 +386,22 @@ void axiom_new_output(struct wl_listener *listener, void *data) {
     struct wlr_output_layout_output *lo = wlr_output_layout_add_auto(server->output_layout, wlr_output);
     struct wlr_scene_output *scene_output = wlr_scene_output_create(server->scene, wlr_output);
     wlr_scene_output_layout_add_output(server->scene_layout, lo, scene_output);
+    
+    // Update background size to cover the entire output layout
+    struct wlr_box layout_box;
+    wlr_output_layout_get_box(server->output_layout, NULL, &layout_box);
+    if (server->background) {
+        wlr_scene_rect_set_size(server->background, layout_box.width, layout_box.height);
+        AXIOM_LOG_INFO("Background updated to %dx%d", layout_box.width, layout_box.height);
+    }
+    
+    // Now that we have an output, try to load cursor theme if not already loaded
+    if (server->cursor_mgr) {
+        if (wlr_xcursor_manager_load(server->cursor_mgr, wlr_output->scale)) {
+            wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "left_ptr");
+            AXIOM_LOG_INFO("Cursor theme loaded for output %s", wlr_output->name);
+        }
+    }
 }
 
 void axiom_new_xdg_toplevel(struct wl_listener *listener, void *data) {
