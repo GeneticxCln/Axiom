@@ -1,6 +1,7 @@
 #include "monitor_manager.h"
 #include "axiom.h"
 #include "logging.h"
+#include "advanced_tiling.h"
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -119,6 +120,33 @@ struct axiom_monitor *axiom_monitor_create(struct axiom_monitor_manager *manager
     
     // Initialize lists
     wl_list_init(&monitor->mirrors);
+    wl_list_init(&monitor->workspaces);
+    wl_list_init(&monitor->special_workspaces);
+    
+    // Initialize workspace management
+    monitor->workspace_count = 0;
+    monitor->max_workspaces = 10;  // Default maximum workspaces per monitor
+    monitor->active_workspace = NULL;
+    monitor->active_special_workspace = NULL;
+    
+    // Initialize per-monitor tiling engine
+    monitor->tiling_engine = axiom_advanced_tiling_create(monitor->width, monitor->height);
+    if (!monitor->tiling_engine) {
+        AXIOM_LOG(AXIOM_LOG_ERROR, "Failed to create tiling engine for monitor %s", monitor->name);
+        axiom_monitor_destroy(monitor);
+        return NULL;
+    }
+    
+    // Initialize tiling configuration with defaults
+    monitor->tiling_enabled = true;
+    monitor->tiling_config.master_ratio = 0.6f;
+    monitor->tiling_config.master_count = 1;
+    monitor->tiling_config.gap_size = 10;
+    monitor->tiling_config.current_mode = AXIOM_TILING_MASTER_STACK;
+    monitor->tiling_config.smart_gaps = true;
+    monitor->tiling_config.smart_borders = true;
+    
+    AXIOM_LOG(AXIOM_LOG_INFO, "Tiling engine initialized for monitor %s", monitor->name);
     
     // Setup damage tracking
     wlr_damage_ring_init(&monitor->damage_ring);
@@ -190,6 +218,12 @@ void axiom_monitor_destroy(struct axiom_monitor *monitor) {
     wl_list_remove(&monitor->mode.link);
     wl_list_remove(&monitor->enable.link);
     wl_list_remove(&monitor->present.link);
+    
+    // Clean up tiling engine
+    if (monitor->tiling_engine) {
+        axiom_advanced_tiling_destroy(monitor->tiling_engine);
+        monitor->tiling_engine = NULL;
+    }
     
     // Clean up damage ring
     wlr_damage_ring_finish(&monitor->damage_ring);
@@ -687,6 +721,142 @@ bool axiom_monitor_rule_matches(struct axiom_monitor_rule *rule, struct axiom_mo
     }
     
     return false;
+}
+
+// Per-monitor tiling management functions
+bool axiom_monitor_set_tiling_enabled(struct axiom_monitor *monitor, bool enabled) {
+    if (!monitor) return false;
+    
+    AXIOM_LOG(AXIOM_LOG_INFO, "Setting tiling enabled for monitor %s: %s", 
+              monitor->name, enabled ? "true" : "false");
+    
+    monitor->tiling_enabled = enabled;
+    
+    if (monitor->tiling_engine) {
+        // Apply configuration to tiling engine
+        axiom_monitor_apply_tiling_config(monitor);
+    }
+    
+    return true;
+}
+
+void axiom_monitor_set_tiling_mode(struct axiom_monitor *monitor, enum axiom_tiling_mode mode) {
+    if (!monitor || !monitor->tiling_engine) return;
+    
+    AXIOM_LOG(AXIOM_LOG_INFO, "Setting tiling mode for monitor %s: %d", monitor->name, mode);
+    
+    monitor->tiling_config.current_mode = mode;
+    axiom_advanced_tiling_set_mode(monitor->tiling_engine, mode);
+    axiom_monitor_refresh_tiling_layout(monitor);
+}
+
+void axiom_monitor_set_master_ratio(struct axiom_monitor *monitor, float ratio) {
+    if (!monitor || !monitor->tiling_engine) return;
+    
+    if (ratio < 0.1f) ratio = 0.1f;
+    if (ratio > 0.9f) ratio = 0.9f;
+    
+    AXIOM_LOG(AXIOM_LOG_INFO, "Setting master ratio for monitor %s: %.2f", monitor->name, ratio);
+    
+    monitor->tiling_config.master_ratio = ratio;
+    axiom_advanced_tiling_set_master_ratio(monitor->tiling_engine, ratio);
+    axiom_monitor_refresh_tiling_layout(monitor);
+}
+
+void axiom_monitor_set_master_count(struct axiom_monitor *monitor, int count) {
+    if (!monitor || !monitor->tiling_engine) return;
+    
+    if (count < 1) count = 1;
+    if (count > 10) count = 10;
+    
+    AXIOM_LOG(AXIOM_LOG_INFO, "Setting master count for monitor %s: %d", monitor->name, count);
+    
+    monitor->tiling_config.master_count = count;
+    axiom_advanced_tiling_set_master_count(monitor->tiling_engine, count);
+    axiom_monitor_refresh_tiling_layout(monitor);
+}
+
+void axiom_monitor_set_gap_size(struct axiom_monitor *monitor, int gap_size) {
+    if (!monitor || !monitor->tiling_engine) return;
+    
+    if (gap_size < 0) gap_size = 0;
+    if (gap_size > 100) gap_size = 100;
+    
+    AXIOM_LOG(AXIOM_LOG_INFO, "Setting gap size for monitor %s: %d", monitor->name, gap_size);
+    
+    monitor->tiling_config.gap_size = gap_size;
+    axiom_advanced_tiling_set_gap_size(monitor->tiling_engine, gap_size);
+    axiom_monitor_refresh_tiling_layout(monitor);
+}
+
+void axiom_monitor_cycle_tiling_mode(struct axiom_monitor *monitor) {
+    if (!monitor || !monitor->tiling_engine) return;
+    
+    axiom_advanced_tiling_cycle_mode(monitor->tiling_engine);
+    // Update our cached mode
+    monitor->tiling_config.current_mode = axiom_advanced_tiling_get_mode(monitor->tiling_engine);
+    
+    AXIOM_LOG(AXIOM_LOG_INFO, "Cycled tiling mode for monitor %s to: %d", 
+              monitor->name, monitor->tiling_config.current_mode);
+    
+    axiom_monitor_refresh_tiling_layout(monitor);
+}
+
+void axiom_monitor_apply_tiling_config(struct axiom_monitor *monitor) {
+    if (!monitor || !monitor->tiling_engine) return;
+    
+    AXIOM_LOG(AXIOM_LOG_DEBUG, "Applying tiling configuration for monitor %s", monitor->name);
+    
+    // Apply all configuration settings to the tiling engine
+    axiom_advanced_tiling_set_mode(monitor->tiling_engine, monitor->tiling_config.current_mode);
+    axiom_advanced_tiling_set_master_ratio(monitor->tiling_engine, monitor->tiling_config.master_ratio);
+    axiom_advanced_tiling_set_master_count(monitor->tiling_engine, monitor->tiling_config.master_count);
+    axiom_advanced_tiling_set_gap_size(monitor->tiling_engine, monitor->tiling_config.gap_size);
+    
+    axiom_monitor_refresh_tiling_layout(monitor);
+}
+
+void axiom_monitor_refresh_tiling_layout(struct axiom_monitor *monitor) {
+    if (!monitor || !monitor->tiling_engine || !monitor->tiling_enabled) return;
+    
+    AXIOM_LOG(AXIOM_LOG_DEBUG, "Refreshing tiling layout for monitor %s", monitor->name);
+    
+    // Update tiling engine dimensions if monitor size changed
+    axiom_advanced_tiling_set_area(monitor->tiling_engine, 
+                                   monitor->x, monitor->y, 
+                                   monitor->width, monitor->height);
+    
+    // Trigger layout recalculation for the active workspace
+    if (monitor->active_workspace) {
+        // This would trigger window repositioning based on the new layout
+        // Implementation depends on workspace/window management system
+        axiom_monitor_schedule_frame(monitor);
+    }
+}
+
+// Monitor tiling query functions
+struct axiom_advanced_tiling *axiom_monitor_get_tiling_engine(struct axiom_monitor *monitor) {
+    return monitor ? monitor->tiling_engine : NULL;
+}
+
+bool axiom_monitor_is_tiling_enabled(struct axiom_monitor *monitor) {
+    return monitor ? monitor->tiling_enabled : false;
+}
+
+enum axiom_tiling_mode axiom_monitor_get_tiling_mode(struct axiom_monitor *monitor) {
+    return monitor ? monitor->tiling_config.current_mode : AXIOM_TILING_MASTER_STACK;
+}
+
+float axiom_monitor_get_master_ratio(struct axiom_monitor *monitor) {
+    return monitor ? monitor->tiling_config.master_ratio : 0.6f;
+}
+
+int axiom_monitor_get_master_count(struct axiom_monitor *monitor) {
+    return monitor ? monitor->tiling_config.master_count : 1;
+}
+
+int axiom_monitor_get_gap_size(struct axiom_monitor *monitor) {
+    return monitor ? monitor->tiling_config.gap_size : 10;
 }
 
 // Debug functions

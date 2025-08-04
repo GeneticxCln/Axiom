@@ -11,6 +11,7 @@
 // Forward declarations
 struct axiom_server;
 struct axiom_workspace;
+struct axiom_advanced_tiling;
 
 // Monitor auto-direction types (inspired by Hyprland)
 enum axiom_auto_dir {
@@ -89,7 +90,22 @@ struct axiom_monitor {
     // Workspace management
     struct axiom_workspace *active_workspace;
     struct axiom_workspace *active_special_workspace;
+    struct wl_list workspaces;           // List of workspaces for this monitor
+    struct wl_list special_workspaces;   // List of special workspaces
     int workspace_count;
+    int max_workspaces;                  // Maximum workspaces per monitor
+    
+    // Per-monitor tiling engine
+    struct axiom_advanced_tiling *tiling_engine;
+    bool tiling_enabled;
+    struct {
+        float master_ratio;
+        int master_count;
+        int gap_size;
+        enum axiom_tiling_mode current_mode;
+        bool smart_gaps;                 // Hide gaps when only one window
+        bool smart_borders;              // Hide borders when only one window
+    } tiling_config;
     
     // Configuration
     struct axiom_monitor_rule active_rule;
@@ -247,6 +263,24 @@ void axiom_monitor_handle_destroy(struct wl_listener *listener, void *data);
 void axiom_monitor_handle_mode(struct wl_listener *listener, void *data);
 void axiom_monitor_handle_enable(struct wl_listener *listener, void *data);
 void axiom_monitor_handle_present(struct wl_listener *listener, void *data);
+
+// Per-monitor tiling management
+bool axiom_monitor_set_tiling_enabled(struct axiom_monitor *monitor, bool enabled);
+void axiom_monitor_set_tiling_mode(struct axiom_monitor *monitor, enum axiom_tiling_mode mode);
+void axiom_monitor_set_master_ratio(struct axiom_monitor *monitor, float ratio);
+void axiom_monitor_set_master_count(struct axiom_monitor *monitor, int count);
+void axiom_monitor_set_gap_size(struct axiom_monitor *monitor, int gap_size);
+void axiom_monitor_cycle_tiling_mode(struct axiom_monitor *monitor);
+void axiom_monitor_apply_tiling_config(struct axiom_monitor *monitor);
+void axiom_monitor_refresh_tiling_layout(struct axiom_monitor *monitor);
+
+// Monitor tiling queries
+struct axiom_advanced_tiling *axiom_monitor_get_tiling_engine(struct axiom_monitor *monitor);
+bool axiom_monitor_is_tiling_enabled(struct axiom_monitor *monitor);
+enum axiom_tiling_mode axiom_monitor_get_tiling_mode(struct axiom_monitor *monitor);
+float axiom_monitor_get_master_ratio(struct axiom_monitor *monitor);
+int axiom_monitor_get_master_count(struct axiom_monitor *monitor);
+int axiom_monitor_get_gap_size(struct axiom_monitor *monitor);
 
 // Debug and monitoring
 void axiom_monitor_print_info(struct axiom_monitor *monitor);
