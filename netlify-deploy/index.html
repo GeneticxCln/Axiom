@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Axiom - Professional Wayland Compositor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            text-align: center;
+            padding: 40px 0;
+            color: white;
+        }
+        .logo {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            font-weight: bold;
+        }
+        h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+            margin-bottom: 30px;
+        }
+        .version-badge {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            backdrop-filter: blur(10px);
+        }
+        main {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin-top: 20px;
+        }
+        .hero {
+            padding: 40px;
+            text-align: center;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+        .hero h2 {
+            font-size: 2.2em;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        .hero p {
+            font-size: 1.1em;
+            color: #666;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            padding: 40px;
+        }
+        .feature {
+            text-align: center;
+            padding: 20px;
+        }
+        .feature-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+        .feature h3 {
+            font-size: 1.4em;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        .feature p {
+            color: #666;
+            line-height: 1.6;
+        }
+        .stats {
+            background: #f8f9fa;
+            padding: 40px;
+            text-align: center;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+        .stat {
+            padding: 20px;
+        }
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+            display: block;
+        }
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .cta {
+            padding: 40px;
+            text-align: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .cta h2 {
+            font-size: 2em;
+            margin-bottom: 20px;
+        }
+        .cta-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 30px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 30px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        .btn-primary {
+            background: white;
+            color: #667eea;
+        }
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid white;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        footer {
+            text-align: center;
+            padding: 30px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2em;
+            }
+            .hero h2 {
+                font-size: 1.8em;
+            }
+            .cta-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">A</div>
+            <h1>Axiom</h1>
+            <p class="subtitle">Professional Wayland Compositor for Modern Linux</p>
+            <span class="version-badge">v4.3.8 - Latest Release</span>
+        </header>
+        <main>
+            <section class="hero">
+                <h2>Built for Professionals, Loved by Enthusiasts</h2>
+                <p>Axiom is a complete, production-ready Wayland compositor featuring GPU-accelerated visual effects, advanced window management, and seamless desktop integration. Experience the performance and polish expected from modern compositors.</p>
+            </section>
+            <section class="features">
+                <div class="feature">
+                    <div class="feature-icon">🚀</div>
+                    <h3>GPU Accelerated</h3>
+                    <p>Hardware-accelerated rendering with OpenGL ES 3.0, delivering buttery-smooth 60fps animations and visual effects.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🪟</div>
+                    <h3>Advanced Window Management</h3>
+                    <p>Intelligent tiling layouts, smart window snapping, and professional window controls with multi-monitor support.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Enterprise Ready</h3>
+                    <p>Production-hardened stability, comprehensive security, and professional session management for enterprise environments.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🎨</div>
+                    <h3>Visual Effects</h3>
+                    <p>Real-time shadows, Gaussian blur, transparency effects, and professional decorations with configurable settings.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🔧</div>
+                    <h3>Highly Configurable</h3>
+                    <p>INI-based configuration system with hot-reload capabilities and granular control over every aspect.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🌐</div>
+                    <h3>Cross-Platform</h3>
+                    <p>Built on wlroots 0.19 with support for Intel, AMD, and NVIDIA graphics, plus seamless XWayland compatibility.</p>
+                </div>
+            </section>
+            <section class="stats">
+                <h2>Project Statistics</h2>
+                <div class="stats-grid">
+                    <div class="stat">
+                        <span class="stat-number">15k+</span>
+                        <span class="stat-label">Lines of Code</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number">100%</span>
+                        <span class="stat-label">Test Coverage</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number">6</span>
+                        <span class="stat-label">Test Suites</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number">60fps</span>
+                        <span class="stat-label">Rendering</span>
+                    </div>
+                </div>
+            </section>
+            <section class="cta">
+                <h2>Ready to Experience Axiom?</h2>
+                <p>Join the growing community of professionals using Axiom for their daily workflow.</p>
+                <div class="cta-buttons">
+                    <a href="https://github.com/GeneticxCln/Axiom" class="btn btn-primary">View on GitHub</a>
+                    <a href="https://github.com/GeneticxCln/Axiom/releases" class="btn btn-secondary">Download Latest</a>
+                </div>
+            </section>
+        </main>
+        <footer>
+            <p>Made with ❤️ for the Linux desktop community</p>
+            <p>&copy; 2025 Axiom Project - Licensed under GPL v3.0</p>
+        </footer>
+    </div>
+</body>
+</html>
