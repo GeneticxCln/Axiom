@@ -201,6 +201,7 @@ struct axiom_server {
     struct wl_display *wl_display;
     struct wl_event_loop *wl_event_loop;
     struct wlr_backend *backend;
+    struct wlr_session *session;  // Session for primary display server mode
     struct wlr_renderer *renderer;
     struct wlr_allocator *allocator;
     struct wlr_compositor *compositor;
@@ -278,6 +279,7 @@ struct axiom_server {
     
     // XWayland system
     struct axiom_xwayland_manager *xwayland_manager;
+    struct axiom_xwayland_manager *enhanced_xwayland_manager;  // Enhanced XWayland support
     
     // Enhanced systems
     struct axiom_window_manager *window_manager;         // Professional window management

@@ -4,6 +4,7 @@
 #include "animation.h"
 #include "effects.h"
 #include "window_manager.h"
+#include "enhanced_xwayland.h"
 #include "logging.h"
 #include "memory.h"
 #include <stdio.h>
@@ -13,6 +14,11 @@
 #include <unistd.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/util/log.h>
+#include <wlr/backend/wayland.h>
+#include <wlr/backend/session.h>
+#include <wlr/backend/multi.h>
+#include <wlr/backend/drm.h>
+#include <wlr/backend/libinput.h>
 
 // Forward declarations for event handlers
 void axiom_new_output(struct wl_listener *listener, void *data);
@@ -45,13 +51,72 @@ bool axiom_compositor_init(struct axiom_server *server, bool nested) {
 
     server->wl_event_loop = wl_display_get_event_loop(server->wl_display);
     
-    // Create backend
+    // Create backend - THIS IS THE CRITICAL FIX
     if (nested) {
-        AXIOM_LOG_INFO("Creating nested backend");
-        server->backend = wlr_backend_autocreate(server->wl_event_loop, NULL);
+        AXIOM_LOG_INFO("Creating nested Wayland backend");
+        // For nested mode, create a Wayland backend that connects to parent compositor
+        server->backend = wlr_wl_backend_create(server->wl_event_loop, NULL);
     } else {
-        AXIOM_LOG_INFO("Creating native backend");
-        server->backend = wlr_backend_autocreate(server->wl_event_loop, NULL);
+        AXIOM_LOG_INFO("Creating native backend for primary display server");
+        // For primary display server, we need session + DRM + libinput
+        
+        // First create session for device access
+        server->session = wlr_session_create(server->wl_event_loop);
+        if (!server->session) {
+            AXIOM_LOG_ERROR("Failed to create session - are you running from TTY?");
+            AXIOM_LOG_ERROR("Primary mode requires running from TTY (Ctrl+Alt+F2)");
+            wl_display_destroy(server->wl_display);
+            return false;
+        }
+        
+        // Create multi-backend to combine DRM + libinput
+        server->backend = wlr_multi_backend_create(server->wl_event_loop);
+        if (!server->backend) {
+            AXIOM_LOG_ERROR("Failed to create multi backend");
+            wlr_session_destroy(server->session);
+            wl_display_destroy(server->wl_display);
+            return false;
+        }
+        
+        // Find and add DRM devices
+        struct wlr_device *gpus[8];
+        ssize_t num_gpus = wlr_session_find_gpus(server->session, 8, gpus);
+        if (num_gpus < 0) {
+            AXIOM_LOG_ERROR("Failed to find GPU devices");
+            wlr_session_destroy(server->session);
+            wl_display_destroy(server->wl_display);
+            return false;
+        }
+        
+        AXIOM_LOG_INFO("Found %zd GPU device(s)", num_gpus);
+        
+        // Add DRM backend for each GPU
+        for (ssize_t i = 0; i < num_gpus; ++i) {
+            struct wlr_backend *drm = wlr_drm_backend_create(server->session, gpus[i], NULL);
+            if (!drm) {
+                AXIOM_LOG_ERROR("Failed to create DRM backend for device %zd", i);
+                continue;
+            }
+            wlr_multi_backend_add(server->backend, drm);
+            AXIOM_LOG_INFO("Added DRM backend for device %zd", i);
+        }
+        
+        // Add libinput backend for input devices
+        struct wlr_backend *libinput = wlr_libinput_backend_create(server->session);
+        if (!libinput) {
+            AXIOM_LOG_ERROR("Failed to create libinput backend");
+        } else {
+            wlr_multi_backend_add(server->backend, libinput);
+            AXIOM_LOG_INFO("Added libinput backend");
+        }
+        
+        // Check if we have any backends
+        if (wlr_multi_is_empty(server->backend)) {
+            AXIOM_LOG_ERROR("No backends available - check permissions and hardware");
+            wlr_session_destroy(server->session);
+            wl_display_destroy(server->wl_display);
+            return false;
+        }
     }
     
     if (!server->backend) {
@@ -133,6 +198,12 @@ bool axiom_compositor_init(struct axiom_server *server, bool nested) {
     server->window_manager = axiom_window_manager_create(server);
     if (!server->window_manager) {
         AXIOM_LOG_WARN("Failed to initialize window manager");
+    }
+    
+    // Initialize enhanced XWayland manager
+    server->enhanced_xwayland_manager = axiom_enhanced_xwayland_manager_create(server);
+    if (!server->enhanced_xwayland_manager) {
+        AXIOM_LOG_WARN("Failed to initialize enhanced XWayland manager");
     }
 
     // Set up event listeners

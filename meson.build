@@ -1,5 +1,5 @@
 project('axiom', 'c',
-version: '4.3.5',
+version: '4.3.6',
   license: 'GPL-3.0',
   meson_version: '>=0.60.0',
   default_options: ['c_std=c11', 'warning_level=2', 'werror=false', 'buildtype=release'],
@@ -26,6 +26,7 @@ wlr_protos = dependency('wlr-protocols')
 wlroots = dependency('wlroots-0.19')
 xkbcommon = dependency('xkbcommon')
 xkbcommon_x11 = dependency('xkbcommon-x11')
+# XWayland support dependencies
 xcb = dependency('xcb')
 xcb_composite = dependency('xcb-composite')
 xcb_icccm = dependency('xcb-icccm')
@@ -131,6 +132,7 @@ axiom_sources = files(
   'src/pip_manager.c',
   'src/thumbnail_manager.c',
   'src/xwayland.c',
+  'src/enhanced_xwayland.c',  # Enhanced XWayland support
   # Enhanced systems
   'src/tagging.c',
   'src/keybindings.c',

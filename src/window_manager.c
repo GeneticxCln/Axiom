@@ -655,6 +655,8 @@ void axiom_window_manager_focus_window(struct axiom_window_manager *manager, str
         if (manager->focused_window->xdg_toplevel) {
             wlr_xdg_toplevel_set_activated(manager->focused_window->xdg_toplevel, false);
         }
+        // Update decorations for unfocused window
+        axiom_update_window_decorations(manager->focused_window);
     }
 
     // Update focus pointers
@@ -670,6 +672,9 @@ void axiom_window_manager_focus_window(struct axiom_window_manager *manager, str
 
         // Update focus history
         axiom_window_manager_update_focus_history(manager, window);
+
+        // Update decorations for focused window
+        axiom_update_window_decorations(window);
 
         // Update keyboard focus
         if (manager->server && manager->server->seat && window->surface) {
