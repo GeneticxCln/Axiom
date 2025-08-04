@@ -169,7 +169,19 @@
                                 <circle cx="100" cy="85" r="4" fill="#00bfff"/>
                             </svg>
                         </div>
-                        <span class="text-2xl font-bold">Arch Linux</span>
+                        <svg width="100" height="30" viewBox="0 0 100 30" xmlns="http://www.w3.org/2000/svg">
+                            <defs>
+                                <linearGradient id="archGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#1793d1;stop-opacity:1" />
+                                    <stop offset="100%" style="stop-color:#0f5c8c;stop-opacity:1" />
+                                </linearGradient>
+                            </defs>
+                            <!-- Arch Linux iconic symbol -->
+                            <path d="M 15 26 L 20 8 L 25 26 M 17.5 20 L 22.5 20" stroke="url(#archGrad)" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                            <!-- Arch Linux text -->
+                            <text x="32" y="12" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="#ffffff">Arch</text>
+                            <text x="32" y="22" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="#ffffff">Linux</text>
+                        </svg>
                     </div>
                     <div class="bg-black/50 rounded-lg p-4 font-mono text-left">
                         <span class="text-cyan-400">$</span> <span class="text-white">pacman -S axiom</span>
