@@ -17,29 +17,36 @@
 
 ---
 
-## 🚨 **LATEST: v4.3.7 - ENHANCED INPUT SYSTEM** 🖱️⌨️
+## 🚨 **LATEST: v4.3.8 - ENHANCED MULTI-MONITOR SUPPORT & ADVANCED WINDOW MANAGEMENT** 🖥️🪟
 
-### 🎯 **PROFESSIONAL-GRADE INPUT MANAGEMENT**
+### 🎯 **PROFESSIONAL-GRADE MULTI-MONITOR INFRASTRUCTURE**
 
-**⌨️ ADVANCED KEYBINDING SYSTEM**
-- **Complete Dynamic Management**: Add/remove/find/update keybindings at runtime
-- **Macro Support**: Multi-step action sequences with configurable delays
-- **Configuration System**: Save/load human-readable keybinding configurations
-- **String Conversions**: Full string-to-enum conversion for all actions and modifiers
-- **50+ Default Bindings**: Comprehensive window management out of the box
+**🖥️ COMPREHENSIVE MULTI-MONITOR SUPPORT**
+- **Multi-Output Layout Management**: Seamless handling of multiple display configurations
+- **Advanced Workspace Handling**: Enhanced workspace management across multiple monitors
+- **Professional Window Placement**: Intelligent window positioning across displays
+- **Output Configuration**: Dynamic monitor setup and layout management
+- **Cross-Monitor Operations**: Window movement and snapping between displays
 
-**🖱️ ENHANCED MOUSE INPUT**
-- **Advanced Pointer Config**: Acceleration, natural scroll, tap-to-click per device
-- **Context Menus**: Right-click menus for windows and desktop
-- **Smart Actions**: Middle-click floating toggle, modifier combinations
-- **Workspace Switching**: Super + scroll wheel for seamless navigation
-- **Gesture Recognition**: Swipe and pinch gestures with multi-finger support
+**🪟 ADVANCED WINDOW MANAGEMENT SYSTEM**
+- **Sophisticated Tiling Algorithms**: Professional-grade layout calculations
+- **Enhanced Window Decorations**: Advanced title bar controls and visual enhancements
+- **Smart Window Placement**: Intelligent positioning with multi-monitor awareness
+- **Advanced Cursor Detection**: Improved window interaction and edge detection
+- **Professional Window Snapping**: Smooth window snapping and positioning
+
+**⚡ TECHNICAL INFRASTRUCTURE**
+- **Modular Architecture**: Clean, extensible codebase for future enhancements
+- **Comprehensive Error Handling**: Robust error management and logging system
+- **Performance Monitoring Tools**: Built-in performance optimization and monitoring
+- **Extensive Testing Framework**: Comprehensive validation scripts and test suites
+- **Phase 3.1 Foundation**: Groundwork for advanced desktop integration features
 
 **📋 IMMEDIATE UPGRADE RECOMMENDED:**
-For the latest input system enhancements, upgrade to v4.3.7:
+For the latest multi-monitor support and advanced window management, upgrade to v4.3.8:
 ```bash
 git pull origin main
-# v4.3.7 is now the latest main branch
+# v4.3.8 is now the latest main branch
 meson setup builddir --wipe
 meson compile -C builddir
 sudo meson install -C builddir
@@ -47,12 +54,13 @@ sudo meson install -C builddir
 
 **🎯 TECHNICAL EXCELLENCE**
 - wlroots 0.19 compatibility maintained ✅
-- Memory efficient (~50KB overhead) ✅
-- Performance optimized (<1ms latency) ✅
-- Comprehensive logging and debugging ✅
-- Clean compilation with no errors ✅
+- Enhanced multi-monitor infrastructure ✅
+- Advanced tiling system implementation ✅
+- Professional window management ✅
+- Comprehensive testing framework ✅
+- Clean compilation with zero errors ✅
 
-**[🔗 Download v4.3.7](https://github.com/GeneticxCln/Axiom/releases/tag/v4.3.7)** | **[🖱️ Enhanced Input System](https://github.com/GeneticxCln/Axiom/releases/tag/v4.3.7)**
+**[🔗 Download v4.3.8](https://github.com/GeneticxCln/Axiom/releases/tag/v4.3.8)** | **[🖥️ Multi-Monitor Support](https://github.com/GeneticxCln/Axiom/releases/tag/v4.3.8)**
 
 ---
 
