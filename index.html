@@ -4,6 +4,150 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Axiom - Professional Wayland Compositor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .bg-gradient-axiom {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .bg-gradient-cyan {
+            background: linear-gradient(135deg, #00d4ff 0%, #001eff 100%);
+        }
+        .text-gradient {
+            background: linear-gradient(135deg, #00d4ff 0%, #001eff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+    <!-- Header/Navigation -->
+    <header class="fixed top-0 w-full z-50 bg-black/50 backdrop-blur-sm">
+        <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-gradient-cyan rounded-full flex items-center justify-center font-bold text-xl">A</div>
+                <span class="text-xl font-bold">Axiom</span>
+            </div>
+            <div class="hidden md:flex space-x-8">
+                <a href="#features" class="hover:text-cyan-400 transition">Features</a>
+                <a href="#install" class="hover:text-cyan-400 transition">Install</a>
+                <a href="https://github.com/GeneticxCln/Axiom" class="hover:text-cyan-400 transition">GitHub</a>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="min-h-screen flex items-center justify-center bg-gradient-axiom relative overflow-hidden">
+        <div class="absolute inset-0 bg-black/20"></div>
+        <div class="container mx-auto px-6 text-center relative z-10">
+            <div class="animate-float mb-8">
+                <div class="w-32 h-32 bg-white/10 rounded-full flex items-center justify-center text-6xl font-bold mx-auto mb-8 backdrop-blur-sm">A</div>
+            </div>
+            <h1 class="text-6xl md:text-8xl font-bold mb-6">
+                Modern compositor
+                <br>
+                <span class="text-gradient">with the looks</span>
+            </h1>
+            <p class="text-xl md:text-2xl text-gray-300 mb-12 max-w-4xl mx-auto">
+                Axiom provides the latest Wayland features, dynamic tiling, all the eyecandy, 
+                powerful plugins and much more, while still being lightweight and responsive
+            </p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="#install" class="bg-white text-black px-8 py-4 rounded-full font-bold text-lg hover:bg-gray-200 transition transform hover:scale-105">
+                    Install
+                </a>
+                <a href="https://github.com/GeneticxCln/Axiom" class="border-2 border-white px-8 py-4 rounded-full font-bold text-lg hover:bg-white hover:text-black transition transform hover:scale-105">
+                    View on GitHub
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-20 bg-gray-900">
+        <div class="container mx-auto px-6">
+            <div class="text-center mb-16">
+                <h2 class="text-5xl font-bold mb-4">Features</h2>
+                <p class="text-xl text-gray-400">TLDR</p>
+            </div>
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div class="card-hover bg-gradient-to-br from-purple-600/20 to-blue-600/20 backdrop-blur-sm border border-white/10 rounded-3xl p-8">
+                    <div class="text-4xl mb-4">🚀</div>
+                    <h3 class="text-2xl font-bold mb-4">Smooth</h3>
+                    <p class="text-gray-300">Smooth transitions. Eye-pleasing animations. Great performance. Highly responsive.</p>
+                </div>
+                <div class="card-hover bg-gradient-to-br from-cyan-600/20 to-blue-600/20 backdrop-blur-sm border border-white/10 rounded-3xl p-8">
+                    <div class="text-4xl mb-4">⚙️</div>
+                    <h3 class="text-2xl font-bold mb-4">Easy to configure</h3>
+                    <p class="text-gray-300">Live reloading config. Easy configuration format. Sensible defaults. Great documentation.</p>
+                </div>
+                <div class="card-hover bg-gradient-to-br from-green-600/20 to-cyan-600/20 backdrop-blur-sm border border-white/10 rounded-3xl p-8">
+                    <div class="text-4xl mb-4">🪟</div>
+                    <h3 class="text-2xl font-bold mb-4">Dynamic tiling</h3>
+                    <p class="text-gray-300">Automatic tiling that just works. Supports multiple fine-tuneable layouts, with even more as plugins.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Install Section -->
+    <section id="install" class="py-20 bg-gray-800">
+        <div class="container mx-auto px-6 text-center">
+            <h2 class="text-5xl font-bold mb-8">Install now</h2>
+            <p class="text-xl text-gray-400 mb-12">For your favourite distro</p>
+            
+            <div class="max-w-2xl mx-auto">
+                <div class="bg-gray-900/50 backdrop-blur-sm border border-white/10 rounded-2xl p-8">
+                    <div class="flex items-center justify-center mb-6">
+                        <div class="w-16 h-16 bg-gradient-cyan rounded-full flex items-center justify-center mr-4">
+                            <span class="text-2xl font-bold">A</span>
+                        </div>
+                        <span class="text-2xl font-bold">Arch Linux</span>
+                    </div>
+                    <div class="bg-black/50 rounded-lg p-4 font-mono text-left">
+                        <span class="text-cyan-400">$</span> <span class="text-white">pacman -S axiom</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-12">
+                <a href="https://github.com/GeneticxCln/Axiom/releases" class="bg-gradient-cyan text-white px-8 py-4 rounded-full font-bold text-lg hover:scale-105 transition transform">
+                    Download Latest Release
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-12 bg-black">
+        <div class="container mx-auto px-6 text-center">
+            <p class="text-gray-400 mb-2">Made with ❤️ for the Linux desktop community</p>
+            <p class="text-gray-500">&copy; 2025 Axiom Project - Licensed under GPL v3.0</p>
+        </div>
+    </footer>
+</body>
+</html>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Axiom - Professional Wayland Compositor</title>
     <style>
         * {
             margin: 0;
