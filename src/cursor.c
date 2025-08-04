@@ -70,13 +70,17 @@ static void process_motion(struct axiom_server *server, uint32_t time) {
         }
     }
     
-    // Handle title bar button hover states
+    // Handle window edge detection and cursor shape changes
     if (window) {
         double relative_x = server->cursor->x - window->x;
         double relative_y = server->cursor->y - (window->y - 30); // Account for title bar above window
         
         // Check if cursor is over any title bar button and update hover states
         axiom_update_button_hover_states(window, relative_x, relative_y);
+        
+        // Handle edge detection for resizing
+        uint32_t resize_edges = axiom_detect_resize_edges(window, server->cursor->x, server->cursor->y);
+        axiom_set_resize_cursor(server, resize_edges);
     }
     
     if (surface) {
@@ -143,6 +147,15 @@ void axiom_cursor_button(struct wl_listener *listener, void *data) {
             
             AXIOM_LOG_DEBUG("FOCUS", "Click-to-focus: Focused window %s", 
                            window->xdg_toplevel->title ?: "(no title)");
+            
+            // Check for edge-based resizing first
+            uint32_t resize_edges = axiom_detect_resize_edges(window, server->cursor->x, server->cursor->y);
+            if (resize_edges != 0 && !window->is_tiled) {
+                // Start resize operation
+                axiom_begin_interactive(window, AXIOM_CURSOR_RESIZE, resize_edges);
+                AXIOM_LOG_DEBUG("INTERACTION", "Started edge-based resize for window with edges: %u", resize_edges);
+                return;
+            }
             
             // Check if modifiers are held down for move/resize
             if (server->seat->keyboard_state.keyboard) {
@@ -368,6 +381,142 @@ void axiom_input_process_gesture(struct axiom_input_manager *manager,
         default:
             AXIOM_LOG_DEBUG("Unknown gesture type: %d", event->type);
             break;
+    }
+}
+
+// Enhanced edge detection for window resizing with improved precision
+uint32_t axiom_detect_resize_edges(struct axiom_window *window, double cursor_x, double cursor_y) {
+    if (!window || window->is_tiled || window->is_fullscreen || window->is_maximized) {
+        return 0; // Don't allow resizing for tiled/fullscreen/maximized windows
+    }
+    
+    // Dynamic edge threshold based on window size and DPI
+    int base_threshold = 8;
+    int edge_threshold = base_threshold;
+    
+    // Increase threshold for smaller windows to make edges easier to grab
+    if (window->width < 400 || window->height < 300) {
+        edge_threshold = base_threshold + 4;
+    }
+    
+    uint32_t edges = 0;
+    
+    // Get window boundaries (include decorations)
+    int window_left = window->x;
+    int window_right = window->x + window->width;
+    int window_top = window->y - 30; // Account for title bar
+    int window_bottom = window->y + window->height;
+    
+    // Check horizontal edges with priority for corners
+    bool near_left = (cursor_x >= window_left - edge_threshold && cursor_x <= window_left + edge_threshold);
+    bool near_right = (cursor_x >= window_right - edge_threshold && cursor_x <= window_right + edge_threshold);
+    bool near_top = (cursor_y >= window_top - edge_threshold && cursor_y <= window_top + edge_threshold);
+    bool near_bottom = (cursor_y >= window_bottom - edge_threshold && cursor_y <= window_bottom + edge_threshold);
+    
+    // Check for corner resize areas first (they have priority)
+    if (near_top && near_left) {
+        edges |= WLR_EDGE_TOP | WLR_EDGE_LEFT;
+    } else if (near_top && near_right) {
+        edges |= WLR_EDGE_TOP | WLR_EDGE_RIGHT;
+    } else if (near_bottom && near_left) {
+        edges |= WLR_EDGE_BOTTOM | WLR_EDGE_LEFT;
+    } else if (near_bottom && near_right) {
+        edges |= WLR_EDGE_BOTTOM | WLR_EDGE_RIGHT;
+    } else {
+        // Check for edge resize areas
+        if (near_left) edges |= WLR_EDGE_LEFT;
+        if (near_right) edges |= WLR_EDGE_RIGHT;
+        if (near_top) edges |= WLR_EDGE_TOP;
+        if (near_bottom) edges |= WLR_EDGE_BOTTOM;
+    }
+    
+    return edges;
+}
+
+// Enhanced cursor theme management with DPI scaling
+static double axiom_get_cursor_scale_for_output(struct wlr_output *output) {
+    if (!output) return 1.0;
+    
+    // Get the output scale and adjust cursor size accordingly
+    double base_scale = output->scale;
+    
+    // For high DPI displays, we might want to use a different scaling factor
+    // than the output scale for optimal cursor visibility
+    if (base_scale >= 2.0) {
+        return base_scale * 0.8; // Slightly smaller on very high DPI
+    } else if (base_scale >= 1.5) {
+        return base_scale * 0.9; // Moderately smaller on high DPI
+    }
+    
+    return base_scale;
+}
+
+// Get the output under the cursor
+static struct wlr_output *axiom_get_cursor_output(struct axiom_server *server) {
+    struct axiom_output *output;
+    wl_list_for_each(output, &server->outputs, link) {
+        struct wlr_box output_box;
+        wlr_output_layout_get_box(server->output_layout, output->wlr_output, &output_box);
+        
+        if (server->cursor->x >= output_box.x && server->cursor->x < output_box.x + output_box.width &&
+            server->cursor->y >= output_box.y && server->cursor->y < output_box.y + output_box.height) {
+            return output->wlr_output;
+        }
+    }
+    
+    // Fallback to first output
+    if (!wl_list_empty(&server->outputs)) {
+        struct axiom_output *first = wl_container_of(server->outputs.next, first, link);
+        return first->wlr_output;
+    }
+    
+    return NULL;
+}
+
+// Set appropriate cursor shape based on resize edges with DPI awareness
+void axiom_set_resize_cursor(struct axiom_server *server, uint32_t edges) {
+    if (!server || !server->cursor_mgr) return;
+    
+    const char *cursor_name = "default";
+    
+    if (edges & WLR_EDGE_TOP && edges & WLR_EDGE_LEFT) {
+        cursor_name = "nw-resize";
+    } else if (edges & WLR_EDGE_TOP && edges & WLR_EDGE_RIGHT) {
+        cursor_name = "ne-resize";
+    } else if (edges & WLR_EDGE_BOTTOM && edges & WLR_EDGE_LEFT) {
+        cursor_name = "sw-resize";
+    } else if (edges & WLR_EDGE_BOTTOM && edges & WLR_EDGE_RIGHT) {
+        cursor_name = "se-resize";
+    } else if (edges & WLR_EDGE_TOP || edges & WLR_EDGE_BOTTOM) {
+        cursor_name = "ns-resize";
+    } else if (edges & WLR_EDGE_LEFT || edges & WLR_EDGE_RIGHT) {
+        cursor_name = "ew-resize";
+    }
+    
+    // Get appropriate scale for current output
+    struct wlr_output *current_output = axiom_get_cursor_output(server);
+    double cursor_scale = axiom_get_cursor_scale_for_output(current_output);
+    
+    // Only change cursor if it's different from current or scale changed
+    static const char *last_cursor = NULL;
+    static double last_scale = 0.0;
+    
+    if (!last_cursor || strcmp(cursor_name, last_cursor) != 0 || 
+        fabs(cursor_scale - last_scale) > 0.1) {
+        
+        // Ensure cursor theme is loaded for this scale
+        if (wlr_xcursor_manager_load(server->cursor_mgr, cursor_scale)) {
+            wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, cursor_name);
+            last_cursor = cursor_name;
+            last_scale = cursor_scale;
+            
+            AXIOM_LOG_DEBUG("Cursor set to %s with scale %.2f", cursor_name, cursor_scale);
+        } else {
+            // Fallback to default scale if loading fails
+            wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, cursor_name);
+            last_cursor = cursor_name;
+            AXIOM_LOG_DEBUG("Cursor set to %s with fallback scale", cursor_name);
+        }
     }
 }
 

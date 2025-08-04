@@ -328,12 +328,16 @@ void axiom_new_keyboard(struct axiom_server *server, struct wlr_input_device *de
 void axiom_new_pointer(struct axiom_server *server, struct wlr_input_device *device);
 void axiom_remove_input_devices(struct axiom_server *server);
 
-// Cursor management
+// Cursor and input event handlers
 void axiom_cursor_motion(struct wl_listener *listener, void *data);
 void axiom_cursor_motion_absolute(struct wl_listener *listener, void *data);
 void axiom_cursor_button(struct wl_listener *listener, void *data);
 void axiom_cursor_axis(struct wl_listener *listener, void *data);
 void axiom_cursor_frame(struct wl_listener *listener, void *data);
+
+// Enhanced cursor edge detection and resizing
+uint32_t axiom_detect_resize_edges(struct axiom_window *window, double cursor_x, double cursor_y);
+void axiom_set_resize_cursor(struct axiom_server *server, uint32_t edges);
 void axiom_process_cursor_motion(struct axiom_server *server, uint32_t time);
 void axiom_process_cursor_resize(struct axiom_server *server, uint32_t time);
 void axiom_process_cursor_move(struct axiom_server *server, uint32_t time);
