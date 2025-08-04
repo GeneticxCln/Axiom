@@ -86,7 +86,39 @@ void axiom_update_window_decorations(struct axiom_window *window) {
         wlr_scene_node_set_position(&window->title_bar->node, 0, -title_height);
     }
 
-    // Create borders
+// Enhanced Window Decorations
+void axiom_set_window_decorations(struct axiom_window *window, bool focused) {
+    if (!window || !window->scene_tree) return;
+
+    // Colors and dimensions
+    const float title_bar_focused[] = {0.2f, 0.3f, 0.4f, 0.9f};
+    const float title_bar_unfocused[] = {0.1f, 0.1f, 0.1f, 0.7f};
+    const float *title_color = focused ? title_bar_focused : title_bar_unfocused;
+
+    const int title_height = AXIOM_TITLE_BAR_HEIGHT;
+    const int border_width = AXIOM_BORDER_WIDTH;
+
+    // Remove existing decorations
+    if (window->title_bar) {
+        wlr_scene_node_destroy(&window->title_bar->node);
+        window->title_bar = NULL;
+    }
+
+    // Create focused or unfocused decorations
+    window->title_bar = wlr_scene_rect_create(window->scene_tree, window->width, title_height, title_color);
+    if (window->title_bar) {
+        wlr_scene_node_set_position(&window->title_bar->node, 0, -title_height);
+    }
+
+    // Callbacks for button actions (close/minimize/maximize)
+    // Buttons will use event handlers for interaction
+    axiom_create_title_bar_buttons(window);
+    
+    // Ensure focus state is reflected
+    axiom_update_title_bar_buttons(window);
+}
+
+// Enhan
     // Top border
     window->border_top = wlr_scene_rect_create(window->decoration_tree,
                                                window->width, border_width, border_color);
@@ -657,6 +689,8 @@ void axiom_window_manager_focus_window(struct axiom_window_manager *manager, str
         }
         // Update decorations for unfocused window
         axiom_update_window_decorations(manager->focused_window);
+        // Note: Opacity control would need custom implementation in wlroots 0.19
+        // wlr_scene_node_set_opacity(&manager->focused_window->scene_tree->node, 0.8);
     }
 
     // Update focus pointers
@@ -675,6 +709,8 @@ void axiom_window_manager_focus_window(struct axiom_window_manager *manager, str
 
         // Update decorations for focused window
         axiom_update_window_decorations(window);
+        // Note: Opacity control would need custom implementation in wlroots 0.19
+        // wlr_scene_node_set_opacity(&window->scene_tree->node, 1.0);
 
         // Update keyboard focus
         if (manager->server && manager->server->seat && window->surface) {
