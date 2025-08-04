@@ -86,6 +86,7 @@ struct axiom_window {
     // Tiling properties
     bool is_tiled;
     bool is_focused;
+    bool is_floating;
     bool is_fullscreen;
     bool is_maximized;
     int x, y, width, height;

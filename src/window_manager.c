@@ -121,7 +121,33 @@ void axiom_update_window_decorations(struct axiom_window *window) {
 }
 
 
-// Tiling layout functionality (merged from tiling.c)
+// Advanced Tiling Engine Integration
+#include "advanced_tiling.h"
+
+static struct axiom_advanced_tiling_engine *tiling_engine = NULL;
+
+void axiom_window_manager_init_tiling(struct axiom_window_manager *manager) {
+    if (!manager) return;
+    tiling_engine = axiom_advanced_tiling_create(manager->server);
+}
+
+void axiom_window_manager_apply_tiling(struct axiom_window_manager *manager) {
+    if (!manager || !tiling_engine) return;
+
+    struct wlr_box workspace_box = {
+        .x = 0,
+        .y = 0,
+        .width = manager->workspace_width,
+        .height = manager->workspace_height
+    };
+
+    axiom_advanced_tiling_arrange_windows(tiling_engine, &manager->mapped_windows, &workspace_box);
+}
+
+// Getter function for accessing the tiling engine
+struct axiom_advanced_tiling_engine *axiom_window_manager_get_tiling_engine(void) {
+    return tiling_engine;
+}
 static enum axiom_layout_type current_layout = AXIOM_LAYOUT_MASTER_STACK;
 static float master_ratio = AXIOM_MASTER_RATIO_DEFAULT;
 
@@ -262,6 +288,9 @@ struct axiom_window_manager *axiom_window_manager_create(struct axiom_server *se
 
     manager->server = server;
     
+    // Initialize tiling engine
+    axiom_window_manager_init_tiling(manager); // Ensure tiling engine is initialized
+
     // Initialize window lists
     wl_list_init(&manager->all_windows);
     wl_list_init(&manager->mapped_windows);

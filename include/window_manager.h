@@ -204,6 +204,11 @@ void axiom_window_manager_arrange_workspace(struct axiom_window_manager *manager
 void axiom_window_manager_arrange_tiled_windows(struct axiom_window_manager *manager);
 void axiom_window_manager_update_window_layout(struct axiom_window_manager *manager, struct axiom_window *window);
 
+// Advanced tiling engine integration
+void axiom_window_manager_init_tiling(struct axiom_window_manager *manager);
+void axiom_window_manager_apply_tiling(struct axiom_window_manager *manager);
+struct axiom_advanced_tiling_engine *axiom_window_manager_get_tiling_engine(void);
+
 // Window operations
 void axiom_window_manager_maximize_window(struct axiom_window_manager *manager, struct axiom_window *window);
 void axiom_window_manager_unmaximize_window(struct axiom_window_manager *manager, struct axiom_window *window);

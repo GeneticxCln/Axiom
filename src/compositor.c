@@ -5,6 +5,7 @@
 #include "effects.h"
 #include "window_manager.h"
 #include "enhanced_xwayland.h"
+#include "keybindings.h"
 #include "logging.h"
 #include "memory.h"
 #include <stdio.h>
@@ -204,6 +205,15 @@ bool axiom_compositor_init(struct axiom_server *server, bool nested) {
     server->enhanced_xwayland_manager = axiom_enhanced_xwayland_manager_create(server);
     if (!server->enhanced_xwayland_manager) {
         AXIOM_LOG_WARN("Failed to initialize enhanced XWayland manager");
+    }
+    
+    // Initialize keybinding manager
+    server->keybinding_manager = calloc(1, sizeof(struct axiom_keybinding_manager));
+    if (server->keybinding_manager) {
+        axiom_keybinding_manager_init(server->keybinding_manager);
+        AXIOM_LOG_INFO("Keybinding manager initialized with default keybindings");
+    } else {
+        AXIOM_LOG_WARN("Failed to allocate memory for keybinding manager");
     }
 
     // Set up event listeners

@@ -191,6 +191,7 @@ axiom_sources = files(
   'src/keybindings.c',
   'src/focus.c',
   'src/window_manager.c',
+  'src/advanced_tiling.c',
   # Desktop integration protocols
   'src/layer_shell.c',
   'src/screenshot.c',

@@ -23,6 +23,7 @@
 #include "animation.h"
 #include "pip_manager.h"
 #include "logging.h"
+#include "advanced_tiling.h"
 
 // Forward declare window manager functions
 void axiom_window_manager_arrange_all(struct axiom_window_manager *manager);
@@ -35,29 +36,38 @@ void axiom_cycle_layout(struct axiom_server *server) {
         return;
     }
 
-    // Cycle through layouts: Master-Stack -> Grid -> Spiral -> Floating -> Master-Stack
-    enum axiom_layout_type current = axiom_get_layout();
-    enum axiom_layout_type next;
-    switch (current) {
-        case AXIOM_LAYOUT_MASTER_STACK:
-            next = AXIOM_LAYOUT_GRID;
-            break;
-        case AXIOM_LAYOUT_GRID:
-            next = AXIOM_LAYOUT_SPIRAL;
-            break;
-        case AXIOM_LAYOUT_SPIRAL:
-            next = AXIOM_LAYOUT_FLOATING;
-            break;
-        default:
-            next = AXIOM_LAYOUT_MASTER_STACK;
-            break;
+    // Use the advanced tiling engine for layout cycling
+    struct axiom_advanced_tiling_engine *tiling_engine = axiom_window_manager_get_tiling_engine();
+    if (tiling_engine) {
+        axiom_advanced_tiling_cycle_mode(tiling_engine);
+        AXIOM_LOG_INFO("Advanced tiling mode cycled to: %s", 
+                       axiom_tiling_mode_name(tiling_engine->current_mode));
+        
+        // Apply the new tiling layout
+        axiom_window_manager_apply_tiling(server->window_manager);
+    } else {
+        // Fallback to old layout system if advanced tiling not available
+        enum axiom_layout_type current = axiom_get_layout();
+        enum axiom_layout_type next;
+        switch (current) {
+            case AXIOM_LAYOUT_MASTER_STACK:
+                next = AXIOM_LAYOUT_GRID;
+                break;
+            case AXIOM_LAYOUT_GRID:
+                next = AXIOM_LAYOUT_SPIRAL;
+                break;
+            case AXIOM_LAYOUT_SPIRAL:
+                next = AXIOM_LAYOUT_FLOATING;
+                break;
+            default:
+                next = AXIOM_LAYOUT_MASTER_STACK;
+                break;
+        }
+        
+        axiom_set_layout(next);
+        AXIOM_LOG_INFO("Layout cycled to: %s", axiom_get_layout_name());
+        axiom_window_manager_arrange_all(server->window_manager);
     }
-
-    axiom_set_layout(next);
-    AXIOM_LOG_INFO("Layout cycled to: %s", axiom_get_layout_name());
-
-    // Rearrange windows to apply new layout
-    axiom_window_manager_arrange_all(server->window_manager);
 }
 
 void axiom_toggle_window_floating(struct axiom_server *server, struct axiom_window *window) {
@@ -86,7 +96,56 @@ void axiom_toggle_window_floating(struct axiom_server *server, struct axiom_wind
 }
 
 
-// Enhanced input manager (merged from input_enhanced.c)
+// Enhanced input handling with gesture support
+
+void axiom_input_handle_gesture(struct axiom_server *server, struct axiom_gesture_event *event) {
+    if (!server) return;
+
+    switch (event->type) {
+        case AXIOM_GESTURE_PINCH_IN:
+            AXIOM_LOG_INFO("Gesture: Pinch In detected at (%.1f, %.1f)", event->x, event->y);
+            // Implement pinch in action (e.g., zoom out)
+            break;
+        case AXIOM_GESTURE_PINCH_OUT:
+            AXIOM_LOG_INFO("Gesture: Pinch Out detected at (%.1f, %.1f)", event->x, event->y);
+            // Implement pinch out action (e.g., zoom in)
+            break;
+        case AXIOM_GESTURE_ROTATE_CW:
+            AXIOM_LOG_INFO("Gesture: Rotate Clockwise at (%.1f, %.1f)", event->x, event->y);
+            // Implement rotate clockwise action
+            break;
+        case AXIOM_GESTURE_ROTATE_CCW:
+            AXIOM_LOG_INFO("Gesture: Rotate Counter-Clockwise at (%.1f, %.1f)", event->x, event->y);
+            // Implement rotate counter-clockwise action
+            break;
+        default:
+            AXIOM_LOG_INFO("Unhandled gesture type: %d", event->type);
+            break;
+    }
+}
+
+// Input configuration dynamically loadable and savable
+void axiom_input_load_dynamic_config(struct axiom_input_manager *manager, const char *path) {
+    if (!manager || !path) return;
+
+    // Simulate loading configuration from a file
+    AXIOM_LOG_INFO("Loading input configuration from %s", path);
+
+    // Example of setting new defaults
+    manager->natural_scroll_default = true;
+    manager->tap_to_click_default = false;
+    manager->pointer_accel_default = 0.5;
+}
+
+void axiom_input_save_dynamic_config(struct axiom_input_manager *manager, const char *path) {
+    if (!manager || !path) return;
+
+    // Simulate saving configuration to a file
+    AXIOM_LOG_INFO("Saving input configuration to %s", path);
+
+    // Example of saving current settings
+    // This would typically involve writing to a file
+}
 struct axiom_input_manager *axiom_input_manager_create(struct axiom_server *server) {
     struct axiom_input_manager *manager = calloc(1, sizeof(struct axiom_input_manager));
     if (!manager) {
@@ -166,6 +225,42 @@ static bool handle_keybinding(struct axiom_server *server, xkb_keysym_t sym, uin
                 axiom_move_focused_window_to_workspace(server, workspace_num);
                 return true;
             }
+        case XKB_KEY_h:
+            // Move window left in tiling layout (Super+Shift+H)
+            if (server->focused_window && server->window_manager) {
+                // TODO: Implement window movement in tiling layout
+                AXIOM_LOG_INFO("Moving window left: %s", 
+                               server->focused_window->xdg_toplevel ? server->focused_window->xdg_toplevel->title : "(no title)");
+                return true;
+            }
+            break;
+        case XKB_KEY_j:
+            // Move window down in tiling layout (Super+Shift+J)
+            if (server->focused_window && server->window_manager) {
+                // TODO: Implement window movement in tiling layout
+                AXIOM_LOG_INFO("Moving window down: %s", 
+                               server->focused_window->xdg_toplevel ? server->focused_window->xdg_toplevel->title : "(no title)");
+                return true;
+            }
+            break;
+        case XKB_KEY_k:
+            // Move window up in tiling layout (Super+Shift+K)
+            if (server->focused_window && server->window_manager) {
+                // TODO: Implement window movement in tiling layout
+                AXIOM_LOG_INFO("Moving window up: %s", 
+                               server->focused_window->xdg_toplevel ? server->focused_window->xdg_toplevel->title : "(no title)");
+                return true;
+            }
+            break;
+        case XKB_KEY_l:
+            // Move window right in tiling layout (Super+Shift+L)
+            if (server->focused_window && server->window_manager) {
+                // TODO: Implement window movement in tiling layout
+                AXIOM_LOG_INFO("Moving window right: %s", 
+                               server->focused_window->xdg_toplevel ? server->focused_window->xdg_toplevel->title : "(no title)");
+                return true;
+            }
+            break;
         case XKB_KEY_p:
             // Cycle PiP corner position (Super+Shift+P)
             if (server->focused_window && server->pip_manager &&
@@ -237,14 +332,52 @@ static bool handle_keybinding(struct axiom_server *server, xkb_keysym_t sym, uin
             axiom_toggle_window_floating(server, server->focused_window);
             return true;
         case XKB_KEY_h:
-            // Decrease master ratio
-            axiom_adjust_master_ratio(-0.05f);
-            axiom_arrange_windows(server);
+            // Decrease master ratio using advanced tiling engine
+            {
+                struct axiom_advanced_tiling_engine *tiling_engine = axiom_window_manager_get_tiling_engine();
+                if (tiling_engine) {
+                    axiom_advanced_tiling_adjust_master_ratio(tiling_engine, -0.05f);
+                    axiom_window_manager_apply_tiling(server->window_manager);
+                } else {
+                    axiom_adjust_master_ratio(-0.05f);
+                    axiom_arrange_windows(server);
+                }
+            }
             return true;
         case XKB_KEY_j:
-            // Increase master ratio  
-            axiom_adjust_master_ratio(0.05f);
-            axiom_arrange_windows(server);
+            // Increase master ratio using advanced tiling engine
+            {
+                struct axiom_advanced_tiling_engine *tiling_engine = axiom_window_manager_get_tiling_engine();
+                if (tiling_engine) {
+                    axiom_advanced_tiling_adjust_master_ratio(tiling_engine, 0.05f);
+                    axiom_window_manager_apply_tiling(server->window_manager);
+                } else {
+                    axiom_adjust_master_ratio(0.05f);
+                    axiom_arrange_windows(server);
+                }
+            }
+            return true;
+        case XKB_KEY_i:
+            // Increase master count using advanced tiling engine
+            {
+                struct axiom_advanced_tiling_engine *tiling_engine = axiom_window_manager_get_tiling_engine();
+                if (tiling_engine) {
+                    axiom_advanced_tiling_adjust_master_count(tiling_engine, 1);
+                    axiom_window_manager_apply_tiling(server->window_manager);
+                    AXIOM_LOG_INFO("Increased master count");
+                }
+            }
+            return true;
+        case XKB_KEY_u:
+            // Decrease master count using advanced tiling engine
+            {
+                struct axiom_advanced_tiling_engine *tiling_engine = axiom_window_manager_get_tiling_engine();
+                if (tiling_engine) {
+                    axiom_advanced_tiling_adjust_master_count(tiling_engine, -1);
+                    axiom_window_manager_apply_tiling(server->window_manager);
+                    AXIOM_LOG_INFO("Decreased master count");
+                }
+            }
             return true;
         case XKB_KEY_r:
             // Reload configuration (Super+R)
